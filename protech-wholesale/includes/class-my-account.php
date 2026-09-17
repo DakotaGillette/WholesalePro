@@ -30,6 +30,40 @@ class MyAccount {
 		// through login_redirect at all.
 		add_filter( 'woocommerce_login_redirect', array( $this, 'woocommerce_login_redirect' ), 10, 2 );
 		add_action( 'woocommerce_before_account_navigation', array( $this, 'maybe_show_pending_notice' ) );
+
+		// Before Reorder's "your last order" prompt on the same hook (10).
+		add_action( 'woocommerce_account_dashboard', array( $this, 'render_wholesale_dashboard_panel' ), 5 );
+	}
+
+	/**
+	 * A short "your wholesale account" panel on the My Account dashboard:
+	 * where the current cart sits on the quantity ladder, what the next
+	 * tier unlocks, and the way back to the shop.
+	 */
+	public function render_wholesale_dashboard_panel(): void {
+		if ( ! Roles::is_wholesale_customer() ) {
+			return;
+		}
+
+		$labels = array(
+			VolumePricing::TIER_STANDARD => __( 'Standard pricing', 'protech-wholesale' ),
+			VolumePricing::TIER_VOLUME   => __( 'Volume pricing', 'protech-wholesale' ),
+			VolumePricing::TIER_BULK     => __( 'Bulk pricing', 'protech-wholesale' ),
+		);
+
+		$state = VolumePricing::get_tier_bar_state( get_current_user_id() );
+
+		wc_get_template(
+			'account-wholesale-panel.php',
+			array(
+				'state'      => $state,
+				'tier_label' => $labels[ $state['tier'] ] ?? '',
+				'shop_url'   => wc_get_page_permalink( 'shop' ),
+				'cart_url'   => wc_get_cart_url(),
+			),
+			'',
+			PROTECH_WHOLESALE_DIR . 'templates/'
+		);
 	}
 
 	/**

@@ -66,6 +66,109 @@
 	display: none;
 }
 
+/* -- Quantity-tier price table (single product page) -------------------- */
+.protech-tier-ladder {
+	margin: 0 0 1.25em;
+	padding: 1em 1.1em;
+	border: 1px solid var( --protech-border );
+	border-radius: var( --protech-radius );
+	background: var( --protech-bg-subtle );
+	font-family: var( --protech-font );
+}
+.protech-tier-ladder-title {
+	margin: 0 0 0.5em;
+	font-size: 0.8em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --protech-muted );
+}
+.protech-tier-ladder-table {
+	width: 100%;
+	margin: 0;
+	border-collapse: collapse;
+	font-size: 0.9em;
+}
+.protech-tier-ladder-table th,
+.protech-tier-ladder-table td {
+	padding: 0.45em 0.5em;
+	border: 0;
+	border-bottom: 1px solid var( --protech-border );
+	text-align: left;
+	vertical-align: middle;
+	background: transparent;
+}
+.protech-tier-ladder-table th {
+	font-size: 0.8em;
+	font-weight: 600;
+	color: var( --protech-muted );
+}
+.protech-tier-ladder-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+.protech-tier-ladder-price {
+	font-weight: 700;
+	white-space: nowrap;
+}
+.protech-tier-ladder-row.is-active td {
+	background: var( --protech-bg );
+}
+.protech-tier-ladder-badge {
+	display: inline-block;
+	margin-left: 0.4em;
+	padding: 0.1em 0.5em;
+	font-size: 0.7em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #fff;
+	background: var( --protech-accent );
+	border-radius: 3px;
+	vertical-align: middle;
+}
+.protech-tier-ladder-note {
+	display: block;
+	font-size: 0.8em;
+	font-weight: 600;
+	color: var( --protech-accent-dark );
+}
+.protech-tier-ladder-footnote {
+	margin: 0.6em 0 0;
+	font-size: 0.78em;
+	color: var( --protech-muted );
+}
+
+/* -- "Your wholesale account" panel (My Account dashboard) -------------- */
+.protech-account-panel {
+	margin: 0 0 1.5em;
+	padding: 1.1em 1.25em;
+	border: 1px solid var( --protech-border );
+	border-left: 4px solid var( --protech-accent );
+	border-radius: var( --protech-radius );
+	background: var( --protech-bg-subtle );
+	font-family: var( --protech-font );
+}
+.protech-account-panel-title {
+	margin: 0 0 0.5em;
+	font-size: 1.05em;
+}
+.protech-account-panel-status {
+	margin: 0 0 0.6em;
+}
+.protech-account-panel-message {
+	display: block;
+	font-weight: 600;
+}
+.protech-account-panel-tiers {
+	margin: 0 0 0.9em 1.2em;
+	padding: 0;
+	font-size: 0.9em;
+	color: var( --protech-muted );
+}
+.protech-account-panel-actions .button {
+	margin-right: 1em;
+}
+
 /* -- Reorder prompt (My Account dashboard) ------------------------------ */
 .protech-reorder-note {
 	margin: 0 0 1em;
@@ -97,6 +200,14 @@
 	font-family: var( --protech-font );
 	background: var( --protech-bg );
 	box-shadow: 0 -4px 14px rgba( 0, 0, 0, 0.16 );
+	/* Clear the iPhone home indicator / gesture area. */
+	padding-bottom: env( safe-area-inset-bottom, 0 );
+}
+@media ( prefers-reduced-motion: reduce ) {
+	.protech-tier-bar-fill,
+	.protech-tier-bar-cta {
+		transition: none;
+	}
 }
 .protech-tier-bar-header {
 	position: relative;

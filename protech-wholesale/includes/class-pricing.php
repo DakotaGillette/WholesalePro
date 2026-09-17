@@ -109,7 +109,7 @@ class Pricing {
 	 * argument and silently overwrite whatever set_price() had done.
 	 * Making the filter itself cart-aware avoids that race entirely.
 	 */
-	private static function get_current_tier( int $user_id ): string {
+	public static function get_current_tier( int $user_id ): string {
 		// No cart before wp_loaded (WooCommerce warns if get_cart() is
 		// called earlier), none at all in admin/REST/cron contexts.
 		if ( ! $user_id || ! function_exists( 'WC' ) || null === WC()->cart || ! did_action( 'wp_loaded' ) ) {

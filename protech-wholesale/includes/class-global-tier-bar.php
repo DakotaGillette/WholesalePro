@@ -37,7 +37,18 @@ class GlobalTierBar {
 	 * load this feature's script.
 	 */
 	public static function should_render(): bool {
-		return ! is_admin() && Roles::is_wholesale_customer();
+		if ( is_admin() || ! Roles::is_wholesale_customer() ) {
+			return false;
+		}
+
+		// Not over the checkout form or the order-received page: the cart
+		// is decided by then, and on a phone the bar would sit on top of
+		// the "Place order" button.
+		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	public function render(): void {

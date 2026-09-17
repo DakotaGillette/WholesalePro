@@ -23,9 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	class="protech-tier-bar"
 	id="protech-global-tier-bar"
 	data-active-tier="<?php echo esc_attr( $state['tier'] ); ?>"
+	role="region"
+	aria-label="<?php esc_attr_e( 'Wholesale pricing progress', 'protech-wholesale' ); ?>"
 >
 	<div class="protech-tier-bar-header">
-		<p class="protech-tier-bar-message" id="protech-global-tier-bar-message"><?php echo esc_html( $state['message'] ); ?></p>
+		<p class="protech-tier-bar-message" id="protech-global-tier-bar-message" role="status" aria-live="polite"><?php echo esc_html( $state['message'] ); ?></p>
 		<div class="protech-tier-bar-totals">
 			<span class="protech-tier-bar-total-price" id="protech-global-tier-bar-subtotal"><?php echo wp_kses_post( $state['subtotal_html'] ); ?></span>
 			<span class="protech-tier-bar-total-count" id="protech-global-tier-bar-stats"><?php echo esc_html( $state['stats'] ); ?></span>
@@ -34,12 +36,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<div class="protech-tier-bar-panel">
 		<div class="protech-tier-bar-track">
 			<div class="protech-tier-bar-fill" id="protech-global-tier-bar-fill" style="width:<?php echo esc_attr( (string) $state['fill_percent'] ); ?>%"></div>
-			<div class="protech-tier-marker protech-tier-marker--volume" id="protech-global-tier-bar-marker-volume" style="left:<?php echo esc_attr( (string) $state['volume_marker_percent'] ); ?>%">
+			<div class="protech-tier-marker protech-tier-marker--volume" id="protech-global-tier-bar-marker-volume" style="left:<?php echo esc_attr( (string) $state['volume_marker_percent'] ); ?>%" title="<?php echo esc_attr( sprintf( /* translators: %d: number of displays. */ __( 'Volume pricing and free shipping at %d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ) ); ?>">
 				<span class="protech-tier-marker-label"><?php echo esc_html( sprintf( /* translators: %d: number of displays. */ __( '%d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ) ); ?></span>
 				<span class="protech-tier-marker-dot"></span>
 				<span class="protech-tier-marker-reward"><?php esc_html_e( 'Free shipping', 'protech-wholesale' ); ?></span>
 			</div>
-			<div class="protech-tier-marker protech-tier-marker--bulk" style="left:100%">
+			<div class="protech-tier-marker protech-tier-marker--bulk" style="left:100%" title="<?php echo esc_attr( sprintf( /* translators: %d: number of cases. */ __( 'Best price at %d cases', 'protech-wholesale' ), $state['bulk_threshold_cases'] ) ); ?>">
 				<span class="protech-tier-marker-label"><?php echo esc_html( sprintf( /* translators: %d: number of cases. */ __( '%d cases', 'protech-wholesale' ), $state['bulk_threshold_cases'] ) ); ?></span>
 				<span class="protech-tier-marker-dot"></span>
 				<span class="protech-tier-marker-reward"><?php esc_html_e( 'Best price', 'protech-wholesale' ); ?></span>

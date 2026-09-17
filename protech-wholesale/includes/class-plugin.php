@@ -43,6 +43,7 @@ final class Plugin {
 	private OrdersAdmin $orders_admin;
 	private Emails $emails;
 	private GlobalTierBar $global_tier_bar;
+	private TierLadder $tier_ladder;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -77,6 +78,7 @@ final class Plugin {
 		$this->orders_admin      = new OrdersAdmin();
 		$this->emails            = new Emails();
 		$this->global_tier_bar   = new GlobalTierBar();
+		$this->tier_ladder       = new TierLadder();
 
 		foreach (
 			array(
@@ -96,6 +98,7 @@ final class Plugin {
 				$this->orders_admin,
 				$this->emails,
 				$this->global_tier_bar,
+				$this->tier_ladder,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -262,6 +265,15 @@ final class Plugin {
 
 		if ( ! $is_product_screen && ! $is_wholesale_screen && ! $is_user_screen ) {
 			return;
+		}
+
+		if ( $is_user_screen ) {
+			// The per-customer price override product picker is WooCommerce's
+			// own enhanced select (selectWoo + its product search AJAX).
+			// WooCommerce registers it on every admin screen but only
+			// enqueues it on its own screens.
+			wp_enqueue_script( 'wc-enhanced-select' );
+			wp_enqueue_style( 'woocommerce_admin_styles' );
 		}
 
 		wp_enqueue_script(
