@@ -1,0 +1,15 @@
+includes:
+	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+	level: 5
+	paths:
+		- protech-wholesale.php
+		- uninstall.php
+		- includes
+	scanFiles:
+		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+	ignoreErrors:
+		# Third-party form plugin classes are only present when that plugin is installed.
+		- '#Call to static method get_instance\(\) on an unknown class WPCF7_Submission#'
+		- '#Parameter \$contact_form of method .* has invalid type WPCF7_ContactForm#'

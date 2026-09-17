@@ -65,6 +65,9 @@ PLUGIN_DEST="${CW_SSH_USER}@${CW_SSH_HOST}:${CW_APP_PATH}/wp-content/plugins/pro
 
 echo "Deploying protech-wholesale to staging (${CW_STAGING_URL}) ..."
 
+# Dev-only tooling (Composer vendor/, the test suite, lint/analysis
+# configs) never ships to the server — nothing in the plugin's runtime
+# loads any of it.
 rsync -avz --delete \
 	-e "${SSH_CMD[*]}" \
 	--exclude ".git" \
@@ -73,6 +76,13 @@ rsync -avz --delete \
 	--exclude "*.log" \
 	--exclude ".idea" \
 	--exclude ".vscode" \
+	--exclude "vendor/" \
+	--exclude "tests/" \
+	--exclude "composer.json" \
+	--exclude "composer.lock" \
+	--exclude "phpunit.xml.dist" \
+	--exclude "phpstan.neon.dist" \
+	--exclude ".phpcs.xml.dist" \
 	"${PLUGIN_SRC}" \
 	"${PLUGIN_DEST}"
 

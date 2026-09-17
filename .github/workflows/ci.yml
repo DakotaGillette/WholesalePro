@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Lint, analyse, and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+          coverage: none
+
+      - name: Install dev dependencies
+        working-directory: protech-wholesale
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # Lint and static analysis are advisory until the existing backlog of
+      # WPCS/PHPStan findings has been worked through; the test suite is the gate.
+      - name: PHPCS (advisory)
+        working-directory: protech-wholesale
+        run: composer lint
+        continue-on-error: true
+
+      - name: PHPStan (advisory)
+        working-directory: protech-wholesale
+        run: composer analyse
+        continue-on-error: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Start wp-env (WordPress + WooCommerce + this plugin)
+        run: npx --yes @wordpress/env@latest start
+
+      - name: PHPUnit (inside the wp-env tests container)
+        run: npx --yes @wordpress/env@latest run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit

@@ -7,23 +7,38 @@
  * before WP's own test suite finishes bootstrapping and starts firing
  * `plugins_loaded`/`init`), then hand off to the WP test bootstrap.
  *
+ * Run it with wp-env (Docker required):
+ *   npx wp-env start
+ *   npx wp-env run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit
+ *
  * @package ProtechWholesale
  */
 
 // phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 
+// PHPUnit + the Yoast polyfills the WP test library requires.
+$_composer_autoload = dirname( __DIR__ ) . '/vendor/autoload.php';
+
+if ( file_exists( $_composer_autoload ) ) {
+	require_once $_composer_autoload;
+}
+
 $_tests_dir = getenv( 'WP_TESTS_DIR' );
 
 if ( ! $_tests_dir ) {
-	// Matches the directory the common `install-wp-tests.sh` / wp-env
-	// convention checks out the WP test library into.
-	$_tests_dir = '/tmp/wordpress-tests-lib';
+	// wp-env's tests container ships the library here; install-wp-tests.sh
+	// convention is the /tmp path.
+	foreach ( array( '/wordpress-phpunit', '/tmp/wordpress-tests-lib' ) as $_candidate ) {
+		if ( file_exists( $_candidate . '/includes/functions.php' ) ) {
+			$_tests_dir = $_candidate;
+			break;
+		}
+	}
 }
 
-if ( ! file_exists( $_tests_dir . '/includes/functions.php' ) ) {
-	echo "Could not find {$_tests_dir}/includes/functions.php" . PHP_EOL;
-	echo 'Have you run bin/install-wp-tests.sh, or started this project with wp-env (`npx wp-env start`)?' . PHP_EOL;
-	echo 'Set the WP_TESTS_DIR environment variable if the test library lives somewhere else.' . PHP_EOL;
+if ( ! $_tests_dir || ! file_exists( $_tests_dir . '/includes/functions.php' ) ) {
+	echo 'Could not find the WordPress PHPUnit test library.' . PHP_EOL;
+	echo 'Start this project with wp-env (`npx wp-env start`) and run PHPUnit inside it, or set WP_TESTS_DIR.' . PHP_EOL;
 	exit( 1 );
 }
 
@@ -48,22 +63,39 @@ function _protech_wholesale_manually_load_plugin(): void {
 
 	require $woocommerce;
 	require dirname( __DIR__ ) . '/protech-wholesale.php';
+
+	// Cookie-free session so cart operations work under PHPUnit.
+	require_once __DIR__ . '/helpers/class-protech-mock-session-handler.php';
+	add_filter(
+		'woocommerce_session_handler',
+		static function (): string {
+			return 'Protech_Mock_Session_Handler';
+		}
+	);
 }
 tests_add_filter( 'muplugins_loaded', '_protech_wholesale_manually_load_plugin' );
+
+/**
+ * WooCommerce only installs its tables and roles on activation; the test
+ * install never activates it, so trigger the installer once the suite is
+ * up and reload the role registry so 'customer'/'shop_manager' exist.
+ */
+function _protech_wholesale_install_woocommerce(): void {
+	if ( ! class_exists( 'WC_Install' ) ) {
+		return;
+	}
+
+	WC_Install::install();
+	update_option( 'woocommerce_db_version', WC()->version );
+
+	$GLOBALS['wp_roles'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+	wp_roles();
+}
+tests_add_filter( 'setup_theme', '_protech_wholesale_install_woocommerce' );
 
 // Start up the WP testing environment.
 require $_tests_dir . '/includes/bootstrap.php';
 
-// WooCommerce ships its own test helper classes (WC_Helper_Product,
-// WC_Helper_Order, ...) under its own PHPUnit test tree; they aren't
-// autoloaded by WooCommerce itself. Pull them in if present so our tests can
-// use them, but degrade gracefully (each test falls back to plain
-// wc_get_product()/wc_create_order() calls) when they aren't installed,
-// since a WooCommerce release zip doesn't always ship its tests/ directory.
-$_wc_helpers_dir = WP_PLUGIN_DIR . '/woocommerce/tests/legacy/unit-tests/helpers';
-
-if ( is_dir( $_wc_helpers_dir ) ) {
-	foreach ( glob( $_wc_helpers_dir . '/*.php' ) as $_wc_helper_file ) {
-		require_once $_wc_helper_file;
-	}
-}
+// Test-side factory for the objects most tests need (simple/variable
+// products with wholesale meta, wholesale customers, orders).
+require_once __DIR__ . '/helpers/class-protech-test-factory.php';
