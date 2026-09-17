@@ -244,20 +244,72 @@ class ApplicationForm {
 			return;
 		}
 
-		if ( ! function_exists( 'wpFluent' ) ) {
-			return;
+		// Fluent Forms fires this hook inside a try/catch that only
+		// catches \Exception, not \Error/\TypeError — anything this
+		// adapter throws would otherwise vanish silently instead of
+		// showing up anywhere. Catch everything and log it.
+		try {
+			// The Form model's DB column is `form_fields`, not `fields`
+			// (confirmed against Fluent Forms 6.2.14's FluentForm\App\Models\Form).
+			$fields = json_decode( (string) ( $form->form_fields ?? '{}' ), true );
+			$values = array();
+
+			foreach ( $this->flatten_fluent_fields( $fields['fields'] ?? array() ) as $field ) {
+				$name    = (string) ( $field['attributes']['name'] ?? '' );
+				$element = (string) ( $field['element'] ?? '' );
+
+				// The "Terms & Conditions" element has no settings.label at
+				// all — its consent text lives in settings.tnc_html instead.
+				if ( 'terms_and_condition' === $element ) {
+					$label = wp_strip_all_tags( (string) ( $field['settings']['tnc_html'] ?? $name ) );
+				} else {
+					$label = (string) ( $field['settings']['label'] ?? $name );
+				}
+
+				$raw_value = $form_data[ $name ] ?? '';
+
+				// The Name element's first/last sub-values should read as
+				// "First Last", not flatten_value()'s generic ", "-joined form.
+				if ( 'input_name' === $element && is_array( $raw_value ) ) {
+					$values[ $label ] = trim( ( $raw_value['first_name'] ?? '' ) . ' ' . ( $raw_value['last_name'] ?? '' ) );
+				} else {
+					$values[ $label ] = $this->flatten_value( $raw_value );
+				}
+			}
+
+			$this->create_pending_applicant( $this->map_labeled_values( $values ) );
+		} catch ( \Throwable $e ) {
+			Logger::error( "Fluent Forms adapter failed on entry #{$entry_id}: " . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine() );
+		}
+	}
+
+	/**
+	 * Fluent Forms' "Two Column"/"Three Column" layout elements
+	 * (element === 'container') nest their real fields inside
+	 * `columns[].fields[]` rather than listing them flat — a form built
+	 * with any multi-column rows (like the live wholesale application
+	 * form's Title/Phone and Business Name rows) would otherwise have
+	 * those fields silently skipped entirely. Recurses in case of a
+	 * container nested inside another container.
+	 *
+	 * @param array<int, array<string, mixed>> $fields
+	 * @return array<int, array<string, mixed>> Flat list of leaf field definitions.
+	 */
+	private function flatten_fluent_fields( array $fields ): array {
+		$flat = array();
+
+		foreach ( $fields as $field ) {
+			if ( isset( $field['columns'] ) && is_array( $field['columns'] ) ) {
+				foreach ( $field['columns'] as $column ) {
+					$flat = array_merge( $flat, $this->flatten_fluent_fields( $column['fields'] ?? array() ) );
+				}
+				continue;
+			}
+
+			$flat[] = $field;
 		}
 
-		$fields = json_decode( (string) ( $form->fields ?? '{}' ), true );
-		$values = array();
-
-		foreach ( $fields['fields'] ?? array() as $field ) {
-			$name             = (string) ( $field['attributes']['name'] ?? '' );
-			$label            = (string) ( $field['settings']['label'] ?? $name );
-			$values[ $label ] = $this->flatten_value( $form_data[ $name ] ?? '' );
-		}
-
-		$this->create_pending_applicant( $this->map_labeled_values( $values ) );
+		return $flat;
 	}
 
 	/**
@@ -299,7 +351,10 @@ class ApplicationForm {
 				'email'                   => array( 'email' ),
 				'store_name'              => array( 'business name', 'store name', 'shop name', 'company name' ),
 				'business_type'           => array( 'business type', 'type of business' ),
-				'address'                 => array( 'address' ),
+				// Not the bare word "address" — it's a substring of "Email
+				// Address" too, which appears earlier in the form and would
+				// otherwise win the match first.
+				'address'                 => array( 'store address', 'physical store', 'business address', 'mailing address' ),
 				'website'                 => array( 'website', 'website url', 'store website' ),
 				'sales_channels'          => array( 'primarily sell', 'sales channels', 'where do you sell', 'how do you sell' ),
 				'tcgs_carried'            => array( 'tcg games', 'tcgs carried', 'which tcgs', 'tcgs you carry', 'trading card games' ),

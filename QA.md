@@ -4,6 +4,8 @@ Run this on the Cloudways staging site (never production) after deploying with `
 
 ## 1. Application → approval flow
 
+> Field mapping already verified live (2026-09-17): 10 real submissions through the actual `/wholesale-application` Fluent Forms form (entry IDs 85–94), confirming all 13 fields map correctly in both the "Yes" and "No" hosts-events directions, and that Approve correctly switches the role. See `DECISIONS.md` for the bugs that surfaced and were fixed along the way. The steps below are still worth spot-checking (especially the emails, which weren't the focus of that pass) but the core mapping logic is no longer a guess.
+
 - [ ] Log out (or use a private window). Visit `/wholesale-application` and submit a complete application (all fields the form asks for: name, title, phone, email, store name, business type, address, website, sales channels, TCGs carried, hosts events, estimated monthly spend, accuracy confirmation).
 - [ ] Confirm a new WordPress user was created (Users list) with the role **Wholesale Applicant (Pending)**.
 - [ ] Confirm the applicant's inbox received "We received your wholesale application" with the 1–3 business day language.

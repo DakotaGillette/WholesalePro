@@ -46,6 +46,47 @@ confirmed directly against `wordpress-1394472-6677194.cloudwaysapps.com`:
    site and there was nothing live to verify it against. Revisit if a
    site using that adapter ever comes up.
 
+   **The adapter was then run against the live form for real** (ten
+   submissions through the actual AJAX endpoint the front-end JS uses,
+   with the resulting pending applicants inspected in wp-admin, then
+   deleted). That surfaced four more bugs no amount of reading the field
+   labels off the rendered page would have caught, since they were about
+   the JSON schema Fluent Forms hands the hook, not the labels themselves:
+   - `$form->fields` doesn't exist on Fluent Forms 6.2.14's `Form` model —
+     the field schema is under `$form->form_fields`. This alone made the
+     adapter silently process zero fields.
+   - The site's form uses "Two Column Container" layout elements (Title +
+     Phone in one row, Email + Business Name in another). Fluent Forms
+     nests the real fields inside `columns[].fields[]` on those, not flat
+     in the top-level list — `flatten_fluent_fields()` now recurses into
+     containers to find them.
+   - The Terms & Conditions element has no `settings.label` at all; its
+     consent text lives in `settings.tnc_html`. Without special-casing
+     `element === 'terms_and_condition'`, `accuracy_confirmation` could
+     never match.
+   - The bare synonym `'address'` matched **"Email Address"** before ever
+     reaching "Physical Store Address" (email comes first in the field
+     order), silently overwriting the applicant's address with their own
+     email. Narrowed to `'store address'` / `'physical store'` /
+     `'business address'` / `'mailing address'`.
+
+   Also confirmed the earlier concern about the guessed synonym list was
+   justified: the live labels ("Position / Title", "Business Phone
+   Number", a paragraph-length hosts-events question) would have matched
+   almost nothing under the original exact-match logic. The `wpFluent()`
+   existence guard from the initial build was also removed — that
+   function doesn't exist in this Fluent Forms version, so the guard was
+   silently killing every submission before the (still-broken-at-the-time)
+   `$form->fields` bug even mattered.
+
+   Net result: all 13 fields (name, title, phone, email, store name,
+   business type, address, website, sales channels, TCGs carried,
+   hosts-events, estimated spend, accuracy confirmation) now map
+   correctly, in both the "Yes" and "No" hosts-events directions, verified
+   by inspecting the created pending applicant's user meta directly. The
+   full Approve flow (role change to `wholesale_customer`, showing up
+   under the Approved tab) was verified too.
+
 2. **Classic vs. Blocks cart/checkout**: **both the Cart (page 838) and
    Checkout (page 839) pages are WooCommerce Blocks**, not the classic
    shortcodes, on WooCommerce 11.1.0. The Store API hooks in
