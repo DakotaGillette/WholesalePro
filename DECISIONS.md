@@ -7,7 +7,7 @@ change later (a setting, a constant, or a small code change).
 
 ## Post-launch additions (2026-09-17)
 
-Two features added after the initial build, based on direct feedback:
+Three features added after the initial build, based on direct feedback:
 
 1. **Default case size** is now a real setting (WooCommerce → Wholesale →
    Settings) instead of a hardcoded constant. Per-product/variation case
@@ -38,13 +38,34 @@ Two features added after the initial build, based on direct feedback:
    sit *between* the global default and the existing per-customer
    override layer: precedence is now per-customer override > tier >
    global default, for both the minimum order subtotal and a percentage
-   discount off each product's group wholesale price. **Decision**:
-   Bronze has no row in the Tiers settings table — it *is* the existing
-   global default (Settings::get_min_order(), the group price with 0%
-   discount), so "everyone starts on Bronze" needed no extra state.
-   Silver/Gold/Platinum each get an optional minimum-order override and
-   discount percentage under WooCommerce → Wholesale → Tiers. See
-   `class-tiers.php`.
+   discount off each product's group wholesale price. Silver/Gold/
+   Platinum each get an optional minimum-order override and discount
+   percentage under WooCommerce → Wholesale → Tiers. See `class-tiers.php`.
+
+   **Follow-up (same day)**: the global minimum order subtotal and
+   default case size — originally on the Settings tab — moved to live in
+   the Tiers tab instead, as directly-editable fields on the Bronze row
+   (still the same two options under the hood, `Settings::OPT_MIN_ORDER`
+   / `OPT_DEFAULT_CASE_SIZE` — Bronze row edits them in place rather than
+   duplicating them into separate tier-specific storage), so every
+   tier-related setting — including the base one everyone starts on —
+   lives on one screen.
+
+4. **Exact application form ID**: alongside "which plugin renders
+   `/wholesale-application`," there's now a companion "Application form
+   ID" setting (`Settings::OPT_APPLICATION_FORM_ID`, default `'4'` —
+   Fluent Forms' confirmed real form ID on this site). Without it, *any*
+   form built with the selected plugin — a contact form, a newsletter
+   signup, anything else on the site using the same form plugin — would
+   have every submission funneled into `create_pending_applicant()`.
+   Left empty, the setting falls back to the old "any form from this
+   plugin" behavior. Verified live against the real Fluent Forms form
+   after adding this — a fresh submission still correctly created a
+   pending applicant with form ID `4` configured.
+
+   The Gravity Forms/WPForms lookups (`$form['id']` / `$form_data['id']`)
+   couldn't be verified live since neither plugin is installed on this
+   site — flagged the same way the GF composite-field caveat already is.
 
 ## Verified against staging (2026-09-17)
 

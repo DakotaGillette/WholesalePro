@@ -138,14 +138,25 @@ class Tiers {
 		wp_nonce_field( 'protech_wholesale_save_tiers', 'protech_wholesale_tiers_nonce' );
 
 		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Tier', 'protech-wholesale' ), __( 'Minimum order override', 'protech-wholesale' ), __( 'Discount off wholesale price', 'protech-wholesale' ) ) as $heading ) {
+		foreach (
+			array(
+				__( 'Tier', 'protech-wholesale' ),
+				__( 'Minimum order', 'protech-wholesale' ),
+				__( 'Default case size', 'protech-wholesale' ),
+				__( 'Discount off wholesale price', 'protech-wholesale' ),
+			) as $heading
+		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
 
+		// Bronze IS the global default — edited here directly rather than
+		// as a separate per-tier override, since every other tier falls
+		// back to these same two values.
 		echo '<tr>';
 		echo '<td><strong>' . esc_html( $labels[ self::BRONZE ] ) . '</strong></td>';
-		echo '<td>' . esc_html__( 'Uses the global minimum order setting.', 'protech-wholesale' ) . '</td>';
+		echo '<td><input type="number" step="0.01" min="0" name="protech_min_order" value="' . esc_attr( (string) Settings::get_min_order() ) . '" /></td>';
+		echo '<td><input type="number" step="1" min="1" name="protech_default_case_size" value="' . esc_attr( (string) Settings::get_default_case_size() ) . '" /></td>';
 		echo '<td>' . esc_html__( 'No discount — each product\'s wholesale price as set.', 'protech-wholesale' ) . '</td>';
 		echo '</tr>';
 
@@ -156,6 +167,7 @@ class Tiers {
 			echo '<tr>';
 			echo '<td><strong>' . esc_html( $labels[ $tier ] ) . '</strong></td>';
 			echo '<td><input type="number" step="0.01" min="0" name="protech_tier[' . esc_attr( $tier ) . '][min_order]" value="' . esc_attr( (string) $min_order ) . '" placeholder="' . esc_attr( (string) Settings::get_min_order() ) . '" /></td>';
+			echo '<td>&#8212;</td>';
 			echo '<td><input type="number" step="0.01" min="0" max="100" name="protech_tier[' . esc_attr( $tier ) . '][discount_percent]" value="' . esc_attr( (string) $discount ) . '" placeholder="0" />%</td>';
 			echo '</tr>';
 		}
@@ -166,6 +178,18 @@ class Tiers {
 	}
 
 	private static function save_tiers_tab(): void {
+		$min_order = isset( $_POST['protech_min_order'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['protech_min_order'] ) ) : '';
+
+		if ( is_numeric( $min_order ) ) {
+			update_option( Settings::OPT_MIN_ORDER, (string) round( (float) $min_order, 2 ) );
+		}
+
+		$case_size = isset( $_POST['protech_default_case_size'] ) ? absint( $_POST['protech_default_case_size'] ) : 0;
+
+		if ( $case_size > 0 ) {
+			update_option( Settings::OPT_DEFAULT_CASE_SIZE, (string) $case_size );
+		}
+
 		$posted = $_POST['protech_tier'] ?? array();
 		$clean  = array();
 

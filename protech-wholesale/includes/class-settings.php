@@ -27,6 +27,7 @@ class Settings {
 	public const OPT_ALLOW_RETAIL_COUPONS   = 'protech_wholesale_allow_retail_coupons'; // 'no' | 'yes'.
 	public const OPT_EXCLUDE_FREE_SHIPPING  = 'protech_wholesale_exclude_free_shipping'; // 'yes' | 'no'.
 	public const OPT_APPLICATION_SOURCE     = 'protech_wholesale_application_source';
+	public const OPT_APPLICATION_FORM_ID    = 'protech_wholesale_application_form_id'; // '' = accept any form from that plugin.
 	public const OPT_PURGE_ON_UNINSTALL     = 'protech_wholesale_purge_on_uninstall'; // 'no' | 'yes'.
 
 	public const SETTINGS_UPDATED_QUERY_ARG = 'protech-wholesale-settings-updated';
@@ -41,9 +42,10 @@ class Settings {
 			self::OPT_EMPTY_PRICE_BEHAVIOR   => 'hide',
 			self::OPT_ALLOW_RETAIL_COUPONS   => 'no',
 			self::OPT_EXCLUDE_FREE_SHIPPING  => 'yes',
-			// Confirmed against staging 2026-09-17 — Fluent Forms renders
-			// /wholesale-application (form #4). See DECISIONS.md.
+			// Confirmed against staging 2026-09-17 — Fluent Forms form #4
+			// renders /wholesale-application. See DECISIONS.md.
 			self::OPT_APPLICATION_SOURCE     => ApplicationForm::SOURCE_FLUENT_FORMS,
+			self::OPT_APPLICATION_FORM_ID    => '4',
 			self::OPT_PURGE_ON_UNINSTALL     => 'no',
 		);
 	}
@@ -60,30 +62,9 @@ class Settings {
 		return array(
 			array(
 				'title' => __( 'Wholesale Settings', 'protech-wholesale' ),
+				'desc'  => __( 'The minimum order subtotal and default case size moved to the Tiers tab (as the Bronze row) — everything tier-related lives there now.', 'protech-wholesale' ),
 				'type'  => 'title',
 				'id'    => 'protech_wholesale_settings_title',
-			),
-			array(
-				'title'    => __( 'Minimum wholesale order subtotal', 'protech-wholesale' ),
-				'desc'     => __( 'Global minimum; overridable per customer on their user profile.', 'protech-wholesale' ),
-				'id'       => self::OPT_MIN_ORDER,
-				'type'     => 'number',
-				'default'  => '800',
-				'desc_tip' => true,
-				'css'      => 'width:100px;',
-			),
-			array(
-				'title'             => __( 'Default case size (packs)', 'protech-wholesale' ),
-				'desc'              => __( 'Used for any product/variation that does not set its own case size in the product data panel.', 'protech-wholesale' ),
-				'id'                => self::OPT_DEFAULT_CASE_SIZE,
-				'type'              => 'number',
-				'default'           => (string) ProductFields::DEFAULT_CASE_SIZE,
-				'desc_tip'          => true,
-				'css'               => 'width:100px;',
-				'custom_attributes' => array(
-					'min'  => '1',
-					'step' => '1',
-				),
 			),
 			array(
 				'title'   => __( 'Products with no wholesale price', 'protech-wholesale' ),
@@ -116,6 +97,15 @@ class Settings {
 				'type'    => 'select',
 				'default' => ApplicationForm::SOURCE_FLUENT_FORMS,
 				'options' => ApplicationForm::get_source_labels(),
+			),
+			array(
+				'title'    => __( 'Application form ID', 'protech-wholesale' ),
+				'desc'     => __( "The specific form's ID within the plugin selected above (e.g. Fluent Forms' own numeric form ID — check its Forms list). Leave empty to accept submissions from any form built with that plugin, which isn't recommended if the site has other forms (a contact form, newsletter signup, etc.) built with the same plugin.", 'protech-wholesale' ),
+				'id'       => self::OPT_APPLICATION_FORM_ID,
+				'type'     => 'text',
+				'default'  => '4',
+				'desc_tip' => true,
+				'css'      => 'width:100px;',
 			),
 			array(
 				'title'   => __( 'On uninstall', 'protech-wholesale' ),
@@ -159,10 +149,12 @@ class Settings {
 		echo '</form>';
 	}
 
+	/** Editable under WooCommerce → Wholesale → Tiers, as the Bronze row — not this Settings tab. */
 	public static function get_min_order(): float {
 		return (float) get_option( self::OPT_MIN_ORDER, 800 );
 	}
 
+	/** Editable under WooCommerce → Wholesale → Tiers, as the Bronze row — not this Settings tab. */
 	public static function get_default_case_size(): int {
 		$value = (int) get_option( self::OPT_DEFAULT_CASE_SIZE, ProductFields::DEFAULT_CASE_SIZE );
 
@@ -183,6 +175,11 @@ class Settings {
 
 	public static function application_source(): string {
 		return (string) get_option( self::OPT_APPLICATION_SOURCE, ApplicationForm::SOURCE_NATIVE );
+	}
+
+	/** Empty string means "accept any form built with the selected plugin." */
+	public static function application_form_id(): string {
+		return trim( (string) get_option( self::OPT_APPLICATION_FORM_ID, '' ) );
 	}
 
 	public static function purge_on_uninstall(): bool {

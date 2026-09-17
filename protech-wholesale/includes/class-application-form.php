@@ -170,11 +170,26 @@ class ApplicationForm {
 	// -----------------------------------------------------------------
 
 	/**
+	 * True if Settings::application_form_id() is empty (accept any form
+	 * built with the selected plugin) or matches the submitted form's ID.
+	 * Without this, a site with more than one form built on the same
+	 * plugin (a contact form alongside the wholesale application, say)
+	 * would have every one of them funneled into create_pending_applicant().
+	 *
+	 * @param int|string $form_id
+	 */
+	private function is_target_form( $form_id ): bool {
+		$configured = Settings::application_form_id();
+
+		return '' === $configured || (string) $form_id === $configured;
+	}
+
+	/**
 	 * @param array $entry Gravity Forms entry.
 	 * @param array $form  Gravity Forms form definition.
 	 */
 	public function handle_gravity_forms( array $entry, array $form ): void {
-		if ( Settings::application_source() !== self::SOURCE_GRAVITY ) {
+		if ( Settings::application_source() !== self::SOURCE_GRAVITY || ! $this->is_target_form( $form['id'] ?? '' ) ) {
 			return;
 		}
 
@@ -194,7 +209,7 @@ class ApplicationForm {
 	 * @param array $form_data Form settings, including field labels.
 	 */
 	public function handle_wpforms( array $fields, array $entry, array $form_data ): void {
-		if ( Settings::application_source() !== self::SOURCE_WPFORMS ) {
+		if ( Settings::application_source() !== self::SOURCE_WPFORMS || ! $this->is_target_form( $form_data['id'] ?? '' ) ) {
 			return;
 		}
 
@@ -212,7 +227,7 @@ class ApplicationForm {
 	 * @param \WPCF7_ContactForm $contact_form
 	 */
 	public function handle_cf7( $contact_form ): void {
-		if ( Settings::application_source() !== self::SOURCE_CF7 ) {
+		if ( Settings::application_source() !== self::SOURCE_CF7 || ! $this->is_target_form( $contact_form->id() ) ) {
 			return;
 		}
 
@@ -240,7 +255,7 @@ class ApplicationForm {
 	 * @param object $form
 	 */
 	public function handle_fluent_forms( int $entry_id, array $form_data, $form ): void {
-		if ( Settings::application_source() !== self::SOURCE_FLUENT_FORMS ) {
+		if ( Settings::application_source() !== self::SOURCE_FLUENT_FORMS || ! $this->is_target_form( $form->id ?? '' ) ) {
 			return;
 		}
 
