@@ -105,27 +105,30 @@ final class Plugin {
 	 * Only enqueue front-end assets on pages that actually use them.
 	 */
 	public function enqueue_frontend_assets(): void {
-		if ( ! is_user_logged_in() || ! current_user_can( 'protech_wholesale_customer' ) ) {
+		$post_content = is_singular() ? (string) ( get_post()->post_content ?? '' ) : '';
+
+		$has_shortcode = has_shortcode( $post_content, 'protech_wholesale_order_form' )
+			|| has_shortcode( $post_content, 'protech_wholesale_portal' );
+
+		$is_account_page = function_exists( 'is_account_page' ) && is_account_page();
+
+		if ( ! $has_shortcode && ! $is_account_page ) {
 			return;
 		}
 
-		$needs_assets = is_page() && (
-			has_shortcode( get_post()->post_content ?? '', 'protech_wholesale_order_form' ) ||
-			has_shortcode( get_post()->post_content ?? '', 'protech_wholesale_portal' )
-		);
-
-		$needs_assets = $needs_assets || ( function_exists( 'is_account_page' ) && is_account_page() );
-
-		if ( ! $needs_assets ) {
-			return;
-		}
-
+		// The portal's logged-out login form and pending/retail-only
+		// notices need the stylesheet too, so this loads regardless of
+		// wholesale status; only the cart-AJAX script below is gated.
 		wp_enqueue_style(
 			'protech-wholesale',
 			PROTECH_WHOLESALE_URL . 'assets/css/wholesale.css',
 			array(),
 			PROTECH_WHOLESALE_VERSION
 		);
+
+		if ( ! Roles::is_wholesale_customer() ) {
+			return;
+		}
 
 		wp_enqueue_script(
 			'protech-wholesale-order-form',

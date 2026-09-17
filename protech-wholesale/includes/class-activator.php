@@ -22,6 +22,7 @@ class Activator {
 		Roles::create_roles();
 		self::create_default_options();
 		self::create_portal_page();
+		MyAccount::register_endpoint();
 		flush_rewrite_rules();
 	}
 
