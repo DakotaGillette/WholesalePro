@@ -99,10 +99,30 @@ class CaseRules {
 		return $rates;
 	}
 
+	/**
+	 * Packs per display: the product's own value, else (for a variation)
+	 * its parent's — set once on the parent's Wholesale tab instead of on
+	 * every colour — else the store default. Same fallback order as
+	 * VolumePricing::get_displays_per_case().
+	 */
 	public static function get_case_size( int $product_id ): int {
 		$size = (int) get_post_meta( $product_id, ProductFields::META_CASE_SIZE, true );
 
-		return $size > 0 ? $size : Settings::get_default_case_size();
+		if ( $size > 0 ) {
+			return $size;
+		}
+
+		$parent_id = (int) wp_get_post_parent_id( $product_id );
+
+		if ( $parent_id > 0 ) {
+			$size = (int) get_post_meta( $parent_id, ProductFields::META_CASE_SIZE, true );
+
+			if ( $size > 0 ) {
+				return $size;
+			}
+		}
+
+		return Settings::get_default_case_size();
 	}
 
 	/**
@@ -219,8 +239,8 @@ class CaseRules {
 		// woocommerce_before_add_to_cart_quantity fires with no arguments —
 		// simple.php and variable.php's add-to-cart templates both expect
 		// hooked callbacks to read the current product from this global,
-		// same as ProductFields::render_simple_fields() already does for
-		// its own template-hook rendering.
+		// same as ProductFields::render_product_data_panel() already does
+		// for its own template-hook rendering.
 		global $product;
 
 		if ( ! $product instanceof \WC_Product || ! Roles::is_wholesale_customer() ) {
@@ -312,7 +332,11 @@ class CaseRules {
 	 * @param \WC_Order              $order
 	 */
 	public function persist_case_count_on_order_item( $item, string $cart_item_key, array $values, $order ): void {
-		if ( ! Roles::is_wholesale_customer( $order->get_customer_id() ) ) {
+		// The Store API (Blocks checkout) creates line items before it sets
+		// the draft order's customer, so fall back to the logged-in user.
+		$customer_id = (int) $order->get_customer_id() ?: get_current_user_id();
+
+		if ( ! Roles::is_wholesale_customer( $customer_id ) ) {
 			return;
 		}
 

@@ -123,16 +123,21 @@ class Reorder {
 	 * to the cart to review and check out.
 	 */
 	public function handle_reorder(): void {
+		// Login check first: nonces are user-bound, so a customer whose
+		// session expired would otherwise get an "invalid link" dead end
+		// instead of the login screen (which sends them right back here).
+		if ( ! is_user_logged_in() || ! Roles::is_wholesale_customer() ) {
+			$current_url = home_url( add_query_arg( array(), (string) wp_unslash( $_SERVER['REQUEST_URI'] ?? '' ) ) );
+
+			wp_safe_redirect( add_query_arg( 'redirect_to', rawurlencode( $current_url ), wc_get_page_permalink( 'myaccount' ) ) );
+			exit;
+		}
+
 		$order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
 		$nonce    = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
 
 		if ( ! $order_id || ! wp_verify_nonce( $nonce, self::ACTION . '_' . $order_id ) ) {
 			wp_die( esc_html__( 'This reorder link is invalid or has expired.', 'protech-wholesale' ) );
-		}
-
-		if ( ! is_user_logged_in() || ! Roles::is_wholesale_customer() ) {
-			wp_safe_redirect( wc_get_page_permalink( 'myaccount' ) );
-			exit;
 		}
 
 		// admin-post.php requests run under is_admin(), so WooCommerce

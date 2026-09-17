@@ -104,6 +104,8 @@ class Portal {
 		if ( is_user_logged_in() ) {
 			if ( Roles::is_wholesale_pending() ) {
 				$state = 'pending';
+			} elseif ( Approval::STATUS_REJECTED === get_user_meta( get_current_user_id(), Approval::META_APP_STATUS, true ) ) {
+				$state = 'rejected';
 			} else {
 				$state = 'retail_only';
 			}

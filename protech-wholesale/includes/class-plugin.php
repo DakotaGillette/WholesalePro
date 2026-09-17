@@ -205,7 +205,14 @@ final class Plugin {
 			'protech-wholesale-admin',
 			'protechWholesaleAdmin',
 			array(
-				'bulkPricePrompt' => __( 'Set wholesale price for all variations ($ per pack):', 'protech-wholesale' ),
+				/* translators: %s: currency symbol. */
+				'bulkPricePrompt'  => sprintf( __( 'Set the wholesale (Standard) price for all variations (%s per pack):', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				/* translators: %s: currency symbol. */
+				'bulkVolumePrompt' => sprintf( __( 'Set the Volume price override for all variations (%s per pack):', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				/* translators: %s: currency symbol. */
+				'bulkBulkPrompt'   => sprintf( __( 'Set the Bulk price override for all variations (%s per pack):', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'approveConfirm'   => __( 'Approve this application? The applicant is emailed a password link and sees wholesale pricing immediately.', 'protech-wholesale' ),
+				'rejectPrompt'     => __( 'Reject this application? Enter an optional reason to include in the email to the applicant, or leave blank:', 'protech-wholesale' ),
 			)
 		);
 	}

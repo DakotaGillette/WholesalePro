@@ -24,8 +24,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MyAccount {
 
 	public function register_hooks(): void {
+		// wp-login.php ...
 		add_filter( 'login_redirect', array( $this, 'login_redirect' ), 10, 3 );
+		// ... and WooCommerce's own My Account login form, which doesn't go
+		// through login_redirect at all.
+		add_filter( 'woocommerce_login_redirect', array( $this, 'woocommerce_login_redirect' ), 10, 2 );
 		add_action( 'woocommerce_before_account_navigation', array( $this, 'maybe_show_pending_notice' ) );
+	}
+
+	/**
+	 * @param string   $redirect_to
+	 * @param \WP_User $user
+	 */
+	public function woocommerce_login_redirect( $redirect_to, $user ) {
+		return $this->login_redirect( $redirect_to, '', $user );
 	}
 
 	/**

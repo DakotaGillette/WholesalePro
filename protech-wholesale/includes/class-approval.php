@@ -23,6 +23,19 @@ class Approval {
 	public const META_PRICE_OVERRIDES = '_protech_price_overrides';
 	public const META_MIN_ORDER       = '_protech_wholesale_min_order_override';
 
+	/**
+	 * Application lifecycle, stored on the user. The Applicants screen's
+	 * Pending/Rejected views are driven by this status, not by role: a
+	 * rejected applicant no longer holds the pending role, and a pending
+	 * application recorded against a staff account never gets the role at
+	 * all (see ApplicationForm::create_pending_applicant()).
+	 */
+	public const META_APP_STATUS        = '_protech_wholesale_app_status';
+	public const META_APP_REJECT_REASON = '_protech_wholesale_app_reject_reason';
+	public const STATUS_PENDING         = 'pending';
+	public const STATUS_APPROVED        = 'approved';
+	public const STATUS_REJECTED        = 'rejected';
+
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_post_protech_approve_applicant', array( $this, 'handle_approve' ) );
@@ -54,37 +67,28 @@ class Approval {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Wholesale', 'protech-wholesale' ) . '</h1>';
 		echo '<nav class="nav-tab-wrapper">';
-		printf(
-			'<a href="%s" class="nav-tab %s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=protech-wholesale' ) ),
-			'applicants' === $tab ? 'nav-tab-active' : '',
-			esc_html__( 'Applicants', 'protech-wholesale' )
-		);
-		printf(
-			'<a href="%s" class="nav-tab %s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=products' ) ),
-			'products' === $tab ? 'nav-tab-active' : '',
-			esc_html__( 'Products', 'protech-wholesale' )
-		);
-		printf(
-			'<a href="%s" class="nav-tab %s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=pricing' ) ),
-			'pricing' === $tab ? 'nav-tab-active' : '',
-			esc_html__( 'Pricing', 'protech-wholesale' )
-		);
-		printf(
-			'<a href="%s" class="nav-tab %s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=tiers' ) ),
-			'tiers' === $tab ? 'nav-tab-active' : '',
-			esc_html__( 'Tiers', 'protech-wholesale' )
-		);
-		printf(
-			'<a href="%s" class="nav-tab %s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=settings' ) ),
-			'settings' === $tab ? 'nav-tab-active' : ''
-			,
-			esc_html__( 'Settings', 'protech-wholesale' )
-		);
+
+		foreach (
+			array(
+				'applicants' => __( 'Applicants', 'protech-wholesale' ),
+				'products'   => __( 'Products', 'protech-wholesale' ),
+				'pricing'    => __( 'Pricing', 'protech-wholesale' ),
+				'tiers'      => __( 'Tiers', 'protech-wholesale' ),
+				'settings'   => __( 'Settings', 'protech-wholesale' ),
+			) as $slug => $label
+		) {
+			$url = 'applicants' === $slug
+				? admin_url( 'admin.php?page=protech-wholesale' )
+				: admin_url( 'admin.php?page=protech-wholesale&tab=' . $slug );
+
+			printf(
+				'<a href="%s" class="nav-tab %s">%s</a>',
+				esc_url( $url ),
+				$slug === $tab ? 'nav-tab-active' : '',
+				esc_html( $label )
+			);
+		}
+
 		echo '</nav>';
 
 		if ( 'settings' === $tab ) {
@@ -109,10 +113,21 @@ class Approval {
 		echo '<form method="get"><input type="hidden" name="page" value="protech-wholesale" />';
 		$table->display();
 		echo '</form>';
+
+		// Filled in and submitted by assets/js/admin.js when an admin clicks
+		// Reject, so the optional reason travels as POST data rather than in
+		// the URL. The Reject link itself still works as a plain nonce'd GET
+		// (with no reason) if JavaScript is unavailable.
+		echo '<form id="protech-reject-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
+		echo '<input type="hidden" name="action" value="protech_reject_applicant" />';
+		echo '<input type="hidden" name="user_id" value="" />';
+		echo '<input type="hidden" name="_wpnonce" value="" />';
+		echo '<input type="hidden" name="reason" value="" />';
+		echo '</form>';
 	}
 
 	public function handle_approve(): void {
-		$user_id = absint( $_GET['user_id'] ?? 0 );
+		$user_id = absint( $_REQUEST['user_id'] ?? 0 );
 
 		check_admin_referer( 'protech_approve_applicant_' . $user_id );
 
@@ -123,8 +138,10 @@ class Approval {
 		$user = get_userdata( $user_id );
 
 		if ( $user ) {
-			$user->set_role( Roles::CUSTOMER );
-			update_user_meta( $user_id, '_protech_wholesale_app_status', 'approved' );
+			// Additive — whatever else this account already is stays intact.
+			Roles::grant( $user_id, Roles::CUSTOMER );
+			update_user_meta( $user_id, self::META_APP_STATUS, self::STATUS_APPROVED );
+			delete_user_meta( $user_id, self::META_APP_REJECT_REASON );
 			Logger::info( "Wholesale applicant #{$user_id} approved by admin #" . get_current_user_id() );
 			Emails::send_approved( $user_id );
 		}
@@ -134,7 +151,7 @@ class Approval {
 	}
 
 	public function handle_reject(): void {
-		$user_id = absint( $_GET['user_id'] ?? 0 );
+		$user_id = absint( $_REQUEST['user_id'] ?? 0 );
 
 		check_admin_referer( 'protech_reject_applicant_' . $user_id );
 
@@ -142,17 +159,23 @@ class Approval {
 			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
 		}
 
-		$reason = isset( $_GET['reason'] ) ? sanitize_text_field( wp_unslash( $_GET['reason'] ) ) : '';
+		// POSTed by admin.js's reason prompt; the GET form is the no-JS fallback.
+		$reason = sanitize_text_field( wp_unslash( $_POST['reason'] ?? $_GET['reason'] ?? '' ) );
 		$user   = get_userdata( $user_id );
 
 		if ( $user ) {
-			update_user_meta( $user_id, '_protech_wholesale_app_status', 'rejected' );
-			update_user_meta( $user_id, '_protech_wholesale_app_reject_reason', $reason );
+			// A rejected applicant is no longer "pending": drop that role so
+			// they stop landing on the under-review screen (and drop out of
+			// the Pending list), but keep the record so the Rejected view
+			// and a later re-application both work.
+			Roles::revoke( $user_id, Roles::PENDING );
+			update_user_meta( $user_id, self::META_APP_STATUS, self::STATUS_REJECTED );
+			update_user_meta( $user_id, self::META_APP_REJECT_REASON, $reason );
 			Logger::info( "Wholesale applicant #{$user_id} rejected by admin #" . get_current_user_id() . ( $reason ? " ({$reason})" : '' ) );
 			Emails::send_rejected( $user_id, $reason );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&status=pending' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&status=rejected' ) );
 		exit;
 	}
 
@@ -182,7 +205,7 @@ class Approval {
 						<input type="checkbox" name="protech_is_wholesale" id="protech_is_wholesale" value="1" <?php checked( $is_wholesale ); ?> />
 						<?php esc_html_e( 'Flag this customer as an approved wholesale customer', 'protech-wholesale' ); ?>
 					</label>
-					<p class="description"><?php esc_html_e( 'Switches their role to Wholesale Customer immediately, without going through the application queue.', 'protech-wholesale' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Adds the Wholesale Customer role immediately, without going through the application queue. Any other role the account has is kept.', 'protech-wholesale' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -253,10 +276,12 @@ class Approval {
 		$is_wholesale         = Roles::is_wholesale_customer( $user_id );
 
 		if ( $should_be_wholesale && ! $is_wholesale ) {
-			$user->set_role( Roles::CUSTOMER );
+			Roles::grant( $user_id, Roles::CUSTOMER );
+			update_user_meta( $user_id, self::META_APP_STATUS, self::STATUS_APPROVED );
 			Logger::info( "User #{$user_id} manually flagged as wholesale by admin #" . get_current_user_id() );
 		} elseif ( ! $should_be_wholesale && $is_wholesale ) {
-			$user->set_role( 'customer' );
+			Roles::revoke( $user_id, Roles::CUSTOMER );
+			delete_user_meta( $user_id, self::META_APP_STATUS );
 			Logger::info( "User #{$user_id} manually un-flagged as wholesale by admin #" . get_current_user_id() );
 		}
 

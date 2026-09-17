@@ -29,7 +29,14 @@ class OrdersAdmin {
 	public const META_IS_WHOLESALE = '_protech_is_wholesale';
 
 	public function register_hooks(): void {
+		// Classic (shortcode) checkout builds the order in WC_Checkout::create_order().
 		add_action( 'woocommerce_checkout_create_order', array( $this, 'stamp_wholesale_flag' ), 10, 2 );
+
+		// WooCommerce Blocks checkout — what this site actually uses — goes
+		// through the Store API's OrderController instead, which never fires
+		// woocommerce_checkout_create_order; this is its equivalent (fired on
+		// every draft-order update and again on the final place-order call).
+		add_action( 'woocommerce_store_api_checkout_update_order_meta', array( $this, 'stamp_wholesale_flag' ), 10, 1 );
 
 		// Legacy (posts-based) orders screen.
 		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_column' ) );
@@ -40,12 +47,20 @@ class OrdersAdmin {
 		// HPOS (custom order tables) orders screen.
 		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_column' ) );
 		add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'render_column_hpos' ), 10, 2 );
-		add_action( 'woocommerce_order_list_table_restrict_manage_orders', array( $this, 'render_filter_dropdown_hpos' ) );
+		add_action( 'woocommerce_order_list_table_restrict_manage_orders', array( $this, 'render_filter_dropdown_hpos' ), 10, 2 );
 		add_filter( 'woocommerce_order_query_args', array( $this, 'filter_hpos_orders_by_wholesale' ) );
 	}
 
-	public function stamp_wholesale_flag( \WC_Order $order, array $data ): void {
-		$order->update_meta_data( self::META_IS_WHOLESALE, Roles::is_wholesale_customer( $order->get_customer_id() ) ? 'yes' : 'no' );
+	/**
+	 * @param \WC_Order $order
+	 * @param array     $data  Posted checkout data (classic checkout only).
+	 */
+	public function stamp_wholesale_flag( \WC_Order $order, array $data = array() ): void {
+		// The Store API sets the order's customer late in its draft-order
+		// update; the logged-in user is the reliable fallback there.
+		$customer_id = (int) $order->get_customer_id() ?: get_current_user_id();
+
+		$order->update_meta_data( self::META_IS_WHOLESALE, Roles::is_wholesale_customer( $customer_id ) ? 'yes' : 'no' );
 	}
 
 	/**
@@ -119,7 +134,15 @@ class OrdersAdmin {
 		$this->render_filter_dropdown_markup();
 	}
 
-	public function render_filter_dropdown_hpos(): void {
+	/**
+	 * @param string $order_type
+	 * @param string $which      'top' or 'bottom' — the hook fires for both tablenavs.
+	 */
+	public function render_filter_dropdown_hpos( string $order_type = '', string $which = 'top' ): void {
+		if ( 'top' !== $which ) {
+			return;
+		}
+
 		$this->render_filter_dropdown_markup();
 	}
 

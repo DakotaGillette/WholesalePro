@@ -26,12 +26,19 @@ class ProductFields {
 	public const META_VOLUME_PRICE      = '_protech_volume_price'; // Per-pack override for the Tier 2 (Volume) price; blank = store default.
 	public const META_BULK_PRICE        = '_protech_bulk_price'; // Per-pack override for the Tier 3 (Bulk) price; blank = store default.
 	public const META_WHOLESALE_ONLY    = '_protech_wholesale_only'; // 'yes' | unset. Product-level only, not per-variation.
+	public const META_HAS_WHOLESALE_PRICE = '_protech_has_wholesale_price'; // 'yes' | 'no', parent-level, kept in sync by sync_has_wholesale_price_flag().
 
 	public const DEFAULT_CASE_SIZE         = 10;
 	public const DEFAULT_DISPLAYS_PER_CASE = 8;
 
 	public function register_hooks(): void {
-		add_action( 'woocommerce_product_options_pricing', array( $this, 'render_simple_fields' ) );
+		// A dedicated "Wholesale" product data tab. These used to hook
+		// woocommerce_product_options_pricing, which WooCommerce renders
+		// inside its `show_if_simple show_if_external` pricing group — so on
+		// a variable product (the flagship sleeves) the product-level fields
+		// ("Wholesale only", Displays per case) were never visible at all.
+		add_filter( 'woocommerce_product_data_tabs', array( $this, 'add_product_data_tab' ) );
+		add_action( 'woocommerce_product_data_panels', array( $this, 'render_product_data_panel' ) );
 		add_action( 'woocommerce_process_product_meta', array( $this, 'save_simple_fields' ) );
 
 		add_action( 'woocommerce_product_after_variable_attributes', array( $this, 'render_variation_fields' ), 10, 3 );
@@ -45,56 +52,47 @@ class ProductFields {
 		return 'yes' === get_post_meta( $product_id, self::META_WHOLESALE_ONLY, true );
 	}
 
-	public function render_simple_fields(): void {
+	/**
+	 * @param array<string, array<string, mixed>> $tabs
+	 * @return array<string, array<string, mixed>>
+	 */
+	public function add_product_data_tab( array $tabs ): array {
+		$tabs['protech_wholesale'] = array(
+			'label'    => __( 'Wholesale', 'protech-wholesale' ),
+			'target'   => 'protech_wholesale_product_data',
+			'class'    => array( 'show_if_simple', 'show_if_variable' ),
+			'priority' => 21, // Right after General (10) and Inventory (20).
+		);
+
+		return $tabs;
+	}
+
+	/**
+	 * The "Wholesale" tab's panel. Two groups: the per-product price ladder
+	 * (simple products only — a variable product prices each variation
+	 * under the Variations tab), and the settings that apply to every
+	 * product type (case composition, which variations inherit unless they
+	 * set their own, and the wholesale-only flag).
+	 */
+	public function render_product_data_panel(): void {
 		global $product_object;
 
-		echo '<div class="options_group protech-wholesale-fields">';
+		$meta = static function ( string $key ) use ( $product_object ): string {
+			return $product_object instanceof \WC_Product ? (string) $product_object->get_meta( $key ) : '';
+		};
+
+		echo '<div id="protech_wholesale_product_data" class="panel woocommerce_options_panel hidden">';
+
+		echo '<div class="options_group show_if_simple">';
 
 		woocommerce_wp_text_input(
 			array(
-				'id'                => self::META_WHOLESALE_PRICE,
-				'label'             => sprintf( __( 'Wholesale price (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
-				'description'       => __( 'Per pack. This is the Tier 1 (Standard) price — see WooCommerce → Wholesale → Pricing for the Volume/Bulk tiers. Leave empty to keep this product unavailable at wholesale.', 'protech-wholesale' ),
-				'desc_tip'          => true,
-				'data_type'         => 'price',
-				'value'             => $product_object ? $product_object->get_meta( self::META_WHOLESALE_PRICE ) : '',
-			)
-		);
-
-		woocommerce_wp_text_input(
-			array(
-				'id'          => self::META_CASE_SIZE,
-				'label'       => __( 'Packs per display', 'protech-wholesale' ),
-				/* translators: %d: store's default, set under WooCommerce -> Wholesale -> Tiers. */
-				'description' => sprintf( __( 'Wholesale quantities must be a multiple of this. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_case_size() ),
+				'id'          => self::META_WHOLESALE_PRICE,
+				'label'       => sprintf( __( 'Wholesale price (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'description' => __( 'Per pack. This is the Tier 1 (Standard) price — see WooCommerce → Wholesale → Pricing for the Volume/Bulk tiers. Leave empty to keep this product unavailable at wholesale.', 'protech-wholesale' ),
 				'desc_tip'    => true,
-				'type'        => 'number',
-				'custom_attributes' => array(
-					'step'        => '1',
-					'min'         => '1',
-					'placeholder' => (string) Settings::get_default_case_size(),
-				),
-				// Empty (not the default) when unset, so saving without
-				// touching this field doesn't bake today's default into
-				// this product's own meta — see save_price_and_case().
-				'value'       => $product_object ? $product_object->get_meta( self::META_CASE_SIZE ) : '',
-			)
-		);
-
-		woocommerce_wp_text_input(
-			array(
-				'id'          => self::META_DISPLAYS_PER_CASE,
-				'label'       => __( 'Displays per case', 'protech-wholesale' ),
-				/* translators: %d: store's default, set under WooCommerce -> Wholesale -> Pricing. */
-				'description' => sprintf( __( 'How many displays make up one case for this product. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_displays_per_case() ),
-				'desc_tip'    => true,
-				'type'        => 'number',
-				'custom_attributes' => array(
-					'step'        => '1',
-					'min'         => '1',
-					'placeholder' => (string) Settings::get_default_displays_per_case(),
-				),
-				'value'       => $product_object ? $product_object->get_meta( self::META_DISPLAYS_PER_CASE ) : '',
+				'data_type'   => 'price',
+				'value'       => $meta( self::META_WHOLESALE_PRICE ),
 			)
 		);
 
@@ -106,7 +104,7 @@ class ProductFields {
 				'description' => sprintf( __( 'Per pack, once the cart reaches %1$d combined displays. Leave empty to use the store default (%2$s).', 'protech-wholesale' ), Settings::get_volume_threshold_displays(), wp_strip_all_tags( wc_price( Settings::get_volume_price() ) ) ),
 				'desc_tip'    => true,
 				'data_type'   => 'price',
-				'value'       => $product_object ? $product_object->get_meta( self::META_VOLUME_PRICE ) : '',
+				'value'       => $meta( self::META_VOLUME_PRICE ),
 			)
 		);
 
@@ -118,7 +116,52 @@ class ProductFields {
 				'description' => sprintf( __( 'Per pack, once the cart reaches %1$d combined cases. Leave empty to use the store default (%2$s).', 'protech-wholesale' ), Settings::get_bulk_threshold_cases(), wp_strip_all_tags( wc_price( Settings::get_bulk_price() ) ) ),
 				'desc_tip'    => true,
 				'data_type'   => 'price',
-				'value'       => $product_object ? $product_object->get_meta( self::META_BULK_PRICE ) : '',
+				'value'       => $meta( self::META_BULK_PRICE ),
+			)
+		);
+
+		echo '</div>';
+
+		echo '<div class="options_group show_if_variable"><p class="form-field">';
+		esc_html_e( 'Wholesale, Volume, and Bulk prices for a variable product are set per variation on the Variations tab — expand a variation to edit one, or use the "Set wholesale prices" bulk action there to set every variation at once.', 'protech-wholesale' );
+		echo '</p></div>';
+
+		echo '<div class="options_group">';
+
+		woocommerce_wp_text_input(
+			array(
+				'id'                => self::META_CASE_SIZE,
+				'label'             => __( 'Packs per display', 'protech-wholesale' ),
+				/* translators: %d: store's default, set under WooCommerce -> Wholesale -> Pricing. */
+				'description'       => sprintf( __( 'Wholesale quantities must be a multiple of this. A variation inherits it unless it sets its own. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_case_size() ),
+				'desc_tip'          => true,
+				'type'              => 'number',
+				'custom_attributes' => array(
+					'step'        => '1',
+					'min'         => '1',
+					'placeholder' => (string) Settings::get_default_case_size(),
+				),
+				// Empty (not the default) when unset, so saving without
+				// touching this field doesn't bake today's default into
+				// this product's own meta — see save_price_and_case().
+				'value'             => $meta( self::META_CASE_SIZE ),
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'                => self::META_DISPLAYS_PER_CASE,
+				'label'             => __( 'Displays per case', 'protech-wholesale' ),
+				/* translators: %d: store's default, set under WooCommerce -> Wholesale -> Pricing. */
+				'description'       => sprintf( __( 'How many displays make up one case for this product. A variation inherits it. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_displays_per_case() ),
+				'desc_tip'          => true,
+				'type'              => 'number',
+				'custom_attributes' => array(
+					'step'        => '1',
+					'min'         => '1',
+					'placeholder' => (string) Settings::get_default_displays_per_case(),
+				),
+				'value'             => $meta( self::META_DISPLAYS_PER_CASE ),
 			)
 		);
 
@@ -128,9 +171,11 @@ class ProductFields {
 				'label'       => __( 'Wholesale only', 'protech-wholesale' ),
 				'description' => __( 'Hide this product from the retail shop, search, and its own product page (with an "apply for wholesale" message) for anyone who is not an approved wholesale customer. Leave unchecked to keep it available at retail too.', 'protech-wholesale' ),
 				'desc_tip'    => true,
-				'value'       => $product_object && 'yes' === $product_object->get_meta( self::META_WHOLESALE_ONLY ) ? 'yes' : 'no',
+				'value'       => 'yes' === $meta( self::META_WHOLESALE_ONLY ) ? 'yes' : 'no',
 			)
 		);
+
+		echo '</div>';
 
 		echo '</div>';
 	}
@@ -169,6 +214,46 @@ class ProductFields {
 		}
 
 		$product->save();
+
+		self::sync_has_wholesale_price_flag( $post_id );
+	}
+
+	/**
+	 * Keeps a parent-level "this product has SOME wholesale price" flag in
+	 * sync on every save path (simple save, variation save, bulk edit).
+	 * A variable product's wholesale prices live on its variations, so
+	 * anything that needs to know whether a product is sellable at
+	 * wholesale at all — the catalog-level hiding of products with no
+	 * wholesale price — would otherwise need a per-product walk of every
+	 * child; with this flag it can be a plain meta query instead.
+	 */
+	public static function sync_has_wholesale_price_flag( int $product_id ): void {
+		$product = wc_get_product( $product_id );
+
+		if ( $product instanceof \WC_Product && $product->is_type( 'variation' ) ) {
+			$product = wc_get_product( $product->get_parent_id() );
+		}
+
+		if ( ! $product instanceof \WC_Product ) {
+			return;
+		}
+
+		$has_price = false;
+
+		if ( $product->is_type( 'variable' ) ) {
+			foreach ( $product->get_children() as $child_id ) {
+				if ( is_numeric( get_post_meta( $child_id, self::META_WHOLESALE_PRICE, true ) ) ) {
+					$has_price = true;
+					break;
+				}
+			}
+		} else {
+			$has_price = is_numeric( get_post_meta( $product->get_id(), self::META_WHOLESALE_PRICE, true ) );
+		}
+
+		// Plain meta write on purpose: no second WC_Product::save() (and no
+		// re-firing of the save hooks this is called from).
+		update_post_meta( $product->get_id(), self::META_HAS_WHOLESALE_PRICE, $has_price ? 'yes' : 'no' );
 	}
 
 	/**
@@ -249,6 +334,8 @@ class ProductFields {
 		$this->save_optional_price_field( $product, self::META_BULK_PRICE, $_POST[ self::META_BULK_PRICE ][ $loop ] ?? null );
 
 		$product->save();
+
+		self::sync_has_wholesale_price_flag( $variation_id );
 	}
 
 	private function save_price_and_case( \WC_Product $product, array $source ): void {
@@ -308,8 +395,26 @@ class ProductFields {
 	/**
 	 * "Set all variations to $___" bulk helper in the Variations panel.
 	 */
+	/**
+	 * Bulk action => variation meta key it sets. admin.js prompts for the
+	 * value through WooCommerce's `<action>_ajax_data` event contract.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function bulk_actions(): array {
+		return array(
+			'protech_set_wholesale_price' => self::META_WHOLESALE_PRICE,
+			'protech_set_volume_price'    => self::META_VOLUME_PRICE,
+			'protech_set_bulk_price'      => self::META_BULK_PRICE,
+		);
+	}
+
 	public function render_bulk_edit_action(): void {
+		echo '<optgroup label="' . esc_attr__( 'Wholesale', 'protech-wholesale' ) . '">';
 		echo '<option value="protech_set_wholesale_price">' . esc_html__( 'Set wholesale prices', 'protech-wholesale' ) . '</option>';
+		echo '<option value="protech_set_volume_price">' . esc_html__( 'Set Volume price overrides', 'protech-wholesale' ) . '</option>';
+		echo '<option value="protech_set_bulk_price">' . esc_html__( 'Set Bulk price overrides', 'protech-wholesale' ) . '</option>';
+		echo '</optgroup>';
 	}
 
 	/**
@@ -319,22 +424,28 @@ class ProductFields {
 	 * @param array       $variation_ids
 	 */
 	public function handle_bulk_edit( string $bulk_action, array $data, int $variable_product_id, array $variation_ids ): void {
-		if ( 'protech_set_wholesale_price' !== $bulk_action ) {
+		$meta_key = self::bulk_actions()[ $bulk_action ] ?? null;
+
+		if ( null === $meta_key ) {
 			return;
 		}
 
-		// admin.js prompts for the price and relies on WooCommerce's own
-		// bulk-edit AJAX call to carry it as `value`. If that value is
-		// missing (e.g. the prompt was cancelled, or WooCommerce's JS on
-		// this version doesn't forward it for a non-core bulk action),
-		// do nothing rather than guessing — an empty value here must
-		// never be read as "clear every variation's wholesale price".
+		// admin.js supplies the price as `value` via WooCommerce's own
+		// bulk-edit AJAX call. If it's missing (the prompt was cancelled, or
+		// a future WooCommerce version changes how it forwards data for a
+		// non-core bulk action), do nothing rather than guessing — an empty
+		// value here must never be read as "clear every variation's price".
 		if ( ! isset( $data['value'] ) || '' === trim( (string) $data['value'] ) ) {
-			Logger::warning( "Bulk 'set wholesale prices' selected on product #{$variable_product_id} with no price value; no changes made." );
+			Logger::warning( "Bulk '{$bulk_action}' selected on product #{$variable_product_id} with no price value; no changes made." );
 			return;
 		}
 
 		$price = wc_format_decimal( sanitize_text_field( wp_unslash( (string) $data['value'] ) ) );
+
+		if ( ! is_numeric( $price ) ) {
+			Logger::warning( "Bulk '{$bulk_action}' on product #{$variable_product_id} ignored non-numeric value '{$price}'." );
+			return;
+		}
 
 		foreach ( $variation_ids as $variation_id ) {
 			$variation = wc_get_product( $variation_id );
@@ -343,11 +454,15 @@ class ProductFields {
 				continue;
 			}
 
-			$variation->update_meta_data( self::META_WHOLESALE_PRICE, $price );
+			$variation->update_meta_data( $meta_key, $price );
 			$variation->save();
 		}
 
-		Logger::info( "Bulk-set wholesale price to '{$price}' on " . count( $variation_ids ) . " variations of product #{$variable_product_id}" );
+		if ( self::META_WHOLESALE_PRICE === $meta_key ) {
+			self::sync_has_wholesale_price_flag( $variable_product_id );
+		}
+
+		Logger::info( "Bulk-set {$meta_key} to '{$price}' on " . count( $variation_ids ) . " variations of product #{$variable_product_id}" );
 	}
 
 	/**

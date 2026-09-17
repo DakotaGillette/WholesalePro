@@ -114,7 +114,16 @@ class Emails {
 			return $subject;
 		}
 
-		if ( 'yes' === $order->get_meta( '_protech_is_wholesale' ) ) {
+		$flag = (string) $order->get_meta( OrdersAdmin::META_IS_WHOLESALE );
+
+		// Orders placed through the Blocks checkout before the Store API
+		// stamp hook existed (see OrdersAdmin::register_hooks()) carry no
+		// flag at all — fall back to the customer's role for those rather
+		// than silently dropping the prefix.
+		$is_wholesale = 'yes' === $flag
+			|| ( '' === $flag && Roles::is_wholesale_customer( (int) $order->get_customer_id() ) );
+
+		if ( $is_wholesale ) {
 			$subject = __( 'WHOLESALE ORDER', 'protech-wholesale' ) . ' — ' . $subject;
 		}
 

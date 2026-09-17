@@ -1,14 +1,16 @@
 /**
  * Protech Wholesale — wp-admin helpers.
- * Vanilla JS, no jQuery dependency. Loaded only on product edit,
- * user profile, and the Wholesale admin screens (see Plugin::enqueue_admin_assets()).
+ * Loaded only on product edit, user profile, and the Wholesale admin
+ * screens (see Plugin::enqueue_admin_assets()). Vanilla JS except where
+ * WooCommerce's own admin JS forces a jQuery event contract on us.
  */
 ( function () {
 	'use strict';
 
 	document.addEventListener( 'DOMContentLoaded', function () {
 		initPriceOverrideRepeater();
-		initBulkWholesalePricePrompt();
+		initBulkWholesalePriceActions();
+		initApplicantActions();
 	} );
 
 	/**
@@ -42,57 +44,99 @@
 	}
 
 	/**
-	 * Variations panel: "Set wholesale prices" bulk action.
+	 * Variations panel bulk actions: "Set wholesale prices" and the
+	 * Volume/Bulk override equivalents.
 	 *
-	 * WooCommerce's own variations JS only opens a window.prompt() for a
-	 * short hardcoded list of its own bulk actions (regular price, sale
-	 * price, etc.) — a custom action added via the
-	 * `woocommerce_variable_product_bulk_edit_actions` hook is submitted
-	 * with no value at all otherwise. So this intercepts the bulk-action
-	 * select in the CAPTURE phase (which always runs before WooCommerce's
-	 * own bubble-phase jQuery `.on('change', ...)` handler, regardless of
-	 * script load order), prompts for the price, and writes it onto the
-	 * select element itself so WooCommerce's own AJAX call picks it up
-	 * the same way it would for one of its built-in prompted actions.
-	 *
-	 * If a future WooCommerce version changes how it reads that value,
-	 * the worst case is the prompt simply has no effect — the PHP side
-	 * (ProductFields::handle_bulk_edit()) refuses to touch any prices
-	 * when no value was submitted, so this can never wipe data.
+	 * WooCommerce's meta-boxes-product-variation.js handles a bulk action
+	 * it doesn't recognise by triggering two jQuery events on the bulk-
+	 * action <select> (`select.variation_actions`): first `<action>`, then
+	 * `<action>_ajax_data` via triggerHandler(), whose return value becomes
+	 * the `data` it sends to admin-ajax — and returning null cancels the
+	 * action outright. That is the only contract it offers: it never reads
+	 * a data-attribute off the select, and triggerHandler() doesn't bubble,
+	 * so the handler has to be bound directly on that element. The PHP side
+	 * (ProductFields::handle_bulk_edit()) refuses to touch any prices when
+	 * no value arrives, so the worst case remains "nothing happens".
 	 */
-	function initBulkWholesalePricePrompt() {
-		document.addEventListener(
-			'change',
-			function ( event ) {
-				var select = event.target;
+	function initBulkWholesalePriceActions() {
+		if ( ! window.jQuery ) {
+			return;
+		}
 
-				if ( ! select || 'SELECT' !== select.tagName ) {
-					return;
+		var $select = window.jQuery( 'select.variation_actions' );
+
+		if ( ! $select.length ) {
+			return;
+		}
+
+		var strings = window.protechWholesaleAdmin || {};
+		var prompts = {
+			protech_set_wholesale_price: strings.bulkPricePrompt,
+			protech_set_volume_price: strings.bulkVolumePrompt,
+			protech_set_bulk_price: strings.bulkBulkPrompt
+		};
+
+		Object.keys( prompts ).forEach( function ( action ) {
+			$select.on( action + '_ajax_data', function ( event, data ) {
+				var value = window.prompt( prompts[ action ] || action );
+
+				if ( null === value || '' === value.trim() ) {
+					return null; // Cancels — WooCommerce sends no request at all.
 				}
 
-				var isVariableActionSelect = select.classList.contains( 'variable_actions' ) || 'variable_action' === select.name;
+				data = data || {};
+				data.value = value.trim();
 
-				if ( ! isVariableActionSelect || 'protech_set_wholesale_price' !== select.value ) {
-					return;
-				}
+				return data;
+			} );
+		} );
+	}
 
-				var price = window.prompt( protechWholesaleAdmin.bulkPricePrompt );
+	/**
+	 * Applicants list: confirm before Approve; ask for an optional reason
+	 * before Reject and submit it as a POST via the hidden form rendered by
+	 * Approval::render_applicants_tab(). Without JS the links still work as
+	 * plain nonce'd GET requests (Reject then carries no reason).
+	 */
+	function initApplicantActions() {
+		var form = document.getElementById( 'protech-reject-form' );
+		var strings = window.protechWholesaleAdmin || {};
 
-				if ( null === price || '' === price.trim() ) {
-					select.value = '';
-					event.stopImmediatePropagation();
+		document.addEventListener( 'click', function ( event ) {
+			var link = event.target && event.target.closest ? event.target.closest( 'a' ) : null;
+
+			if ( ! link ) {
+				return;
+			}
+
+			if ( link.classList.contains( 'protech-approve-link' ) ) {
+				if ( ! window.confirm( strings.approveConfirm || 'Approve this application?' ) ) {
 					event.preventDefault();
-					return;
 				}
 
-				// WooCommerce's handler reads the prompted value from a
-				// data attribute it sets on itself for its own actions;
-				// mirroring that here is what lets our custom action
-				// piggyback on its existing AJAX submission.
-				select.setAttribute( 'data-protech-value', price );
-				select.dataset.value = price;
-			},
-			true
-		);
+				return;
+			}
+
+			if ( ! link.classList.contains( 'protech-reject-link' ) ) {
+				return;
+			}
+
+			var reason = window.prompt( strings.rejectPrompt || 'Reject this application? Optional reason:', '' );
+
+			if ( null === reason ) {
+				event.preventDefault(); // Cancelled.
+				return;
+			}
+
+			if ( ! form ) {
+				return; // Fall through to the plain GET link.
+			}
+
+			event.preventDefault();
+			form.querySelector( '[name="user_id"]' ).value = link.dataset.userId || '';
+			form.querySelector( '[name="_wpnonce"]' ).value = link.dataset.nonce || '';
+			form.querySelector( '[name="reason"]' ).value = reason.trim();
+			form.submit();
+		} );
 	}
 } )();

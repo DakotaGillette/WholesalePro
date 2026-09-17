@@ -71,6 +71,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</p>
 		</div>
 
+	<?php elseif ( 'rejected' === $state ) : ?>
+
+		<div class="protech-portal-rejected">
+			<h2><?php esc_html_e( 'Update on your wholesale application', 'protech-wholesale' ); ?></h2>
+			<p><?php esc_html_e( "We weren't able to approve your wholesale application at this time. If you think this was a mistake, or your business has changed since you applied, please get in touch.", 'protech-wholesale' ); ?></p>
+			<p>
+				<a href="<?php echo esc_url( $contact_url ); ?>"><?php esc_html_e( 'Contact us', 'protech-wholesale' ); ?></a>
+			</p>
+		</div>
+
 	<?php elseif ( 'retail_only' === $state ) : ?>
 
 		<div class="protech-portal-retail-only">

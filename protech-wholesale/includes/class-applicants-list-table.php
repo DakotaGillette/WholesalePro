@@ -1,7 +1,7 @@
 <?php
 /**
- * WP_List_Table of wholesale applicants (pending) and approved wholesale
- * customers, with row actions to approve/reject.
+ * WP_List_Table of wholesale applications — Pending, Approved, and
+ * Rejected views — with row actions to approve/reject.
  *
  * @package ProtechWholesale
  */
@@ -29,6 +29,9 @@ class ApplicantsListTable extends \WP_List_Table {
 				'singular' => 'applicant',
 				'plural'   => 'applicants',
 				'ajax'     => false,
+				// The admin page's real screen id, so the table can also be
+				// built where no "current screen" exists (tests, CLI).
+				'screen'   => 'woocommerce_page_protech-wholesale',
 			)
 		);
 	}
@@ -44,45 +47,75 @@ class ApplicantsListTable extends \WP_List_Table {
 		);
 	}
 
-	protected function get_views(): array {
-		$current = sanitize_key( $_GET['status'] ?? 'pending' );
-
-		$counts = array(
-			'pending'  => count( get_users( array( 'role' => Roles::PENDING, 'fields' => 'ID' ) ) ),
-			'approved' => count( get_users( array( 'role' => Roles::CUSTOMER, 'fields' => 'ID' ) ) ),
+	/**
+	 * @return array<string, string> status => label, in display order.
+	 */
+	private static function view_labels(): array {
+		return array(
+			Approval::STATUS_PENDING  => __( 'Pending', 'protech-wholesale' ),
+			Approval::STATUS_APPROVED => __( 'Approved', 'protech-wholesale' ),
+			Approval::STATUS_REJECTED => __( 'Rejected', 'protech-wholesale' ),
 		);
+	}
 
-		$base = remove_query_arg( 'status' );
+	public static function current_view(): string {
+		$status = sanitize_key( $_GET['status'] ?? Approval::STATUS_PENDING );
+
+		return array_key_exists( $status, self::view_labels() ) ? $status : Approval::STATUS_PENDING;
+	}
+
+	/**
+	 * Pending and Rejected are driven by the application status meta, not
+	 * by role: a rejected applicant no longer holds the pending role
+	 * (Approval::handle_reject() removes it), and a pending application
+	 * recorded against a staff account never gets the role at all (see
+	 * ApplicationForm::create_pending_applicant()) — both still have to
+	 * show up here. Approved is role-driven so customers flagged manually
+	 * from their profile (who may have no application record) are listed.
+	 *
+	 * @return array<string, mixed> get_users() args.
+	 */
+	private static function query_args_for( string $status ): array {
+		if ( Approval::STATUS_APPROVED === $status ) {
+			return array( 'role' => Roles::CUSTOMER );
+		}
 
 		return array(
-			'pending'  => sprintf(
-				'<a href="%s" class="%s">%s (%d)</a>',
-				esc_url( add_query_arg( 'status', 'pending', $base ) ),
-				'pending' === $current ? 'current' : '',
-				esc_html__( 'Pending', 'protech-wholesale' ),
-				$counts['pending']
-			),
-			'approved' => sprintf(
-				'<a href="%s" class="%s">%s (%d)</a>',
-				esc_url( add_query_arg( 'status', 'approved', $base ) ),
-				'approved' === $current ? 'current' : '',
-				esc_html__( 'Approved', 'protech-wholesale' ),
-				$counts['approved']
-			),
+			'meta_key'   => Approval::META_APP_STATUS,
+			'meta_value' => $status,
 		);
+	}
+
+	protected function get_views(): array {
+		$current = self::current_view();
+		$base    = remove_query_arg( 'status' );
+		$views   = array();
+
+		foreach ( self::view_labels() as $status => $label ) {
+			$count = count( get_users( array_merge( self::query_args_for( $status ), array( 'fields' => 'ID' ) ) ) );
+
+			$views[ $status ] = sprintf(
+				'<a href="%s" class="%s">%s <span class="count">(%d)</span></a>',
+				esc_url( add_query_arg( 'status', $status, $base ) ),
+				$current === $status ? 'current' : '',
+				esc_html( $label ),
+				$count
+			);
+		}
+
+		return $views;
 	}
 
 	public function prepare_items(): void {
 		$this->_column_headers = array( $this->get_columns(), array(), array() );
 
-		$status = sanitize_key( $_GET['status'] ?? 'pending' );
-		$role   = 'approved' === $status ? Roles::CUSTOMER : Roles::PENDING;
-
 		$users = get_users(
-			array(
-				'role'    => $role,
-				'orderby' => 'registered',
-				'order'   => 'DESC',
+			array_merge(
+				self::query_args_for( self::current_view() ),
+				array(
+					'orderby' => 'registered',
+					'order'   => 'DESC',
+				)
 			)
 		);
 
@@ -94,8 +127,10 @@ class ApplicantsListTable extends \WP_List_Table {
 					'name'       => get_user_meta( $user->ID, '_protech_wholesale_app_name', true ) ?: $user->display_name,
 					'email'      => $user->user_email,
 					'phone'      => get_user_meta( $user->ID, '_protech_wholesale_app_phone', true ),
-					'status'     => get_user_meta( $user->ID, '_protech_wholesale_app_status', true ) ?: 'approved',
+					'status'     => get_user_meta( $user->ID, Approval::META_APP_STATUS, true ) ?: Approval::STATUS_APPROVED,
+					'reason'     => (string) get_user_meta( $user->ID, Approval::META_APP_REJECT_REASON, true ),
 					'submitted'  => get_user_meta( $user->ID, '_protech_wholesale_app_submitted_at', true ),
+					'privileged' => Roles::is_privileged( $user->ID ),
 				);
 			},
 			$users
@@ -106,34 +141,66 @@ class ApplicantsListTable extends \WP_List_Table {
 		return esc_html( (string) ( $item[ $column_name ] ?? '' ) );
 	}
 
+	protected function column_status( array $item ): string {
+		$labels = self::view_labels();
+		$out    = esc_html( $labels[ $item['status'] ] ?? (string) $item['status'] );
+
+		if ( Approval::STATUS_REJECTED === $item['status'] && '' !== $item['reason'] ) {
+			$out .= '<br /><span class="description">' . esc_html( $item['reason'] ) . '</span>';
+		}
+
+		if ( $item['privileged'] && Approval::STATUS_PENDING === $item['status'] ) {
+			$out .= '<br /><span class="description">' . esc_html__( 'Existing staff account — its roles were left unchanged. Approve only if this request is genuine.', 'protech-wholesale' ) . '</span>';
+		}
+
+		return $out;
+	}
+
 	protected function column_store_name( array $item ): string {
 		$actions = array();
 
-		$edit_url = get_edit_user_link( $item['id'] );
+		$edit_url        = get_edit_user_link( $item['id'] );
 		$actions['view'] = sprintf( '<a href="%s">%s</a>', esc_url( $edit_url ), esc_html__( 'View profile', 'protech-wholesale' ) );
 
-		if ( 'pending' === $item['status'] ) {
+		// Approve is offered for rejected applications too (a reconsideration);
+		// Reject only while pending.
+		if ( in_array( $item['status'], array( Approval::STATUS_PENDING, Approval::STATUS_REJECTED ), true ) ) {
 			$approve_url = wp_nonce_url(
 				add_query_arg(
-					array( 'action' => 'protech_approve_applicant', 'user_id' => $item['id'] ),
+					array(
+						'action'  => 'protech_approve_applicant',
+						'user_id' => $item['id'],
+					),
 					admin_url( 'admin-post.php' )
 				),
 				'protech_approve_applicant_' . $item['id']
 			);
 
-			$reject_url = wp_nonce_url(
-				add_query_arg(
-					array( 'action' => 'protech_reject_applicant', 'user_id' => $item['id'] ),
-					admin_url( 'admin-post.php' )
+			$actions['approve'] = sprintf(
+				'<a href="%s" class="protech-approve-link" style="color:#2271b1;">%s</a>',
+				esc_url( $approve_url ),
+				esc_html__( 'Approve', 'protech-wholesale' )
+			);
+		}
+
+		if ( Approval::STATUS_PENDING === $item['status'] ) {
+			$reject_nonce = wp_create_nonce( 'protech_reject_applicant_' . $item['id'] );
+			$reject_url   = add_query_arg(
+				array(
+					'action'   => 'protech_reject_applicant',
+					'user_id'  => $item['id'],
+					'_wpnonce' => $reject_nonce,
 				),
-				'protech_reject_applicant_' . $item['id']
+				admin_url( 'admin-post.php' )
 			);
 
-			$actions['approve'] = sprintf( '<a href="%s" style="color:#2271b1;">%s</a>', esc_url( $approve_url ), esc_html__( 'Approve', 'protech-wholesale' ) );
-			$actions['reject']  = sprintf(
-				'<a href="%s" style="color:#b32d2e;" onclick="return confirm(\'%s\');">%s</a>',
+			// admin.js turns this into a POST carrying an optional reason;
+			// the href is the no-JS fallback (rejects with no reason).
+			$actions['reject'] = sprintf(
+				'<a href="%s" class="protech-reject-link" data-user-id="%d" data-nonce="%s" style="color:#b32d2e;">%s</a>',
 				esc_url( $reject_url ),
-				esc_js( __( 'Reject this application?', 'protech-wholesale' ) ),
+				(int) $item['id'],
+				esc_attr( $reject_nonce ),
 				esc_html__( 'Reject', 'protech-wholesale' )
 			);
 		}

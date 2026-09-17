@@ -220,7 +220,31 @@ class Pricing {
 	public function bust_variation_price_cache_per_role( array $hash, $product, $for_display ): array {
 		$user_id = get_current_user_id();
 
-		$hash[] = Roles::is_wholesale_customer( $user_id ) ? 'wholesale:' . $user_id : 'retail';
+		if ( ! Roles::is_wholesale_customer( $user_id ) ) {
+			$hash[] = 'retail';
+
+			return $hash;
+		}
+
+		// Everything that can change a wholesale customer's variation
+		// prices has to be part of the key, or the cached min/max range
+		// goes stale: the quantity tier their cart has reached (a range
+		// computed at Standard would keep showing $5.50 after the cart
+		// crossed into Volume), their hidden customer tier (discount %),
+		// and their per-customer overrides (edited on the profile screen,
+		// which never bumps WooCommerce's product transient version).
+		$overrides = get_user_meta( $user_id, Approval::META_PRICE_OVERRIDES, true );
+
+		$hash[] = implode(
+			':',
+			array(
+				'wholesale',
+				$user_id,
+				self::get_current_tier( $user_id ),
+				Tiers::get_user_tier( $user_id ),
+				md5( (string) wp_json_encode( $overrides ) ),
+			)
+		);
 
 		return $hash;
 	}

@@ -454,7 +454,20 @@ class ApplicationForm {
 			}
 
 			$user_id = $existing->ID;
-			$existing->set_role( Roles::PENDING );
+
+			// This is a PUBLIC form: anyone can submit it with any email
+			// address, so it must never be able to change what an existing
+			// account can do. The pending role is only ever ADDED on top of
+			// an ordinary shopper account (never used to replace its roles),
+			// and an account with real capabilities — administrator, shop
+			// manager, editor, ... — isn't touched at all: the application
+			// is still recorded and the admin notified, so a genuine request
+			// from a staff member can be approved by hand from their profile.
+			if ( Roles::is_privileged( $user_id ) ) {
+				Logger::warning( "Wholesale application submitted for the email of privileged account #{$user_id}; roles left unchanged, application recorded for manual review." );
+			} else {
+				Roles::grant( $user_id, Roles::PENDING );
+			}
 		} else {
 			$user_id = wp_insert_user(
 				array(
@@ -475,7 +488,8 @@ class ApplicationForm {
 			update_user_meta( $user_id, '_protech_wholesale_app_' . $key, $data[ $key ] ?? '' );
 		}
 
-		update_user_meta( $user_id, '_protech_wholesale_app_status', 'pending' );
+		update_user_meta( $user_id, Approval::META_APP_STATUS, Approval::STATUS_PENDING );
+		delete_user_meta( $user_id, Approval::META_APP_REJECT_REASON );
 		update_user_meta( $user_id, '_protech_wholesale_app_submitted_at', current_time( 'mysql' ) );
 
 		Logger::info( "New wholesale application: user #{$user_id} ({$email})" );
