@@ -23,17 +23,18 @@ final class Plugin {
 	private Roles $roles;
 	private Settings $settings;
 	private Tiers $tiers;
+	private VolumePricing $volume_pricing;
 	private ApplicationForm $application_form;
 	private Approval $approval;
 	private ProductFields $product_fields;
 	private Pricing $pricing;
 	private CaseRules $case_rules;
-	private OrderForm $order_form;
 	private Reorder $reorder;
 	private MyAccount $my_account;
 	private Portal $portal;
 	private OrdersAdmin $orders_admin;
 	private Emails $emails;
+	private GlobalTierBar $global_tier_bar;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -55,34 +56,36 @@ final class Plugin {
 		$this->roles             = new Roles();
 		$this->settings          = new Settings();
 		$this->tiers             = new Tiers();
+		$this->volume_pricing    = new VolumePricing();
 		$this->application_form  = new ApplicationForm();
 		$this->approval          = new Approval();
 		$this->product_fields    = new ProductFields();
 		$this->pricing           = new Pricing();
 		$this->case_rules        = new CaseRules();
-		$this->order_form        = new OrderForm();
 		$this->reorder           = new Reorder();
 		$this->my_account        = new MyAccount();
 		$this->portal            = new Portal();
 		$this->orders_admin      = new OrdersAdmin();
 		$this->emails            = new Emails();
+		$this->global_tier_bar   = new GlobalTierBar();
 
 		foreach (
 			array(
 				$this->roles,
 				$this->settings,
 				$this->tiers,
+				$this->volume_pricing,
 				$this->application_form,
 				$this->approval,
 				$this->product_fields,
 				$this->pricing,
 				$this->case_rules,
-				$this->order_form,
 				$this->reorder,
 				$this->my_account,
 				$this->portal,
 				$this->orders_admin,
 				$this->emails,
+				$this->global_tier_bar,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -105,56 +108,75 @@ final class Plugin {
 	}
 
 	/**
+	 * The plugin's own version constant never changes between ordinary
+	 * deploys, which made every enqueued script/style URL byte-identical
+	 * across every redeploy this session (?ver=1.0.0, always) — browsers
+	 * (and Breeze, this site's caching plugin) had no reason to ever
+	 * re-fetch an updated file, so a real fix could ship server-side and
+	 * still appear to do nothing for a visitor with an already-cached
+	 * copy. Using each file's own last-modified time as its cache-buster
+	 * instead means a fresh redeploy always produces a new URL
+	 * automatically, with no separate step to remember.
+	 */
+	private function asset_version( string $relative_path ): string {
+		$path = PROTECH_WHOLESALE_DIR . $relative_path;
+
+		return is_readable( $path ) ? (string) filemtime( $path ) : PROTECH_WHOLESALE_VERSION;
+	}
+
+	/**
 	 * Only enqueue front-end assets on pages that actually use them.
 	 */
 	public function enqueue_frontend_assets(): void {
 		$post_content = is_singular() ? (string) ( get_post()->post_content ?? '' ) : '';
 
-		$has_shortcode = has_shortcode( $post_content, 'protech_wholesale_order_form' )
-			|| has_shortcode( $post_content, 'protech_wholesale_portal' );
+		$has_portal_shortcode = has_shortcode( $post_content, 'protech_wholesale_portal' );
+		$is_wholesale         = Roles::is_wholesale_customer();
 
-		$is_account_page = function_exists( 'is_account_page' ) && is_account_page();
-
-		if ( ! $has_shortcode && ! $is_account_page ) {
+		// The portal's logged-out login form and pending/retail-only
+		// notices need the stylesheet on that specific page regardless of
+		// wholesale status; a wholesale customer needs it EVERYWHERE (the
+		// "Wholesale price" label and the sticky global tier bar both
+		// render on ordinary shop/product pages, not just the portal).
+		if ( ! $has_portal_shortcode && ! $is_wholesale ) {
 			return;
 		}
 
-		// The portal's logged-out login form and pending/retail-only
-		// notices need the stylesheet too, so this loads regardless of
-		// wholesale status; only the cart-AJAX script below is gated.
 		wp_enqueue_style(
 			'protech-wholesale',
 			PROTECH_WHOLESALE_URL . 'assets/css/wholesale.css',
 			array(),
-			PROTECH_WHOLESALE_VERSION
+			$this->asset_version( 'assets/css/wholesale.css' )
 		);
 
-		if ( ! Roles::is_wholesale_customer() ) {
-			return;
+		if ( GlobalTierBar::should_render() ) {
+			wp_enqueue_script(
+				'protech-wholesale-global-tier-bar',
+				PROTECH_WHOLESALE_URL . 'assets/js/global-tier-bar.js',
+				array( 'jquery' ),
+				$this->asset_version( 'assets/js/global-tier-bar.js' ),
+				true
+			);
+
+			wp_localize_script(
+				'protech-wholesale-global-tier-bar',
+				'ProtechGlobalTierBar',
+				array(
+					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+					'nonce'   => wp_create_nonce( GlobalTierBar::AJAX_NONCE_ACTION ),
+				)
+			);
 		}
 
-		wp_enqueue_script(
-			'protech-wholesale-order-form',
-			PROTECH_WHOLESALE_URL . 'assets/js/order-form.js',
-			array(),
-			PROTECH_WHOLESALE_VERSION,
-			true
-		);
-
-		wp_localize_script(
-			'protech-wholesale-order-form',
-			'ProtechWholesale',
-			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'protech_wholesale_order_form' ),
-				'cartUrl' => wc_get_cart_url(),
-				'i18n'    => array(
-					'outOfStock' => __( 'Out of stock', 'protech-wholesale' ),
-					'added'      => __( 'Added to cart', 'protech-wholesale' ),
-					'error'      => __( 'Something went wrong. Please try again.', 'protech-wholesale' ),
-				),
-			)
-		);
+		if ( $is_wholesale && is_product() ) {
+			wp_enqueue_script(
+				'protech-wholesale-unit-selector',
+				PROTECH_WHOLESALE_URL . 'assets/js/unit-selector.js',
+				array( 'jquery', 'wc-add-to-cart-variation' ),
+				$this->asset_version( 'assets/js/unit-selector.js' ),
+				true
+			);
+		}
 	}
 
 	/**
@@ -175,7 +197,7 @@ final class Plugin {
 			'protech-wholesale-admin',
 			PROTECH_WHOLESALE_URL . 'assets/js/admin.js',
 			array(),
-			PROTECH_WHOLESALE_VERSION,
+			$this->asset_version( 'assets/js/admin.js' ),
 			true
 		);
 

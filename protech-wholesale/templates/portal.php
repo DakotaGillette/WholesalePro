@@ -1,9 +1,9 @@
 <?php
 /**
  * The /wholesale portal page body. Approved customers never reach this
- * template (Portal::maybe_redirect_approved_customer() sends them to
- * Quick Order first) — only 'login', 'pending', and 'retail_only' states
- * render here.
+ * template (Portal::maybe_redirect_approved_customer() sends them to the
+ * shop first) — only 'login', 'pending', and 'retail_only' states render
+ * here.
  *
  * Override by copying to yourtheme/woocommerce/portal.php.
  *

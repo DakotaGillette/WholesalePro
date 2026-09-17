@@ -84,7 +84,7 @@ class Emails {
 
 		$body = sprintf(
 			/* translators: %s: password set/reset link. */
-			__( "Good news — your wholesale application has been approved.\n\nSet your password and log in here: %s\n\nOnce logged in you'll see wholesale pricing and can place orders from the Quick Order page.", 'protech-wholesale' ),
+			__( "Good news — your wholesale application has been approved.\n\nSet your password and log in here: %s\n\nOnce logged in you'll see wholesale pricing throughout the shop and can order as usual.", 'protech-wholesale' ),
 			$login_url
 		);
 

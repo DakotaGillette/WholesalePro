@@ -1,7 +1,11 @@
 <?php
 /**
- * R4/R5: the "Quick Order" My Account tab, the post-login redirect for
- * wholesale users, and the "pending" notice on the account dashboard.
+ * R5: the post-login redirect for wholesale users, and the "pending"
+ * notice on the account dashboard. Used to also own the "Quick Order"
+ * tab — removed per owner feedback in favor of wholesale pricing being
+ * visible directly on the normal shop/product pages everywhere, with the
+ * sticky global tier bar (class-global-tier-bar.php) as the one piece of
+ * dedicated wholesale UI. See DECISIONS.md.
  *
  * @package ProtechWholesale
  */
@@ -19,64 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class MyAccount {
 
-	public const ENDPOINT = 'quick-order';
-
 	public function register_hooks(): void {
-		add_action( 'init', array( self::class, 'register_endpoint' ) );
-		add_filter( 'query_vars', array( $this, 'add_query_var' ) );
-		add_filter( 'woocommerce_account_menu_items', array( $this, 'add_menu_item' ) );
-		add_action( 'woocommerce_account_' . self::ENDPOINT . '_endpoint', array( $this, 'render_endpoint_content' ) );
 		add_filter( 'login_redirect', array( $this, 'login_redirect' ), 10, 3 );
 		add_action( 'woocommerce_before_account_navigation', array( $this, 'maybe_show_pending_notice' ) );
-	}
-
-	/**
-	 * Also called directly from Activator::activate() — a rewrite
-	 * endpoint added only via the `init` hook won't exist yet on the
-	 * very request that first activates the plugin.
-	 */
-	public static function register_endpoint(): void {
-		add_rewrite_endpoint( self::ENDPOINT, EP_ROOT | EP_PAGES );
-	}
-
-	public function add_query_var( array $vars ): array {
-		$vars[] = self::ENDPOINT;
-
-		return $vars;
-	}
-
-	/**
-	 * Only shown to approved wholesale customers — no layout shift for
-	 * retail accounts.
-	 *
-	 * @param array<string, string> $items
-	 * @return array<string, string>
-	 */
-	public function add_menu_item( array $items ): array {
-		if ( ! Roles::is_wholesale_customer() ) {
-			return $items;
-		}
-
-		$with_quick_order = array();
-
-		foreach ( $items as $key => $label ) {
-			$with_quick_order[ $key ] = $label;
-
-			if ( 'dashboard' === $key ) {
-				$with_quick_order[ self::ENDPOINT ] = __( 'Quick Order', 'protech-wholesale' );
-			}
-		}
-
-		return $with_quick_order;
-	}
-
-	public function render_endpoint_content(): void {
-		if ( ! Roles::is_wholesale_customer() ) {
-			echo '<p>' . esc_html__( 'This page is only available to approved wholesale accounts.', 'protech-wholesale' ) . '</p>';
-			return;
-		}
-
-		echo do_shortcode( '[protech_wholesale_order_form]' );
 	}
 
 	/**
@@ -90,7 +39,7 @@ class MyAccount {
 		}
 
 		if ( Roles::is_wholesale_customer( $user->ID ) ) {
-			return self::quick_order_url();
+			return wc_get_page_permalink( 'shop' );
 		}
 
 		if ( Roles::is_wholesale_pending( $user->ID ) ) {
@@ -107,9 +56,5 @@ class MyAccount {
 				'notice'
 			);
 		}
-	}
-
-	public static function quick_order_url(): string {
-		return wc_get_endpoint_url( self::ENDPOINT, '', wc_get_page_permalink( 'myaccount' ) );
 	}
 }

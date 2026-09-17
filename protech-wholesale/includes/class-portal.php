@@ -2,9 +2,9 @@
 /**
  * R5b: the /wholesale landing page — [protech_wholesale_portal].
  * Content depends entirely on the visitor's state: logged out (login +
- * pitch + apply link), pending (under-review notice), approved
- * (redirect straight to Quick Order), or retail-only (short message +
- * apply link).
+ * pitch + apply link), pending (under-review notice), approved (redirect
+ * straight to the shop, where wholesale pricing is already visible), or
+ * retail-only (short message + apply link).
  *
  * @package ProtechWholesale
  */
@@ -62,7 +62,7 @@ class Portal {
 		wp_set_current_user( $user->ID );
 
 		if ( Roles::is_wholesale_customer( $user->ID ) ) {
-			wp_safe_redirect( MyAccount::quick_order_url() );
+			wp_safe_redirect( wc_get_page_permalink( 'shop' ) );
 		} else {
 			wp_safe_redirect( home_url( '/wholesale' ) );
 		}
@@ -72,11 +72,10 @@ class Portal {
 
 	/**
 	 * Approved wholesale customers never see the portal body — they go
-	 * straight to Quick Order (see DECISIONS.md: chosen over rendering
-	 * the order form inline, to avoid keeping two copies of that markup
-	 * in sync). Runs on any singular page/post carrying the shortcode,
-	 * not just the /wholesale page itself, since it's also usable from a
-	 * WPBakery layout.
+	 * straight to the shop, where their wholesale pricing is already
+	 * visible on every product. Runs on any singular page/post carrying
+	 * the shortcode, not just the /wholesale page itself, since it's also
+	 * usable from a WPBakery layout.
 	 */
 	public function maybe_redirect_approved_customer(): void {
 		if ( ! Roles::is_wholesale_customer() || ! is_singular() ) {
@@ -86,7 +85,7 @@ class Portal {
 		$post = get_post();
 
 		if ( $post && has_shortcode( (string) $post->post_content, 'protech_wholesale_portal' ) ) {
-			wp_safe_redirect( MyAccount::quick_order_url() );
+			wp_safe_redirect( wc_get_page_permalink( 'shop' ) );
 			exit;
 		}
 	}
@@ -97,8 +96,8 @@ class Portal {
 			// fire (e.g. output already started elsewhere on the page).
 			return sprintf(
 				'<p><a href="%s">%s</a></p>',
-				esc_url( MyAccount::quick_order_url() ),
-				esc_html__( 'Continue to Quick Order', 'protech-wholesale' )
+				esc_url( wc_get_page_permalink( 'shop' ) ),
+				esc_html__( 'Continue to the shop', 'protech-wholesale' )
 			);
 		}
 
