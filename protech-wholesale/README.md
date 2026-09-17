@@ -1,6 +1,6 @@
 # Protech Wholesale
 
-A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com) that turns approved retailers into a self-service wholesale channel: they apply, get approved, log in, and see wholesale pricing automatically on every ordinary shop/product page — no separate order-taking page, tab, or manual work on the store owner's side. A sticky bar follows wholesale customers around the site showing live progress toward better quantity-tier pricing and free shipping, and "Reorder" on any past order adds it straight back to the cart.
+A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com) that turns approved retailers into a self-service wholesale channel: they apply, get approved, log in, and see wholesale pricing automatically on every ordinary shop/product page — no separate order-taking page and no manual work on the store owner's side. A price table on each product and a sticky bar across the site show live progress toward better quantity-tier pricing and free shipping, and "Reorder" on any past order adds it straight back to the cart.
 
 ## Requirements
 
@@ -17,95 +17,97 @@ A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com)
    - creates the `wholesale_pending` and `wholesale_customer` roles,
    - saves default settings (see below),
    - creates a `/wholesale` page containing the `[protech_wholesale_portal]` shortcode, if one doesn't already exist.
-4. Go to **WooCommerce → Wholesale → Settings** and review the defaults, then set **Application form source** to match whatever actually powers `/wholesale-application` on your site (see "Known limitations").
-5. Set a **Wholesale price** (and optionally non-default **Packs per display** / **Displays per case** / per-tier price overrides) on each product/variation you want available at wholesale. Products with no wholesale price are simply not offered at wholesale (see "Pricing precedence" below).
+4. Go to **WooCommerce → Wholesale → Settings** and confirm **Application form source** / **Application form ID** match whatever powers `/wholesale-application` on your site (Fluent Forms, form #4, on the live site).
+5. Add **Protech Wholesale Shipping** to each shipping zone under WooCommerce → Settings → Shipping (it is invisible to retail customers).
+6. On each product you sell at wholesale, open the **Wholesale** product data tab and set a **Wholesale price** (per variation, for a variable product — use the Variations tab's "Set wholesale prices" bulk action to set every colour at once). Products with no wholesale price are simply not offered at wholesale.
+
+## Admin screens
+
+Everything lives under **WooCommerce → Wholesale**:
+
+| Tab | What's there |
+|---|---|
+| Applicants | Pending / Approved / Rejected applications with Approve and Reject (with an optional reason) actions, search, pagination. |
+| Customers | Every wholesale customer: store, tier, override count, orders, last order, lifetime spend. |
+| Products | Every product with wholesale pricing or flagged wholesale-only, for reference. |
+| Pricing & Shipping | The Standard/Volume/Bulk ladder (thresholds and store-default prices), packs-per-display and displays-per-case defaults, and the wholesale shipping flat rate. |
+| Tiers | Bronze/Silver/Gold/Platinum discount percentages (internal, never shown to customers). |
+| Settings | Empty-price behaviour, retail coupons, free-shipping exclusion, application form source/ID, uninstall purge. |
+
+Per-customer settings (wholesale flag, tier, per-customer price overrides) and the customer's submitted application are on their **user profile** (Users → Edit).
 
 ## Settings reference
 
-All settings live under **WooCommerce → Wholesale → Settings**.
-
 | Setting | Option key | Default | What it does |
 |---|---|---|---|
-| Products with no wholesale price | `protech_wholesale_empty_price_behavior` | `hide` | What a wholesale customer sees for a product/variation with no group or per-customer wholesale price. `hide` removes it from wholesale shop/catalog views entirely. `fallback` shows the normal retail price with a "(retail only — not available at wholesale)" note if the wholesale user opens that product's page directly. |
-| Allow retail coupons for wholesale customers | `protech_wholesale_allow_retail_coupons` | `no` (unchecked) | When off, any coupon applied by a wholesale account is rejected with "This coupon is not valid for wholesale accounts." When on, wholesale customers can use retail coupons like anyone else. |
-| Exclude wholesale orders from free shipping | `protech_wholesale_exclude_free_shipping` | `yes` (checked) | Keeps the retail free-shipping-over-$30 rule from applying to wholesale customers, so they always pay real shipping rates. |
-| Application form source + exact form ID | `protech_wholesale_application_source` / `protech_wholesale_application_form_id` | `native` / empty | Which system produces new wholesale applications: the plugin's own native form, or an adapter for Gravity Forms, WPForms, Contact Form 7, or Fluent Forms — and, once you've picked one of those, the exact form ID to listen to (so a *different* form built with the same plugin, like a newsletter signup, doesn't also get funneled into the applicant queue). Leaving the ID empty falls back to "any form from that plugin." See "Known limitations." |
-| On uninstall | `protech_wholesale_purge_on_uninstall` | `no` (unchecked) | If left unchecked, deleting the plugin keeps all wholesale data (roles, prices, applications, overrides) untouched. If checked, deleting the plugin removes plugin settings, the wholesale roles, the auto-created `/wholesale` page (only if unmodified), and wholesale-related user meta. See `uninstall.php` for exactly what is and is not removed. |
-
-The global minimum-order subtotal (now vestigial — see "Case size and shipping" below), the Standard/Volume/Bulk price ladder, case composition defaults, and the wholesale shipping flat rate all live under **WooCommerce → Wholesale → Tiers** and **→ Pricing** instead of Settings — see those tabs directly, or `DECISIONS.md`.
+| Products with no wholesale price | `protech_wholesale_empty_price_behavior` | `hide` | What a wholesale customer sees for a product with no wholesale price. `hide` removes it from the wholesale shop/search/category views entirely (at the query level, so pagination and counts stay right). `fallback` shows the retail price with a "(retail only)" note. |
+| Allow retail coupons for wholesale customers | `protech_wholesale_allow_retail_coupons` | `no` | When off, any coupon applied by a wholesale account is rejected. |
+| Exclude wholesale orders from free shipping | `protech_wholesale_exclude_free_shipping` | `yes` | Keeps the retail free-shipping rule from applying to wholesale customers in zones where the wholesale method hasn't been added. |
+| Application form source / form ID | `protech_wholesale_application_source` / `protech_wholesale_application_form_id` | `fluent_forms` / `4` | Which plugin and which exact form produce wholesale applications. Adapters exist for Gravity Forms, WPForms, Contact Form 7, and Fluent Forms, plus a native fallback form (`[protech_wholesale_application]`). |
+| On uninstall | `protech_wholesale_purge_on_uninstall` | `no` | If checked, deleting the plugin removes its settings, roles, the auto-created `/wholesale` page (only if unmodified), and wholesale user meta. Product pricing meta and order flags are never removed. See `uninstall.php`. |
 
 ## How pricing precedence works
 
-For any product or variation, a wholesale customer's price is resolved in this order:
+For any product or variation, a wholesale customer's per-pack price is resolved in this order:
 
-1. **Per-customer override** — a price set specifically for that one customer, on their user profile. Always wins if present, regardless of cart quantity.
-2. **The Standard/Volume/Bulk quantity tier the cart has reached** — see "Quantity-tier pricing and shipping" below. Volume/Bulk can be overridden per product; Standard is always that product's own "Wholesale price".
-3. **The customer's tier discount** (Bronze/Silver/Gold/Platinum, set on their user profile, never shown to the customer) — a percentage off whatever #2 resolved to. Bronze has no discount, so it's a no-op for most accounts.
-4. **Not available at wholesale** — if the product has no "Wholesale price" set at all, it simply isn't sold at wholesale, regardless of tiers. Depending on the "Products with no wholesale price" setting, it is either hidden from wholesale views (default) or shown at the normal retail price with a note.
+1. **Per-customer override** — set on their user profile with the product picker. Always wins, regardless of cart quantity.
+2. **The Standard/Volume/Bulk quantity tier the cart has reached** — see "Quantity-tier pricing and shipping" below. Standard is the product's own "Wholesale price"; Volume/Bulk are store defaults, overridable per product/variation.
+3. **The customer's tier discount** (Silver/Gold/Platinum percentage, Bronze = none) — applied on top of #2.
+4. **Not available at wholesale** — no "Wholesale price" set at all. Depending on the empty-price setting the product is hidden from wholesale views or shown at retail with a note.
 
 Retail customers and guests never see a wholesale price under any circumstance — pricing filters only apply to logged-in users with the `wholesale_customer` role.
 
-## How to approve a customer
-
-**Through the application flow:**
-
-1. A prospective retailer submits the form at `/wholesale-application` (whichever form is configured under Settings → Application form source).
-2. A WordPress user is created automatically with the `wholesale_pending` role, and all submitted fields (store name, business type, address, etc.) are saved as user meta. The applicant gets a "we received your application, 1–3 business days" email, and the store admin gets a notification email with a link to review it.
-3. The admin opens **WooCommerce → Wholesale** (the "Applicants" tab) and sees the applicant with a Pending status, along with Approve/Reject actions.
-4. Clicking **Approve** switches the user's role to `wholesale_customer` and emails them a password set/reset link. Clicking **Reject** lets the admin add an optional reason, which is included in a polite decline email; the user's account is left as-is (still `wholesale_pending`, no wholesale access).
-5. The approved retailer follows the link in their email, sets a password, and logs in. They are redirected straight to **the shop**, where wholesale prices are now visible on every product.
-
-**Manually flagging an existing customer:**
-
-An admin can skip the application queue entirely by opening any user's profile (**Users → [pick a user] → Edit**) and checking **"Flag this customer as an approved wholesale customer"** under the "Protech Wholesale" section. Saving the profile switches their role to `wholesale_customer` immediately. Unchecking it switches them back to `customer`.
-
-## How to add a per-customer price
-
-On the same user-profile screen (Users → edit a customer), under **Protech Wholesale → Per-customer price overrides**, click **"+ Add price override"** and enter:
-
-- **Product/variation ID** — the numeric ID of the specific product or variation. For a simple product this is the product ID; for one color of the sleeves this is the *variation* ID, not the parent product's ID. You can find either by opening that product/variation for editing in wp-admin and looking at the URL's `post=` parameter (for a variation, expand it in the Variations tab — WooCommerce shows the variation ID next to its SKU) or by hovering the row in Products list.
-- **Price per pack** — the price this one customer pays, in the same "per pack" unit as the group wholesale price.
-
-This override applies only to that one customer and only for that one product/variation — it beats the group wholesale price for them, but doesn't change what any other wholesale customer pays. Leaving the repeater empty means the customer simply pays the group price (or sees the item as unavailable, if no group price is set either).
-
 ## Quantity-tier pricing and shipping
 
-Wholesale sells sleeves by two units, both built on top of the same "pack" WooCommerce already tracks stock in: a **Display** (10 packs of one color by default — "Packs per display" per product/variation) and a **Case** (8 Displays by default — "Displays per case"). Customers still order in packs the normal WooCommerce way (quantity field, Add to Cart); Display/Case are pricing-tier units, not a separate ordering unit.
+Wholesale sells sleeves by two units, both built on the "pack" WooCommerce tracks stock in: a **Display** (10 packs by default — "Packs per display", per product; a variation inherits its parent's) and a **Case** (8 Displays by default — "Displays per case"). Customers pick Display or Case and a quantity on the product page; it always submits a real pack count.
 
-- **Standard/Volume/Bulk price ladder** (WooCommerce → Wholesale → Pricing): $5.50/pack under 16 combined Displays in the cart (Standard, the product's own "Wholesale price"), $5.00/pack at 16+ Displays (Volume), $4.50/pack at 16+ Cases (Bulk) — all editable store-wide, with an optional per-product override for the Volume/Bulk price. Thresholds are **combined across the whole cart** (every wholesale-eligible product/color together), not per line item, and shown live on the sticky tier bar that follows a wholesale customer around the site (see below).
-- **Shipping**: a flat $19.95 below the 16-Display threshold, free at or above it — the same real WooCommerce shipping method (`Wholesale Shipping`) shown at checkout, available only to approved wholesale customers, and only once it's been added to a shipping zone (WooCommerce → Settings → Shipping → pick a zone → Add shipping method).
-- Any wholesale add-to-cart quantity that isn't an exact multiple of a product's Packs-per-display is rejected with a message asking for a multiple of that size.
-- Cart/checkout still shows a "Displays: 3" annotation on each wholesale line, alongside the real pack quantity WooCommerce tracks for stock.
-- There is **no dollar-based order minimum** to check out — an older $800-subtotal checkout block was removed in favor of this quantity-tier system. (A vestigial per-tier "Minimum order" field still exists on WooCommerce → Wholesale → Tiers from before that change; it no longer does anything — see `DECISIONS.md`.)
-
-Retail customers are entirely unaffected by any of the above — these rules only ever apply to users with the `wholesale_customer` role.
+- **Ladder** (WooCommerce → Wholesale → Pricing & Shipping): $5.50/pack under 16 combined Displays (Standard, the product's own price), $5.00/pack at 16+ Displays (Volume), $4.50/pack at 16+ Cases (Bulk). Thresholds are **combined across the whole cart** (every product and colour together). Each product page shows the customer their own three prices in a small table, with the cart's current tier marked.
+- **Shipping**: a flat $19.95 below the Volume threshold, free at or above it — a real WooCommerce shipping method (`Wholesale Shipping`), only shown to wholesale customers whose cart holds wholesale-eligible items, and only once it's been added to a zone. When present it hides the zone's retail Flat rate / Free shipping methods (list filterable via `protech_wholesale_retail_shipping_methods`).
+- Wholesale quantities must be multiples of the packs-per-display: enforced at add-to-cart (classic and Store API), on the Blocks cart's own quantity controls, and again at checkout.
+- Cart/checkout lines carry a "Displays: N" annotation; it is saved on the order line item.
+- There is **no dollar-based order minimum**. The "Minimum order" fields on the Tiers tab and user profile are from an earlier design and are not enforced anywhere; they're labelled as such pending a decision to remove or re-enable them.
 
 ## The sticky tier bar
 
-A bar fixed to the bottom of the viewport, shown to logged-in wholesale customers on every front-end page (product pages, the shop grid, the cart — not just one dedicated screen), reflecting their actual current cart: a message ("Add 3 more displays to unlock better pricing + free shipping"), the live cart subtotal and Display/Case count, and a track with markers for the Volume and Bulk thresholds. It updates without a page reload after any Add to Cart action anywhere on the site, dismisses per browsing session (a real cart change brings it back), and is never shown to retail customers or guests. See `class-global-tier-bar.php`.
+A bar fixed to the bottom of the viewport on every front-end page except checkout, for logged-in wholesale customers only: a message ("Add 3 more displays to unlock better pricing + free shipping"), the live cart subtotal and Display/Case count, and a track with markers for the Volume and Bulk thresholds. It updates without a page reload after any add-to-cart anywhere on the site, and is deliberately not dismissible. See `class-global-tier-bar.php`.
 
-## Reorder
+## How to approve a customer
 
-"Reorder" appears on **My Account → Orders**, on each order's detail page, and as a shortcut on the account dashboard for the customer's most recent order. Clicking it adds every still-available line from that order straight to the current cart (skipping — with a visible note — any line that's out of stock, no longer sold, or no longer available at wholesale) and sends the customer to `/cart/` to review pricing and check out. There's no intermediate review/prefill page.
+1. A retailer submits `/wholesale-application`. A WordPress user is created with the `wholesale_pending` role and every answer is saved as user meta. The applicant gets a "we received your application" email; the store admin gets an email with the full application and a link to the profile.
+   - If the email address already belongs to an ordinary shopper account, the pending role is **added** to it (its existing roles are kept). If it belongs to a staff account (administrator, shop manager, editor…), the account's roles are **never** changed: the application is recorded and flagged for manual review instead.
+   - An already-approved wholesale customer re-applying is ignored.
+2. In **WooCommerce → Wholesale → Applicants** (Pending), click **Approve** (confirmation prompt) or **Reject** (prompts for an optional reason, included in the email).
+3. **Approve** adds the `wholesale_customer` role, removes `wholesale_pending`, and emails a link to set a password on the My Account page (valid 24 hours; "Lost your password?" issues a new one). **Reject** removes the pending role (the account becomes an ordinary customer), records the reason, moves them to the Rejected view, and emails them. A rejected applicant can be approved later from the Rejected view, and can re-apply.
+4. On login the customer lands on the shop with wholesale pricing visible.
+
+**Manually flagging an existing customer:** on any user's profile, check **"Flag this customer as an approved wholesale customer"**. This adds the role without touching the account's other roles; if the account has a pending application, the approval email is sent too. Unchecking removes the wholesale role (and adds `customer` if nothing else remains).
+
+## How to add a per-customer price
+
+On the user's profile under **Protech Wholesale → Per-customer price overrides**, click **"+ Add price override"**, pick the product or variation with the search box, and enter the **price per pack**. It beats the group price and every quantity tier for that one customer and product only.
 
 ## "Wholesale only" products
 
-Checking **"Wholesale only"** in a product's pricing panel hides it from the retail shop, search, and category pages entirely — a retail visitor who opens its direct URL sees an "available to approved wholesale accounts only" message instead of a price, with no way to add it to cart. A wholesale customer sees it normally everywhere, including the shop grid.
+Check **Wholesale only** on the product's **Wholesale** tab (product level — applies to all of a variable product's colours). Retail visitors then never see it in the shop, search, categories, sitemaps, or the public Store API product listing; a direct link shows an "available to approved wholesale accounts only" message with an apply link in place of the price, and it can't be added to cart. Leave WooCommerce's own "Catalog visibility" on its default: checking Wholesale only forces it back to visible on save, because the native "Hidden" setting hides a product from wholesale customers too.
 
-This is the **only** visibility control that should ever be used for a wholesale-only product — leave WooCommerce's own native "Catalog visibility" dropdown (further down the same panel) on its default "Shop and search results". Setting that native dropdown to "Hidden" excludes the product from every query for *everyone*, wholesale customers included, and this plugin can't override that (see `DECISIONS.md` for the real instance of this that shipped hidden from wholesale accounts until caught and fixed). Checking "Wholesale only" now automatically corrects that native setting back to visible on save, so this shouldn't be able to recur — but it's worth knowing why, if a wholesale-only product ever seems to vanish for wholesale accounts too.
+## Development
+
+```sh
+cd protech-wholesale
+composer install                   # phpunit, WPCS, PHPStan (dev only; never deployed)
+composer lint                      # phpcs (advisory for now)
+composer analyse                   # phpstan
+cd .. && npx wp-env start          # WordPress + WooCommerce + this plugin (Docker)
+npx wp-env run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the same on every push. `bin/deploy.sh` rsyncs the plugin to Cloudways staging (excluding tests and tooling) and purges the object and Breeze page caches; see `.env.example`.
 
 ## Known limitations
 
-Built without live access to the Protech Sleeves staging site, so a few items are shipped as best-effort, easy-to-adjust defaults rather than confirmed facts. See `DECISIONS.md` for full detail; in short:
+- Gravity Forms and WPForms adapters are untested against real installs (neither plugin is on this site); Fluent Forms is verified live.
+- No tax-exemption or resale-certificate handling: wholesale orders are taxed like retail.
+- The variations bulk actions follow WooCommerce's documented custom-bulk-action contract but should be exercised once on staging after each WooCommerce update.
+- Salient-specific visuals (price label inside Salient's price markup, the login/portal page typography) are worth a look after theme updates.
 
-- **Which form plugin renders `/wholesale-application` was never confirmed against the live site.** The plugin ships adapters for Gravity Forms, WPForms, Contact Form 7, and Fluent Forms, plus a native fallback form (`[protech_wholesale_application]`), gated by the "Application form source" setting so only one is ever active. Confirm which plugin (if any) is actually installed and set the matching option; if `/wholesale-application` turns out to be a "dumb mailer" form with no integration hooks, leave the setting on "Native form" and drop the native shortcode into that page instead.
-- ~~Classic vs. WooCommerce Blocks cart/checkout was never confirmed either.~~ **Confirmed on staging**: both the Cart and Checkout pages are WooCommerce Blocks, so the Store API hooks (`woocommerce_store_api_cart_errors`) are the ones that actually matter; the classic hooks stay in place as a harmless no-op. See `DECISIONS.md`.
-- **No tax-exemption or resale-certificate collection UI.** Wholesale orders are taxed exactly like retail. A filter (`protech_wholesale_is_tax_exempt`, defaulting to `false`) exists in `includes/class-pricing.php` for a future per-customer exemption, but nothing calls it yet and there is no certificate upload flow.
-- **The "set all variations to $___" bulk price helper's JS hasn't been checked against a live WooCommerce admin screen.** It intercepts WooCommerce's Variations bulk-action dropdown to prompt for a price. If a future WooCommerce version changes how that dropdown forwards its typed value, the failure mode is safe — the button does nothing rather than corrupting prices — but it should be exercised once on staging.
-- **A few Salient-theme-specific visual spots need a look:** the product price HTML markup inside Salient's product loop/single templates (the plugin only appends a "Wholesale price" label via a filter — if Salient's markup swallows appended text, it may need a template-specific tweak), and Salient's own quantity-stepper JS on the single product page (it needs to respect the `step`/`min` values the plugin sets).
-
-None of the above affects retail customers or retail checkout in any way.
-
-## File layout
-
-See `PLAN.md` at the repository root for the full file layout and hook map (which filter/action does what, organized by requirement).
+None of the above affects retail customers or retail checkout in any way. See `PLAN.md` for the file layout and hook map, `DECISIONS.md` for every judgement call, `QA.md` for the staging checklist, and `CHANGELOG.md` for what changed when.

@@ -118,7 +118,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 
 - [ ] Open **WooCommerce → Wholesale → Tiers**. Set Silver's minimum order override to a distinct test value (e.g. $200) and its discount to 10%.
 - [ ] On a test wholesale account with **no** per-customer minimum-order or price override set, assign the **Silver** tier from their user profile.
-- [ ] Confirm that account's cart/checkout minimum is now $200 (Silver's override), not the global default — and that a *different* wholesale account left on **Bronze** still enforces the global default.
+- [ ] ~~Confirm that account's cart/checkout minimum is now $200~~ — the dollar minimum is not enforced (see §5); confirm instead that the Tiers tab and the profile field both say so, and that checkout is NOT blocked for the Silver account at a low subtotal.
 - [ ] Confirm a product with a group wholesale price (e.g. $5.00) shows as $4.50 for the Silver-tier account (10% off), while showing the plain $5.00 for a Bronze-tier account.
 - [ ] On the Silver account, add a **per-customer price override** for that same product (e.g. $3.00). Confirm the override wins — the account now sees $3.00, not the tier-discounted $4.50.
 - [ ] Confirm the tier is never visible anywhere the customer can see it (shop, My Account, emails, the portal page).
@@ -168,3 +168,52 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] As a retail (non-wholesale) customer/guest, confirm the "Order by" selector never appears, and the quantity field behaves with no restriction (step 1, min 1).
 - [ ] Click Add to Cart with JS enabled. Confirm the button shows a brief loading state, the page does **not** reload, and the "Order by"/Quantity fields reset back to "Display" / `1` afterward (ready for the next add).
 - [ ] Force a validation failure — e.g. edit the DOM (or a script blocker) to submit a quantity that isn't a multiple of the case size — and confirm an inline error message appears near the selector (in place of the usual "X packs total" hint) rather than the page silently doing nothing or crashing.
+
+## 17. Version 1.1.0 audit fixes
+
+> Added 2026-09-17 after the code audit. None of this was run locally (no PHP/Docker on the build machine); CI is the first execution. These are the staging checks for each fix, in the order they matter.
+
+**Security / roles**
+- [ ] Submit `/wholesale-application` with an **administrator's** email address. Confirm the administrator keeps every role and capability (Users list still says Administrator; wp-admin still works for them), an application record appears under Applicants → Pending with the "existing staff account" note, and the admin email says the roles were left unchanged.
+- [ ] Submit it with an existing **retail customer's** email. Confirm the account now has BOTH `customer` and `wholesale_pending` (Users → edit → role list, or `wp user get <id> --field=roles`).
+- [ ] Approve a pending applicant. Confirm they gain `wholesale_customer`, lose `wholesale_pending`, and keep any other role they had.
+- [ ] Un-flag a wholesale customer from their profile. Confirm only the wholesale role is removed (a shop manager stays a shop manager; a plain account becomes `customer`).
+
+**Applications**
+- [ ] Reject an applicant from the Pending view: a prompt asks for an optional reason; after submitting, they appear under **Rejected** with the reason, are gone from Pending, the count on each view tab is right, and the rejection email contains the reason.
+- [ ] Log in as that rejected user and visit `/wholesale`. Confirm the "update on your application" message, not "under review".
+- [ ] Approve from the Rejected view. Confirm it works and the reason is cleared on their profile.
+- [ ] Open the applicant's profile. Confirm the "Wholesale application" section lists all 13 answers, the status, and the submission time.
+- [ ] Search on the Applicants tab (by email); confirm pagination controls appear once there are more than 20 in a view.
+- [ ] Open the admin notification email for a new application. Confirm it has the store's branded header/footer, the full answers, a working "Review" link to the profile, and Reply-To set to the applicant.
+- [ ] Open the approval email. Confirm the "Set your password" button opens the **My Account** password form (not wp-login.php) and works.
+
+**Orders (Blocks checkout)**
+- [ ] Place a wholesale order through checkout. In WooCommerce → Orders confirm the **Wholesale** badge on it, that the "Wholesale only" filter finds it, that the admin new-order email subject starts with "WHOLESALE ORDER", and that each line item shows "Displays: N" meta.
+- [ ] Confirm the wholesale filter dropdown appears once (top of the list only).
+
+**Products**
+- [ ] Edit the flagship variable product. Confirm a **Wholesale** tab exists with "Packs per display", "Displays per case", and "Wholesale only", plus a note pointing to the Variations tab for prices. Confirm a simple product's Wholesale tab also shows the price fields.
+- [ ] Variations tab → bulk action "Set wholesale prices": a prompt appears (once), and after entering a value every variation's wholesale price is updated. Repeat for "Set Volume price overrides".
+- [ ] Set "Packs per display" on the parent only; confirm a variation's product page steps by that size.
+
+**Catalog**
+- [ ] As a guest, load `/wp-json/wc/store/v1/products?per_page=100` and confirm no wholesale-only product is listed. Confirm the same via the shop grid, site search, and `/wp-sitemap-posts-product-1.xml`.
+- [ ] As a wholesale customer with "hide" set, confirm the shop grid shows the flagship product and no unpriced products, and that "Showing X–Y of Z results" counts are right (no short pages).
+- [ ] Check WooCommerce → Status → Logs (source `protech-wholesale`) for the "Upgraded plugin data to version 2" line after the first page load post-deploy.
+
+**Pricing / cart**
+- [ ] With an empty cart, open the flagship product as a wholesale customer. Confirm a "Wholesale pricing" table shows Standard/Volume/Bulk with prices and thresholds, "Your cart" on Standard.
+- [ ] Add 16+ displays, reload the product page and the shop grid: the table marks Volume, and the grid/range price is the Volume price immediately (no stale $5.50).
+- [ ] On the Blocks cart page, use the +/- on a wholesale line: confirm it moves by the display size and a typed non-multiple is rejected.
+- [ ] Confirm the sticky bar does NOT appear on the checkout page, does appear elsewhere, and updates after a product-page add with the mini-cart closed.
+- [ ] My Account dashboard: confirm the "Your wholesale account" panel shows the cart tier and thresholds.
+- [ ] Log in via the My Account form (not the portal); confirm a wholesale customer lands on the shop.
+
+**Shipping**
+- [ ] Wholesale customer with only a non-wholesale (retail-priced) item in the cart: the zone's retail methods show, not Wholesale Shipping.
+
+**Tooling**
+- [ ] Confirm GitHub Actions is green on the latest commit (PHPUnit inside wp-env). Lint/analysis steps are advisory.
+- [ ] Run `bin/deploy.sh` and confirm `tests/`, `vendor/`, and `composer.json` are absent from the plugin directory on staging.
+

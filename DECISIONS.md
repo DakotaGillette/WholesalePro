@@ -713,8 +713,8 @@ correctly:
 | Displays per case default | 8, editable per product/variation | Product data panel |
 | Global order minimum (dollar-based, per customer tier) | $800 subtotal, editable globally and per customer — **now vestigial**, see "Display/Case quantity-tier pricing + shipping pivot" above | Tiers tab (Bronze row) + user profile field |
 | Per-customer price override storage | Single repeater meta field on the user profile (`_protech_price_overrides`, `variation_id => price`), not a separate CPT/table — matches "keep simple" instruction in R2 | `class-approval.php` (profile fields) |
-| Application → pending user role | New role `wholesale_pending` (not a meta flag on `customer`) so existing role-based plugins/reports naturally exclude pending applicants | `class-roles.php` |
-| Reorder + now-out-of-stock variation | Skip that line, show an inline note, prefill everything else | `class-reorder.php` |
+| Application → pending user role | New role `wholesale_pending`, ADDED to the account (never replacing its roles); staff accounts are never changed automatically — see the 1.1.0 section | `class-roles.php`, `class-application-form.php` |
+| Reorder + now-out-of-stock variation | Skip that line, show a notice, add everything else straight to the cart | `class-reorder.php` |
 | Where an approved customer lands | Portal page (`/wholesale`), post-login, and Reorder all send an approved wholesale customer to the **shop page** — Quick Order (which this used to redirect to) was removed; see "Quick Order removal..." above | `class-portal.php`, `class-my-account.php` |
 | Uninstall data handling | Kept by default; "purge on uninstall" is an opt-in setting | `uninstall.php` |
 
@@ -738,7 +738,7 @@ Flagged in the master prompt as needing verification once on staging
 - Quantity input markup/JS on Salient's single product page (Salient may
   have its own qty stepper JS that needs to respect `step`/`min` set by
   `woocommerce_quantity_input_args`).
-- My Account nav styling for the new "Quick Order" tab.
+- ~~My Account nav styling for the new "Quick Order" tab.~~ (That tab was removed; nothing to check.)
 - The "set all variations to $___" bulk price helper (`assets/js/admin.js`)
   intercepts WooCommerce's variations bulk-action dropdown to prompt for
   a price, since WooCommerce's own JS only does this natively for its
@@ -747,4 +747,125 @@ Flagged in the master prompt as needing verification once on staging
   `ProductFields::handle_bulk_edit()` refuses to change any prices when
   no value was submitted, so a JS mismatch means the button quietly does
   nothing rather than corrupting data. Confirm on staging and adjust the
-  interception in `admin.js` if needed.
+  interception in `admin.js` if needed. **Update (1.1.0):** it was indeed
+  quietly doing nothing — see item 5 in the section below.
+
+## Audit and remediation, version 1.1.0 (2026-09-17, afternoon)
+
+A full read-through of the plugin, with its WooCommerce-behaviour
+assumptions checked against WooCommerce trunk source and the Salient 18.1
+theme source, followed by six phases of fixes. The audit itself (every
+finding tagged confirmed / likely / verify) is the plan document this work
+was approved from; what follows is the decisions it produced.
+
+1. **Roles are only ever added or removed, never replaced.** Every role
+   change used `WP_User::set_role()`, which replaces all of an account's
+   roles — so a public application-form submission carrying an
+   administrator's email demoted that administrator to a read-only
+   pending applicant, and un-flagging a shop manager made them a plain
+   customer. `Roles::grant()`/`revoke()` now add/remove just the two
+   wholesale roles. **Policy for staff accounts** (anything with
+   `edit_posts`, `manage_woocommerce`, or `edit_users`; filterable via
+   `protech_wholesale_is_privileged_account`): a public submission never
+   changes their roles at all — the application is recorded with status
+   `pending`, the admin email says so, and it can be approved by hand from
+   the profile.
+2. **Application views are status-driven, not role-driven.** Rejecting
+   removes the pending role (the account becomes an ordinary `customer`
+   if it has nothing else) and keeps the `rejected` status plus the
+   reason; Pending/Rejected views query that status, Approved stays
+   role-based so manually flagged customers appear. A rejected applicant
+   can be re-approved or can re-apply. The portal shows a rejected-state
+   message instead of "under review".
+3. **Blocks checkout never fired `woocommerce_checkout_create_order`**
+   (verified in WooCommerce's `StoreApi/Utilities/OrderController.php`
+   and `Routes/V1/Checkout.php`), so no order on this site had ever been
+   flagged wholesale. `woocommerce_store_api_checkout_update_order_meta`
+   is hooked as well; the email prefix falls back to the customer's role
+   for older unflagged orders. Historical orders are NOT backfilled — a
+   WP-CLI one-off could do that if reporting on them matters.
+4. **Product fields moved to a "Wholesale" product data tab.** They were
+   hooked to `woocommerce_product_options_pricing`, which WooCommerce
+   renders inside its `show_if_simple show_if_external` group (verified
+   in `html-product-data-general.php`), so "Wholesale only" and
+   "Displays per case" were unreachable on the variable flagship
+   product. Packs per display is product-level too now (a variation
+   inherits it, then the store default), matching displays-per-case.
+5. **The variations bulk action was wired to a contract WooCommerce
+   doesn't have.** `meta-boxes-product-variation.js` hands a custom bulk
+   action its data via `triggerHandler('<action>_ajax_data')`; the old
+   JS wrote a data attribute nobody read (and matched the wrong class,
+   so the prompt never even appeared). Rewritten; Volume/Bulk override
+   bulk actions added since the plumbing now exists.
+6. **Catalog hiding moved to the query.** `woocommerce_product_is_visible`
+   only hides at template level (pagination holes, wrong counts) and
+   never runs for the Store API, so wholesale-only products' names and
+   retail prices were readable by anyone at `/wp-json/wc/store/v1/products`.
+   `CatalogQuery` adds `pre_get_posts` meta queries: wholesale-only
+   excluded for non-wholesale visitors (also on plain site search and
+   sitemaps), and — under "hide" — products with no wholesale price
+   excluded for wholesale customers via a parent-level
+   `_protech_has_wholesale_price` flag kept in sync on every save (a
+   variable product's prices live on its variations, so a query can't
+   see them directly). `Plugin::maybe_upgrade()` backfills that flag once
+   (`DB_VERSION` 2) on the first `init` after deploy; until it has run,
+   the "hide" rule would hide everything, which is why it doesn't wait
+   for an admin visit. Authenticated REST for staff (`edit_products`) is
+   exempt. The old template-level filter stays as a fallback.
+7. **Memoization.** Every price filter evaluated the cart tier (walking
+   the whole cart) before even checking the role, hundreds of times per
+   shop page, for retail users too. Role first; tier, role checks, and
+   per-variation availability are memoized per request and flushed by
+   cart-change, role-change, and `_protech_*` meta hooks. Correctness
+   over speed: the flush list is deliberately broad.
+8. **Variation price cache hash** includes the cart tier, customer tier,
+   and an override hash. Without that, a variable product's cached
+   min/max range computed at Standard kept showing $5.50 after the cart
+   crossed into Volume.
+9. **Blocks cart quantities.** `woocommerce_quantity_input_args` is
+   classic-only; `woocommerce_store_api_product_quantity_multiple_of` /
+   `_minimum` (verified in `StoreApi/Utilities/QuantityLimits.php`) make
+   the Blocks stepper move by display size and reject non-multiples.
+   Confirmed at the same time that the Store API DOES still apply the
+   legacy `woocommerce_add_to_cart_validation` filter, so the unit
+   selector's add-item path was already validated.
+10. **Tier bar refresh no longer depends on cart-fragments.js**, which
+    WooCommerce stopped loading on product pages by default in 7.8; the
+    unit selector dispatches a `protech:cart-changed` DOM event the bar
+    listens to. If Salient's own "AJAX add to cart" theme option is on,
+    its click handler takes over the button (it prevents the form's
+    submit event) and fires `added_to_cart`, which also works. Either
+    path is fine; which one runs on staging depends on that option.
+11. **Price ladder table on the product page** (`TierLadder`): the
+    customer's actual three prices for this product, current tier
+    marked. Two marker dots weren't enough to explain the incentive.
+12. **Emails through the WooCommerce mailer** (branded header/footer,
+    the store's From address). The approval link goes to the My Account
+    lost-password endpoint with the reset key — exactly what
+    WooCommerce's own reset email does — instead of bare `wp-login.php`,
+    and the email says the link lasts 24 hours. The admin notice
+    includes the whole application, a Reply-To of the applicant, and a
+    direct profile link built with `admin_url()` (not
+    `get_edit_user_link()`, which returns '' during the applicant's
+    logged-out request).
+13. **The dollar minimum order is still not enforced** (Bronze row on
+    the Tiers tab, per-tier fields, the profile override,
+    `CaseRules::get_minimum_order()`). It is now labelled as such in both
+    places instead of looking live. Still the owner's call: delete it,
+    or re-enable it as a real checkout floor via
+    `woocommerce_store_api_cart_errors` + the classic hooks. Left in
+    place because deleting stored values is the harder thing to reverse.
+14. **Corrections to earlier notes in this file.** The Reorder section
+    says `WC_Cart::add_to_cart()` clamps a below-minimum quantity up to
+    the product minimum; the WooCommerce source has no such clamp (the
+    guard code is harmless and stays). `WC_Cart::add_to_cart()` DOES fill
+    a variation's attributes in from the variation itself when none are
+    passed, so Reorder works for variations (checked, not assumed).
+15. **Nothing in 1.1.0 was executed locally.** This machine has neither
+    PHP nor Docker, so the test suite, PHPCS, and PHPStan run for the
+    first time in GitHub Actions (`.github/workflows/ci.yml`); lint and
+    analysis are advisory there until their backlog is cleared, the
+    tests are the gate. Every PHP/JS file passed a bracket-balance scan
+    and each change was reviewed against the WooCommerce source it
+    touches, but the first CI run may still surface something — treat a
+    red run as the next thing to fix, not as noise.

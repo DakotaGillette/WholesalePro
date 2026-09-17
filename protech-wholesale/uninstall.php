@@ -42,12 +42,24 @@ if ( 'yes' !== $protech_purge_on_uninstall ) {
 // -----------------------------------------------------------------
 $protech_option_keys = array(
 	'protech_wholesale_min_order',
+	'protech_wholesale_default_case_size',
+	'protech_wholesale_default_displays_per_case',
 	'protech_wholesale_empty_price_behavior',
 	'protech_wholesale_allow_retail_coupons',
 	'protech_wholesale_exclude_free_shipping',
+	'protech_wholesale_shipping_flat_rate',
+	'protech_wholesale_volume_threshold_displays',
+	'protech_wholesale_volume_price',
+	'protech_wholesale_bulk_threshold_cases',
+	'protech_wholesale_bulk_price',
 	'protech_wholesale_application_source',
+	'protech_wholesale_application_form_id',
 	'protech_wholesale_purge_on_uninstall',
+	'protech_wholesale_tier_settings', // Tiers::OPT_TIER_SETTINGS.
+	'protech_wholesale_db_version',    // Plugin::OPT_DB_VERSION.
 );
+
+delete_transient( 'protech_wholesale_upgrading' );
 
 foreach ( $protech_option_keys as $protech_option_key ) {
 	delete_option( $protech_option_key );
@@ -88,6 +100,7 @@ if ( $protech_portal_page instanceof WP_Post
 $protech_user_meta_keys = array(
 	'_protech_price_overrides',
 	'_protech_wholesale_min_order_override',
+	'_protech_wholesale_tier', // Tiers::META_USER_TIER.
 	'_protech_wholesale_app_status',
 	'_protech_wholesale_app_submitted_at',
 	'_protech_wholesale_app_reject_reason',
@@ -112,13 +125,18 @@ foreach ( $protech_user_meta_keys as $protech_user_meta_key ) {
 
 // -----------------------------------------------------------------
 // Deliberately NOT deleted, even when purging:
-//   - Product/variation meta '_protech_wholesale_price' and
-//     '_protech_case_size' (ProductFields::META_WHOLESALE_PRICE /
-//     META_CASE_SIZE) — these are pricing configuration on the store's
-//     own catalog, not data this plugin "owns" the way applications and
-//     overrides are; silently stripping wholesale prices from products
-//     on uninstall would be a surprising, destructive side effect far
-//     beyond what a "purge on uninstall" checkbox reasonably implies.
+//   - Product/variation meta: '_protech_wholesale_price', '_protech_case_size',
+//     '_protech_displays_per_case', '_protech_volume_price',
+//     '_protech_bulk_price', '_protech_wholesale_only', and the derived
+//     '_protech_has_wholesale_price' flag (see ProductFields) — these are
+//     pricing configuration on the store's own catalog, not data this
+//     plugin "owns" the way applications and overrides are; silently
+//     stripping wholesale prices from products on uninstall would be a
+//     surprising, destructive side effect far beyond what a "purge on
+//     uninstall" checkbox reasonably implies.
+//   - The wholesale shipping method's per-zone instance settings
+//     (WooCommerce stores those with the shipping zone, and removes them
+//     when the method is removed from the zone).
 //   - The '_protech_is_wholesale' order meta flag (OrdersAdmin::META_IS_WHOLESALE)
 //     on existing orders — rewriting historical order data after the
 //     fact would corrupt past reporting for orders that already shipped;

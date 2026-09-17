@@ -86,10 +86,13 @@ rsync -avz --delete \
 	"${PLUGIN_SRC}" \
 	"${PLUGIN_DEST}"
 
-echo "Flushing the WordPress object cache on staging ..."
+echo "Flushing the WordPress object cache and Breeze page cache on staging ..."
 
+# `wp cache flush` only clears the object cache. Breeze (the site's page
+# cache) has its own WP-CLI command; if the plugin isn't active the
+# command simply doesn't exist, so don't let that fail the deploy.
 "${SSH_CMD[@]}" "${CW_SSH_USER}@${CW_SSH_HOST}" \
-	"cd ${CW_APP_PATH} && wp cache flush"
+	"cd ${CW_APP_PATH} && wp cache flush && (wp breeze purge --cache=all 2>/dev/null || true)"
 
 echo ""
 echo "Deploy complete: protech-wholesale is live on staging."
