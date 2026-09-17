@@ -1,0 +1,114 @@
+<?php
+/**
+ * Covers Pricing::get_wholesale_price()'s precedence rule (per-customer
+ * override > group price > not available) and the "guests/retail customers
+ * never see a wholesale price" requirement.
+ *
+ * @package ProtechWholesale
+ */
+
+use ProtechWholesale\Approval;
+use ProtechWholesale\Pricing;
+use ProtechWholesale\ProductFields;
+use ProtechWholesale\Roles;
+
+/**
+ * Class Test_Pricing
+ */
+class Test_Pricing extends WP_UnitTestCase {
+
+	/**
+	 * Creates a bare simple product with no wholesale meta.
+	 *
+	 * Prefers WooCommerce's own WC_Helper_Product::create_simple_product()
+	 * (available when the WooCommerce install under test ships its
+	 * tests/legacy/unit-tests/helpers/ directory), since it sets up a
+	 * realistic product (stock, tax class, etc.) the way WooCommerce's own
+	 * suite does. Falls back to a minimal hand-built WC_Product_Simple when
+	 * that helper isn't present, e.g. on a plain release zip.
+	 */
+	private function create_product(): WC_Product_Simple {
+		if ( class_exists( 'WC_Helper_Product' ) ) {
+			return WC_Helper_Product::create_simple_product();
+		}
+
+		$product = new WC_Product_Simple();
+		$product->set_name( 'Protech Test Product' );
+		$product->set_regular_price( '20.00' );
+		$product->set_status( 'publish' );
+		$product->save();
+
+		return $product;
+	}
+
+	private function create_wholesale_customer(): int {
+		return self::factory()->user->create( array( 'role' => Roles::CUSTOMER ) );
+	}
+
+	private function create_retail_customer(): int {
+		return self::factory()->user->create( array( 'role' => 'customer' ) );
+	}
+
+	public function test_no_group_price_and_no_override_is_not_available_at_wholesale(): void {
+		$product     = $this->create_product();
+		$customer_id = $this->create_wholesale_customer();
+
+		$this->assertNull( Pricing::get_wholesale_price( $product->get_id(), $customer_id ) );
+		$this->assertFalse( Pricing::is_available_at_wholesale( $product->get_id(), $customer_id ) );
+	}
+
+	public function test_group_price_applies_to_wholesale_customers_only(): void {
+		$product = $this->create_product();
+		update_post_meta( $product->get_id(), ProductFields::META_WHOLESALE_PRICE, '5.00' );
+
+		$wholesale_id = $this->create_wholesale_customer();
+		$retail_id    = $this->create_retail_customer();
+
+		$this->assertSame( 5.0, Pricing::get_wholesale_price( $product->get_id(), $wholesale_id ) );
+
+		// Guests never see wholesale prices, regardless of the group price.
+		$this->assertNull( Pricing::get_wholesale_price( $product->get_id(), 0 ) );
+
+		// Neither do plain retail-role customers.
+		$this->assertNull( Pricing::get_wholesale_price( $product->get_id(), $retail_id ) );
+	}
+
+	public function test_per_customer_override_beats_group_price(): void {
+		$product = $this->create_product();
+		update_post_meta( $product->get_id(), ProductFields::META_WHOLESALE_PRICE, '5.00' );
+
+		$customer_id = $this->create_wholesale_customer();
+		update_user_meta(
+			$customer_id,
+			Approval::META_PRICE_OVERRIDES,
+			array( $product->get_id() => 3.5 )
+		);
+
+		$this->assertSame( 3.5, Pricing::get_wholesale_price( $product->get_id(), $customer_id ) );
+	}
+
+	/**
+	 * get_wholesale_price() reads the override map before it ever looks at
+	 * the group price meta, so an override with no group price set at all
+	 * still applies — it doesn't require a group price to "override".
+	 */
+	public function test_per_customer_override_applies_even_without_a_group_price(): void {
+		$product     = $this->create_product();
+		$customer_id = $this->create_wholesale_customer();
+
+		update_user_meta(
+			$customer_id,
+			Approval::META_PRICE_OVERRIDES,
+			array( $product->get_id() => 4.25 )
+		);
+
+		$this->assertSame( 4.25, Pricing::get_wholesale_price( $product->get_id(), $customer_id ) );
+	}
+
+	public function test_guest_and_retail_role_are_never_wholesale_customers(): void {
+		$retail_id = $this->create_retail_customer();
+
+		$this->assertFalse( Roles::is_wholesale_customer( 0 ) );
+		$this->assertFalse( Roles::is_wholesale_customer( $retail_id ) );
+	}
+}

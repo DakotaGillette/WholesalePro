@@ -57,13 +57,13 @@ class Pricing {
 
 		$overrides = get_user_meta( $user_id, Approval::META_PRICE_OVERRIDES, true );
 
-		if ( is_array( $overrides ) && isset( $overrides[ $product_id ] ) && '' !== $overrides[ $product_id ] ) {
+		if ( is_array( $overrides ) && isset( $overrides[ $product_id ] ) && is_numeric( $overrides[ $product_id ] ) ) {
 			return (float) $overrides[ $product_id ];
 		}
 
 		$group_price = get_post_meta( $product_id, ProductFields::META_WHOLESALE_PRICE, true );
 
-		if ( '' !== $group_price && null !== $group_price ) {
+		if ( is_numeric( $group_price ) ) {
 			return (float) $group_price;
 		}
 

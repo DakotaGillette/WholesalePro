@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# Deploy protech-wholesale/ to the Cloudways STAGING application and
+# flush its object cache.
+#
+# Safety rules (see the master prompt's Cloudways appendix — do not
+# relax these without the owner's explicit say-so):
+#   - This script may ONLY ever target the staging application named in
+#     .env. Never point it at production.
+#   - It must never deactivate, update, or otherwise touch any other
+#     plugin, the theme, or WordPress core. It only syncs this plugin's
+#     own directory and flushes the cache.
+#   - It must never run destructive WP-CLI commands (db reset, table
+#     drops, deleting files outside this plugin's directory).
+#
+# Usage: bin/deploy.sh   (run from anywhere; paths below are repo-relative)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENV_FILE="${REPO_ROOT}/.env"
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+	echo "Error: ${ENV_FILE} not found." >&2
+	echo "Copy .env.example to .env and fill in your Cloudways staging credentials, then re-run this script." >&2
+	exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
+set +a
+
+required_vars=(CW_SSH_HOST CW_SSH_USER CW_SSH_KEY CW_APP_PATH CW_STAGING_URL)
+for var in "${required_vars[@]}"; do
+	if [[ -z "${!var:-}" ]]; then
+		echo "Error: ${var} is not set in ${ENV_FILE}. See .env.example." >&2
+		exit 1
+	fi
+done
+
+PLUGIN_SRC="${REPO_ROOT}/protech-wholesale/"
+PLUGIN_DEST="${CW_SSH_USER}@${CW_SSH_HOST}:${CW_APP_PATH}/wp-content/plugins/protech-wholesale/"
+
+echo "Deploying protech-wholesale to staging (${CW_STAGING_URL}) ..."
+
+rsync -avz --delete \
+	-e "ssh -i ${CW_SSH_KEY}" \
+	--exclude ".git" \
+	--exclude ".DS_Store" \
+	--exclude "Thumbs.db" \
+	--exclude "*.log" \
+	--exclude ".idea" \
+	--exclude ".vscode" \
+	"${PLUGIN_SRC}" \
+	"${PLUGIN_DEST}"
+
+echo "Flushing the WordPress object cache on staging ..."
+
+ssh -i "${CW_SSH_KEY}" "${CW_SSH_USER}@${CW_SSH_HOST}" \
+	"cd ${CW_APP_PATH} && wp cache flush"
+
+echo ""
+echo "Deploy complete: protech-wholesale is live on staging."
+echo "  ${CW_STAGING_URL}"

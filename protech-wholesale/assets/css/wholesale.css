@@ -4,10 +4,6 @@
  * Salient's own visual design is a staging follow-up (see DECISIONS.md).
  */
 
-/* -----------------------------------------------------------------------
- * Tokens
- * --------------------------------------------------------------------- */
-
 :root {
 	--protech-accent: #2c7a4b;
 	--protech-accent-dark: #1f5c38;
@@ -22,42 +18,35 @@
 	--protech-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* -----------------------------------------------------------------------
- * Quick Order form
- * --------------------------------------------------------------------- */
-
+/* -- Quick Order form: shell, notices, reorder banner ------------------ */
 .protech-order-form-wrap {
 	font-family: var( --protech-font );
 	color: #222;
 }
-
-.protech-order-form-notice:empty {
+.protech-order-form-notice:empty,
+.protech-summary-remaining:empty {
 	display: none;
 }
-
 .protech-order-form-notice {
 	margin: 0 0 1em;
 	padding: 0.75em 1em;
 	border-radius: var( --protech-radius );
 	background: var( --protech-bg-subtle );
 }
-
 .protech-order-form-notice.protech-notice-error {
 	background: var( --protech-danger-bg );
 	color: var( --protech-danger );
 }
-
 .protech-order-form-notice.protech-notice-success {
 	background: var( --protech-success-bg );
 	color: var( --protech-accent-dark );
 }
-
 .protech-order-errors {
 	margin: 0;
 	padding-left: 1.25em;
 }
-
-.protech-reorder-card {
+.protech-reorder-card,
+.protech-reorder-note {
 	margin: 0 0 1em;
 	padding: 0.85em 1em;
 	border: 1px solid var( --protech-border );
@@ -65,7 +54,6 @@
 	border-radius: var( --protech-radius );
 	background: var( --protech-bg-subtle );
 }
-
 .protech-reorder-card p {
 	margin: 0;
 	display: flex;
@@ -74,12 +62,7 @@
 	gap: 0.75em;
 }
 
-.protech-reorder-note {
-	border-left: 4px solid var( --protech-accent );
-}
-
-/* Table + horizontal scroll on small screens */
-
+/* -- Table: horizontal scroll on small screens, not forced reflow ------ */
 .protech-order-table-scroll {
 	width: 100%;
 	overflow-x: auto;
@@ -87,14 +70,12 @@
 	border: 1px solid var( --protech-border );
 	border-radius: var( --protech-radius );
 }
-
 .protech-order-table {
 	width: 100%;
 	min-width: 720px;
 	border-collapse: collapse;
 	font-size: 0.95em;
 }
-
 .protech-order-table th,
 .protech-order-table td {
 	padding: 0.6em 0.75em;
@@ -103,22 +84,18 @@
 	vertical-align: middle;
 	white-space: nowrap;
 }
-
 .protech-order-table thead th {
 	background: var( --protech-bg-subtle );
 	font-weight: 600;
 	position: sticky;
 	top: 0;
 }
-
 .protech-order-table tbody tr:last-child td {
 	border-bottom: none;
 }
-
 .protech-col-image {
 	width: 48px;
 }
-
 .protech-col-image img {
 	display: block;
 	width: 40px;
@@ -126,42 +103,34 @@
 	object-fit: cover;
 	border-radius: 4px;
 }
-
 .protech-case-qty {
 	width: 5.5em;
 	padding: 0.35em 0.5em;
 	border: 1px solid var( --protech-border );
 	border-radius: 4px;
 }
-
 .protech-line-total {
 	font-weight: 600;
 }
 
-/* Out-of-stock / disabled rows read as muted */
-
-.protech-case-qty:disabled {
+/* Out-of-stock rows: qty input is disabled server-side; mute the row */
+.protech-case-qty:disabled,
+.protech-order-row:has( .protech-case-qty:disabled ) {
 	background: var( --protech-bg-subtle );
 	color: var( --protech-muted );
+}
+.protech-case-qty:disabled {
 	cursor: not-allowed;
 }
-
-.protech-order-row:has(.protech-case-qty:disabled) {
-	color: var( --protech-muted );
-	background: var( --protech-bg-subtle );
-}
-
 #protech-add-all-to-cart {
 	margin-top: 1em;
 }
-
 #protech-add-all-to-cart.is-loading {
 	opacity: 0.65;
 	cursor: wait;
 }
 
-/* Summary bar */
-
+/* -- Summary bar + progress --------------------------------------------- */
 .protech-order-summary {
 	margin-top: 1em;
 	padding: 1em;
@@ -169,7 +138,6 @@
 	border-radius: var( --protech-radius );
 	background: var( --protech-bg );
 }
-
 .protech-summary-row {
 	display: flex;
 	justify-content: space-between;
@@ -177,7 +145,6 @@
 	padding: 0.25em 0;
 	font-size: 1.05em;
 }
-
 .protech-summary-progress {
 	margin: 0.6em 0;
 	height: 8px;
@@ -185,31 +152,25 @@
 	background: var( --protech-bg-subtle );
 	overflow: hidden;
 }
-
 .protech-summary-progress-bar {
 	height: 100%;
 	width: 0%;
 	background: var( --protech-accent );
 	transition: width 0.2s;
 }
-
 .protech-summary-remaining {
 	margin: 0.5em 0;
 	color: var( --protech-muted );
 	font-size: 0.92em;
 }
-
-.protech-summary-remaining:empty {
-	display: none;
-}
-
 #protech-go-to-checkout {
 	display: inline-block;
 	margin-top: 0.25em;
 }
 
-/* Keep the summary usable while scrolling a long grid on mobile,
- * matching WordPress's own 782px mobile breakpoint. */
+/* Sticky on mobile (WordPress's own 782px breakpoint) so the summary
+ * stays visible while scrolling a long product grid; a plain card on
+ * wider viewports where that would look odd. */
 @media screen and ( max-width: 782px ) {
 	.protech-order-summary {
 		position: sticky;
@@ -220,10 +181,7 @@
 	}
 }
 
-/* -----------------------------------------------------------------------
- * Wholesale price labels (appended after wc_price() output by PHP filters)
- * --------------------------------------------------------------------- */
-
+/* -- Wholesale price labels (appended after wc_price() by PHP filters) - */
 .protech-wholesale-label {
 	display: inline-block;
 	margin-left: 0.5em;
@@ -237,7 +195,6 @@
 	border-radius: 3px;
 	vertical-align: middle;
 }
-
 .protech-wholesale-retail-note {
 	display: block;
 	margin-top: 0.2em;
@@ -246,10 +203,7 @@
 	color: var( --protech-muted );
 }
 
-/* -----------------------------------------------------------------------
- * Portal page ( /wholesale )
- * --------------------------------------------------------------------- */
-
+/* -- Portal page ( /wholesale ): login / pending / retail_only states -- */
 .protech-wholesale-portal {
 	max-width: 420px;
 	margin: 2em auto;
@@ -258,33 +212,27 @@
 	text-align: center;
 	color: #222;
 }
-
 .protech-wholesale-portal h2 {
 	margin-top: 0;
 	font-size: 1.4em;
 }
-
 .protech-wholesale-portal p {
 	color: var( --protech-muted );
 	line-height: 1.5;
 }
-
 .protech-portal-login-form {
 	text-align: left;
 	margin-top: 1.5em;
 }
-
 .protech-portal-login-form p {
 	margin: 0 0 1em;
 }
-
 .protech-portal-login-form label {
 	display: block;
 	margin-bottom: 0.3em;
 	font-weight: 600;
 	color: #222;
 }
-
 .protech-portal-login-form input[type="text"],
 .protech-portal-login-form input[type="password"] {
 	width: 100%;
@@ -293,44 +241,30 @@
 	border-radius: 4px;
 	box-sizing: border-box;
 }
-
-.protech-portal-login-form button {
+.protech-portal-login-form button,
+.protech-wholesale-portal .button {
+	display: inline-block;
+	padding: 0.65em 1.5em;
+	border: none;
+	border-radius: var( --protech-radius );
 	background: var( --protech-accent );
 	color: #fff;
-	border: none;
-	padding: 0.65em 1.5em;
-	border-radius: var( --protech-radius );
+	text-decoration: none;
 	cursor: pointer;
 }
-
-.protech-portal-login-form button:hover {
+.protech-portal-login-form button:hover,
+.protech-wholesale-portal .button:hover {
 	background: var( --protech-accent-dark );
 }
-
 .protech-lost-password {
 	margin-left: 1em;
 	font-size: 0.9em;
 }
-
 .protech-portal-apply,
 .protech-portal-pending,
 .protech-portal-retail-only {
 	margin-top: 1.5em;
 }
-
-.protech-wholesale-portal .button {
-	display: inline-block;
-	padding: 0.6em 1.4em;
-	border-radius: var( --protech-radius );
-	background: var( --protech-accent );
-	color: #fff;
-	text-decoration: none;
-}
-
-.protech-wholesale-portal .button:hover {
-	background: var( --protech-accent-dark );
-}
-
 .protech-wholesale-portal .woocommerce-error {
 	margin: 1em 0 0;
 	padding: 0.75em 1em;

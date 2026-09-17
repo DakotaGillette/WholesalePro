@@ -1,0 +1,19 @@
+# Local secrets — never commit real Cloudways credentials.
+.env
+
+# Dependencies (dev-only tooling; no runtime Composer deps are shipped).
+node_modules/
+vendor/
+
+# Playwright screenshots taken against staging (see bin/deploy.sh / master prompt).
+artifacts/
+
+# wp-env local overrides.
+.wp-env.override.json
+
+# OS/editor cruft.
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

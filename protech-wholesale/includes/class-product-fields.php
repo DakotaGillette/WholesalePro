@@ -129,13 +129,16 @@ class ProductFields {
 	}
 
 	private function save_price_and_case( \WC_Product $product, array $source ): void {
-		$price = isset( $source[ self::META_WHOLESALE_PRICE ] ) ? wc_format_decimal( sanitize_text_field( wp_unslash( (string) $source[ self::META_WHOLESALE_PRICE ] ) ) ) : '';
+		$raw_price = isset( $source[ self::META_WHOLESALE_PRICE ] ) ? sanitize_text_field( wp_unslash( (string) $source[ self::META_WHOLESALE_PRICE ] ) ) : '';
 
-		if ( '' === $price ) {
+		if ( '' === trim( $raw_price ) ) {
 			$product->delete_meta_data( self::META_WHOLESALE_PRICE );
-		} else {
-			$product->update_meta_data( self::META_WHOLESALE_PRICE, $price );
+		} elseif ( is_numeric( $raw_price ) ) {
+			$product->update_meta_data( self::META_WHOLESALE_PRICE, wc_format_decimal( $raw_price ) );
 		}
+		// A non-empty, non-numeric value is ignored rather than saved —
+		// leaves the existing price untouched instead of silently
+		// coercing garbage input to 0.
 
 		$case_size = isset( $source[ self::META_CASE_SIZE ] ) ? absint( $source[ self::META_CASE_SIZE ] ) : 0;
 		$product->update_meta_data( self::META_CASE_SIZE, $case_size > 0 ? $case_size : self::DEFAULT_CASE_SIZE );
