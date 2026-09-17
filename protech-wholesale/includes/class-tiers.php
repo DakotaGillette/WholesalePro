@@ -132,7 +132,12 @@ class Tiers {
 		$settings = self::get_all_tier_settings();
 		$labels   = self::get_tier_labels();
 
-		echo '<p>' . esc_html__( 'Tiers are an internal classification only — wholesale customers never see their tier, or that tiers exist at all. Assign a customer\'s tier from their user profile (under the "Protech Wholesale" section).', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'Tiers are an internal classification only — wholesale customers never see their tier, or that tiers exist at all. Assign a customer\'s tier from their user profile (under the "Protech Wholesale" section). The discount is a percentage off whichever quantity-tier price (Standard/Volume/Bulk) the cart has reached.', 'protech-wholesale' ) . '</p>';
+
+		// The dollar minimum predates the Display/Case quantity ladder and
+		// nothing enforces it any more — say so here rather than let it
+		// look like a live setting. See DECISIONS.md for the options.
+		echo '<div class="notice notice-info inline"><p>' . esc_html__( 'The "Minimum order" column is not currently enforced anywhere: checkout has no dollar floor since the quantity-tier pricing was introduced (free shipping unlocks at the Volume threshold instead). The values are kept for now in case a genuine order floor is wanted later.', 'protech-wholesale' ) . '</p></div>';
 
 		echo '<form method="post">';
 		wp_nonce_field( 'protech_wholesale_save_tiers', 'protech_wholesale_tiers_nonce' );

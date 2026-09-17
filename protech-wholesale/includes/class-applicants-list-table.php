@@ -109,13 +109,33 @@ class ApplicantsListTable extends \WP_List_Table {
 	public function prepare_items(): void {
 		$this->_column_headers = array( $this->get_columns(), array(), array() );
 
-		$users = get_users(
-			array_merge(
-				self::query_args_for( self::current_view() ),
-				array(
-					'orderby' => 'registered',
-					'order'   => 'DESC',
-				)
+		$per_page = 20;
+		$paged    = $this->get_pagenum();
+		$search   = sanitize_text_field( wp_unslash( $_REQUEST['s'] ?? '' ) );
+
+		$args = array_merge(
+			self::query_args_for( self::current_view() ),
+			array(
+				'orderby'     => 'registered',
+				'order'       => 'DESC',
+				'number'      => $per_page,
+				'offset'      => ( $paged - 1 ) * $per_page,
+				'count_total' => true,
+			)
+		);
+
+		if ( '' !== $search ) {
+			$args['search']         = '*' . $search . '*';
+			$args['search_columns'] = array( 'user_login', 'user_email', 'display_name' );
+		}
+
+		$query = new \WP_User_Query( $args );
+		$users = $query->get_results();
+
+		$this->set_pagination_args(
+			array(
+				'total_items' => (int) $query->get_total(),
+				'per_page'    => $per_page,
 			)
 		);
 
@@ -139,6 +159,16 @@ class ApplicantsListTable extends \WP_List_Table {
 
 	protected function column_default( $item, $column_name ) {
 		return esc_html( (string) ( $item[ $column_name ] ?? '' ) );
+	}
+
+	protected function column_submitted( array $item ): string {
+		$submitted = (string) $item['submitted'];
+
+		if ( '' === $submitted ) {
+			return '—';
+		}
+
+		return esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $submitted ) );
 	}
 
 	protected function column_status( array $item ): string {

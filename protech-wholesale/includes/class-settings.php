@@ -74,7 +74,7 @@ class Settings {
 		return array(
 			array(
 				'title' => __( 'Wholesale Settings', 'protech-wholesale' ),
-				'desc'  => __( 'The minimum order subtotal moved to the Tiers tab (as the Bronze row); the quantity price ladder, case composition, and shipping rate moved to the Pricing tab.', 'protech-wholesale' ),
+				'desc'  => __( 'Catalog, coupon, and application-intake behaviour. Prices, thresholds, case composition, and the shipping rate are on the Pricing & Shipping tab; customer tiers on the Tiers tab.', 'protech-wholesale' ),
 				'type'  => 'title',
 				'id'    => 'protech_wholesale_settings_title',
 			),

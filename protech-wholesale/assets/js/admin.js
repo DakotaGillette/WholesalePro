@@ -29,11 +29,22 @@
 		addButton.addEventListener( 'click', function () {
 			var row = document.createElement( 'p' );
 			row.className = 'protech-price-override-row';
+
+			// The product picker is WooCommerce's own enhanced select
+			// (wc-enhanced-select, enqueued on the profile screen by
+			// Plugin::enqueue_admin_assets()); it initialises any
+			// .wc-product-search it finds when asked to via this event.
 			row.innerHTML =
-				'<input type="number" name="protech_price_override_ids[]" placeholder="' + addButton.dataset.placeholderId + '" />' +
-				'<input type="number" step="0.01" min="0" name="protech_price_override_prices[]" placeholder="' + addButton.dataset.placeholderPrice + '" />' +
+				'<select class="wc-product-search protech-override-product" name="protech_price_override_ids[]" style="width:50%;"' +
+				' data-placeholder="' + ( addButton.dataset.placeholderProduct || '' ) + '"' +
+				' data-action="woocommerce_json_search_products_and_variations" data-allow_clear="true"></select> ' +
+				'<input type="number" step="0.01" min="0" name="protech_price_override_prices[]" placeholder="' + ( addButton.dataset.placeholderPrice || '' ) + '" /> ' +
 				'<button type="button" class="button protech-remove-override-row">&times;</button>';
 			container.appendChild( row );
+
+			if ( window.jQuery ) {
+				window.jQuery( document.body ).trigger( 'wc-enhanced-select-init' );
+			}
 		} );
 
 		container.addEventListener( 'click', function ( event ) {
