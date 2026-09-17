@@ -5,27 +5,61 @@ that is simplest to reverse, implement it, and list the decision here."
 Nothing below blocks using the plugin; each is a default that's easy to
 change later (a setting, a constant, or a small code change).
 
-## Blocked-on-staging-access items (please confirm)
+## Verified against staging (2026-09-17)
 
-The build environment had no real Cloudways SSH credentials (the task's
-`.env` block is a template, and none of the placeholder values were
-filled in), so the two "verify on staging" facts in the master prompt
-could not actually be checked against the live site:
+Once staging access was available, both previously-open items were
+confirmed directly against `wordpress-1394472-6677194.cloudwaysapps.com`:
 
-1. **Form plugin behind `/wholesale-application`.** Shipped: adapters for
-   Gravity Forms, WPForms, Contact Form 7, and Fluent Forms (all wired to
-   fire `protech_wholesale_application_submitted`), plus a native
-   fallback shortcode `[protech_wholesale_application]` with the same
-   field set described in the master prompt, honeypot + nonce protected.
-   **Action needed:** run `wp plugin list` on staging (or check
-   wp-admin → Plugins) and set **WooCommerce → Wholesale → Settings →
-   Application form source** to match. If it's a form plugin with no
-   hooks (a "dumb mailer"), leave the setting on "Native form" and swap
-   the shortcode into the `/wholesale-application` page content.
-2. **Classic vs. Blocks cart/checkout.** Shipped: both paths are hooked
-   (see `PLAN.md` hook map) so case/minimum enforcement works either way.
-   No further action needed unless a future Woo version changes the
-   Store API cart-extension shape.
+1. **Form plugin behind `/wholesale-application`**: **Fluent Forms**
+   (active plugin `fluentform/fluentform.php`), rendering form #4 on that
+   page. `Settings::get_defaults()` now defaults
+   `OPT_APPLICATION_SOURCE` to `ApplicationForm::SOURCE_FLUENT_FORMS`
+   instead of "native" to match.
+
+   The live form's actual field labels are full sentences, not the short
+   guesses the adapter originally shipped with — e.g. "Business Phone
+   Number", "Position / Title", "Is your business a 'play store' Local
+   game store (LGS) that hosts TCG events, tournaments, or play space?".
+   `ApplicationForm::map_labeled_values()` was rewritten from exact-label
+   matching to substring matching, with synonym lists updated against the
+   real copy, because several fields (phone, sales channels, TCGs
+   carried, hosts-events, estimated spend) would otherwise never have
+   matched. Two more real-data bugs were fixed at the same time:
+   - The live form's Name and Address questions are Fluent Forms
+     composite fields, which submit as PHP arrays. Casting straight to
+     string would have saved the literal text `"Array"` into the
+     applicant's user meta — `flatten_value()` now joins composite
+     sub-values into a readable string first (applied to all four
+     adapters, not just Fluent Forms, since Gravity Forms/WPForms have
+     the same composite-field shape).
+   - The live "hosts events" question is a radio button with full-
+     sentence options ("Yes – We are a brick-and-mortar LGS...", "No – We
+     are primarily online-only..."), not a plain checkbox. The original
+     `hosts_events` boolean coercion only recognized an exact `'no'`
+     value; it now checks for a *leading* "no" so the real "No – ..."
+     option is correctly read as declining.
+
+   Gravity Forms' entry model stores composite-field (Name/Address)
+   sub-inputs under dotted keys (`"3.1"`, `"3.2"`, ...) rather than a
+   nested array under the parent field ID — `handle_gravity_forms()`
+   wasn't corrected for this, since Gravity Forms isn't installed on this
+   site and there was nothing live to verify it against. Revisit if a
+   site using that adapter ever comes up.
+
+2. **Classic vs. Blocks cart/checkout**: **both the Cart (page 838) and
+   Checkout (page 839) pages are WooCommerce Blocks**, not the classic
+   shortcodes, on WooCommerce 11.1.0. The Store API hooks in
+   `class-case-rules.php` (`woocommerce_store_api_cart_errors`) are
+   therefore load-bearing, not just a defensive fallback — confirmed
+   those are still the correct hook names for this WooCommerce version.
+   The classic-cart hooks stay in place as a harmless no-op in case the
+   store ever reverts a page to the shortcode.
+
+3. **HPOS**: confirmed **enabled** ("High-performance order storage")
+   under WooCommerce → Settings → Advanced → Features — the
+   `manage_woocommerce_page_wc-orders_*` hooks in `class-orders-admin.php`
+   are the ones that matter on this site; the legacy `shop_order`
+   post-type hooks are the no-op fallback here.
 
 This is **not** a retail-behavior change — nothing here alters checkout
 for retail customers regardless of which branch ends up firing.

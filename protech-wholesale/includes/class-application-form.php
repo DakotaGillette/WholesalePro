@@ -182,7 +182,7 @@ class ApplicationForm {
 
 		foreach ( $form['fields'] ?? array() as $field ) {
 			$label            = (string) ( $field->label ?? '' );
-			$values[ $label ] = $entry[ (string) $field->id ] ?? '';
+			$values[ $label ] = $this->flatten_value( $entry[ (string) $field->id ] ?? '' );
 		}
 
 		$this->create_pending_applicant( $this->map_labeled_values( $values ) );
@@ -202,7 +202,7 @@ class ApplicationForm {
 
 		foreach ( $fields as $field ) {
 			$label            = (string) ( $field['name'] ?? '' );
-			$values[ $label ] = $field['value'] ?? '';
+			$values[ $label ] = $this->flatten_value( $field['value'] ?? '' );
 		}
 
 		$this->create_pending_applicant( $this->map_labeled_values( $values ) );
@@ -254,10 +254,30 @@ class ApplicationForm {
 		foreach ( $fields['fields'] ?? array() as $field ) {
 			$name             = (string) ( $field['attributes']['name'] ?? '' );
 			$label            = (string) ( $field['settings']['label'] ?? $name );
-			$values[ $label ] = $form_data[ $name ] ?? '';
+			$values[ $label ] = $this->flatten_value( $form_data[ $name ] ?? '' );
 		}
 
 		$this->create_pending_applicant( $this->map_labeled_values( $values ) );
+	}
+
+	/**
+	 * Composite field types (Fluent Forms' Name and Address elements, and
+	 * their equivalents in other builders) submit as an array of
+	 * sub-values rather than a scalar — e.g. ['first_name' => 'A',
+	 * 'last_name' => 'B'] or ['address_line_1' => ..., 'city' => ...].
+	 * Cast straight to string would silently save the literal text
+	 * "Array"; flatten to a readable joined string instead.
+	 *
+	 * @param mixed $value
+	 */
+	private function flatten_value( $value ): string {
+		if ( is_array( $value ) ) {
+			$parts = array_map( array( $this, 'flatten_value' ), $value );
+
+			return implode( ', ', array_filter( $parts, static fn( string $part ): bool => '' !== $part ) );
+		}
+
+		return (string) $value;
 	}
 
 	/**
@@ -265,22 +285,27 @@ class ApplicationForm {
 	 * @return array<string, mixed> Normalized FIELD_KEYS => value.
 	 */
 	private function map_labeled_values( array $labeled_values ): array {
+		// Substrings, not exact labels — real forms phrase questions in
+		// full sentences ("Business Phone Number", "Is your business a
+		// 'play store' ... that hosts TCG events, tournaments, or play
+		// space?"), so a synonym only needs to appear somewhere in the
+		// label. Verified against Protech Sleeves' live Fluent Forms
+		// wholesale application (form #4) — see QA.md.
 		$synonyms = apply_filters(
 			'protech_wholesale_field_label_map',
 			array(
-				'name'                    => array( 'name', 'your name', 'full name', 'contact name' ),
-				'title'                   => array( 'title', 'job title', 'your title', 'position' ),
-				'phone'                   => array( 'phone', 'phone number', 'telephone' ),
-				'email'                   => array( 'email', 'email address', 'your email' ),
-				'store_name'              => array( 'store name', 'business name', 'shop name', 'company name' ),
+				'title'                   => array( 'position', 'title', 'job title' ),
+				'phone'                   => array( 'phone', 'telephone' ),
+				'email'                   => array( 'email' ),
+				'store_name'              => array( 'business name', 'store name', 'shop name', 'company name' ),
 				'business_type'           => array( 'business type', 'type of business' ),
-				'address'                 => array( 'address', 'business address', 'store address' ),
+				'address'                 => array( 'address' ),
 				'website'                 => array( 'website', 'website url', 'store website' ),
-				'sales_channels'          => array( 'sales channels', 'where do you sell', 'how do you sell' ),
-				'tcgs_carried'            => array( 'tcgs carried', 'which tcgs', 'tcgs you carry', 'trading card games' ),
-				'hosts_events'            => array( 'hosts events', 'do you host events', 'host events' ),
-				'estimated_monthly_spend' => array( 'estimated monthly spend', 'monthly spend', 'estimated monthly order' ),
-				'accuracy_confirmation'   => array( 'accuracy', 'i confirm', 'confirm accuracy', 'accurate' ),
+				'sales_channels'          => array( 'primarily sell', 'sales channels', 'where do you sell', 'how do you sell' ),
+				'tcgs_carried'            => array( 'tcg games', 'tcgs carried', 'which tcgs', 'tcgs you carry', 'trading card games' ),
+				'hosts_events'            => array( 'play store', 'lgs', 'hosts events', 'host events', 'hosts tcg events' ),
+				'estimated_monthly_spend' => array( 'estimated monthly', 'monthly spend', 'purchase volume' ),
+				'accuracy_confirmation'   => array( 'i confirm', 'confirm accuracy', 'accuracy', 'accurate' ),
 			)
 		);
 
@@ -292,16 +317,41 @@ class ApplicationForm {
 
 		$data = array_fill_keys( self::FIELD_KEYS, '' );
 
-		foreach ( $synonyms as $key => $labels ) {
-			foreach ( $labels as $label ) {
-				if ( array_key_exists( $label, $normalized_input ) ) {
-					$data[ $key ] = $normalized_input[ $label ];
-					break;
+		foreach ( $synonyms as $key => $needles ) {
+			foreach ( $needles as $needle ) {
+				foreach ( $normalized_input as $label => $value ) {
+					if ( str_contains( $label, $needle ) ) {
+						$data[ $key ] = $value;
+						break 2;
+					}
 				}
 			}
 		}
 
-		$data['hosts_events']          = ! empty( $data['hosts_events'] ) && ! in_array( strtolower( (string) $data['hosts_events'] ), array( 'no', '0', 'false' ), true );
+		// 'name' is a composite First/Last field on the live form with no
+		// single combined label — fall back to concatenating those two
+		// sub-labels when a direct "name" match isn't found.
+		if ( '' === $data['name'] ) {
+			$first = $last = '';
+
+			foreach ( $normalized_input as $label => $value ) {
+				if ( str_contains( $label, 'first name' ) ) {
+					$first = (string) $value;
+				} elseif ( str_contains( $label, 'last name' ) ) {
+					$last = (string) $value;
+				} elseif ( '' === $first && str_contains( $label, 'name' ) && ! str_contains( $label, 'business' ) && ! str_contains( $label, 'store' ) && ! str_contains( $label, 'company' ) ) {
+					$first = (string) $value;
+				}
+			}
+
+			$data['name'] = trim( "{$first} {$last}" );
+		}
+
+		// Real options are full sentences ("Yes – We are a brick-and-
+		// mortar LGS...", "No – We are primarily online-only..."), so
+		// treat only a leading "no" as declining rather than requiring
+		// an exact 'no'/'0'/'false' value.
+		$data['hosts_events']          = '' !== $data['hosts_events'] && ! preg_match( '/^no\b/i', trim( (string) $data['hosts_events'] ) );
 		$data['accuracy_confirmation'] = ! empty( $data['accuracy_confirmation'] );
 
 		return array_map(

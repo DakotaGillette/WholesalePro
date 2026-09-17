@@ -39,7 +39,9 @@ class Settings {
 			self::OPT_EMPTY_PRICE_BEHAVIOR   => 'hide',
 			self::OPT_ALLOW_RETAIL_COUPONS   => 'no',
 			self::OPT_EXCLUDE_FREE_SHIPPING  => 'yes',
-			self::OPT_APPLICATION_SOURCE     => ApplicationForm::SOURCE_NATIVE,
+			// Confirmed against staging 2026-09-17 — Fluent Forms renders
+			// /wholesale-application (form #4). See DECISIONS.md.
+			self::OPT_APPLICATION_SOURCE     => ApplicationForm::SOURCE_FLUENT_FORMS,
 			self::OPT_PURGE_ON_UNINSTALL     => 'no',
 		);
 	}
