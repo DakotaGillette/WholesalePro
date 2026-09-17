@@ -62,6 +62,18 @@ class Approval {
 		);
 		printf(
 			'<a href="%s" class="nav-tab %s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=products' ) ),
+			'products' === $tab ? 'nav-tab-active' : '',
+			esc_html__( 'Products', 'protech-wholesale' )
+		);
+		printf(
+			'<a href="%s" class="nav-tab %s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=tiers' ) ),
+			'tiers' === $tab ? 'nav-tab-active' : '',
+			esc_html__( 'Tiers', 'protech-wholesale' )
+		);
+		printf(
+			'<a href="%s" class="nav-tab %s">%s</a>',
 			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=settings' ) ),
 			'settings' === $tab ? 'nav-tab-active' : ''
 			,
@@ -71,6 +83,10 @@ class Approval {
 
 		if ( 'settings' === $tab ) {
 			( new Settings() )->render_settings_tab();
+		} elseif ( 'products' === $tab ) {
+			( new ProductFields() )->render_products_tab();
+		} elseif ( 'tiers' === $tab ) {
+			Tiers::render_tiers_tab();
 		} else {
 			$this->render_applicants_tab();
 		}
@@ -142,6 +158,7 @@ class Approval {
 		}
 
 		$is_wholesale   = Roles::is_wholesale_customer( $user->ID );
+		$current_tier   = Tiers::get_user_tier( $user->ID );
 		$min_override   = get_user_meta( $user->ID, self::META_MIN_ORDER, true );
 		$overrides      = get_user_meta( $user->ID, self::META_PRICE_OVERRIDES, true );
 		$overrides      = is_array( $overrides ) ? $overrides : array();
@@ -158,6 +175,17 @@ class Approval {
 						<?php esc_html_e( 'Flag this customer as an approved wholesale customer', 'protech-wholesale' ); ?>
 					</label>
 					<p class="description"><?php esc_html_e( 'Switches their role to Wholesale Customer immediately, without going through the application queue.', 'protech-wholesale' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="protech_wholesale_tier"><?php esc_html_e( 'Tier', 'protech-wholesale' ); ?></label></th>
+				<td>
+					<select name="protech_wholesale_tier" id="protech_wholesale_tier">
+						<?php foreach ( Tiers::get_tier_labels() as $tier_slug => $tier_label ) : ?>
+							<option value="<?php echo esc_attr( $tier_slug ); ?>" <?php selected( $current_tier, $tier_slug ); ?>><?php echo esc_html( $tier_label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<p class="description"><?php esc_html_e( 'Internal only — the customer never sees their tier. Sets their minimum order and wholesale price discount unless overridden below. Manage tier-wide settings under WooCommerce → Wholesale → Tiers.', 'protech-wholesale' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -222,6 +250,10 @@ class Approval {
 		} elseif ( ! $should_be_wholesale && $is_wholesale ) {
 			$user->set_role( 'customer' );
 			Logger::info( "User #{$user_id} manually un-flagged as wholesale by admin #" . get_current_user_id() );
+		}
+
+		if ( isset( $_POST['protech_wholesale_tier'] ) ) {
+			Tiers::set_user_tier( $user_id, sanitize_key( wp_unslash( $_POST['protech_wholesale_tier'] ) ) );
 		}
 
 		$min_override = sanitize_text_field( wp_unslash( $_POST['protech_min_order_override'] ?? '' ) );

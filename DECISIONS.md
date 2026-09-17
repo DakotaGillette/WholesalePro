@@ -5,6 +5,47 @@ that is simplest to reverse, implement it, and list the decision here."
 Nothing below blocks using the plugin; each is a default that's easy to
 change later (a setting, a constant, or a small code change).
 
+## Post-launch additions (2026-09-17)
+
+Two features added after the initial build, based on direct feedback:
+
+1. **Default case size** is now a real setting (WooCommerce → Wholesale →
+   Settings) instead of a hardcoded constant. Per-product/variation case
+   size fields now show it as a placeholder rather than pre-filling the
+   value, so saving a product without touching that field doesn't bake
+   today's default into it — it stays in sync if the global default
+   changes later. See `class-settings.php` / `class-product-fields.php`.
+
+2. **"Wholesale only" products**: a per-product checkbox (General pricing
+   section, next to the wholesale price field) that hides a product from
+   the retail shop, search, and category pages entirely for anyone who
+   isn't an approved wholesale customer. A direct link to the product
+   page still resolves (title/images/description render normally) but
+   shows an "available to approved wholesale accounts only" message with
+   an apply link in place of the price, and the product can't be added to
+   cart. **Decision**: chose the polite-message behavior over a hard
+   redirect/404, matching the existing "retail only" note pattern used
+   elsewhere in the plugin — reversible by changing
+   `Pricing::filter_price_html()`/`restrict_wholesale_only_purchase()` if
+   a harder block is wanted later. A "Products" tab under WooCommerce →
+   Wholesale lists every wholesale-configured product for reference
+   (still edited on each product's own screen, not duplicated there).
+
+3. **Wholesale tiers** (Bronze/Silver/Gold/Platinum) — an internal-only
+   classification never shown to the customer, assigned per-customer from
+   their profile (WooCommerce → Wholesale doesn't list customers by tier
+   yet; the Applicants → Approved tab remains the customer list). Tiers
+   sit *between* the global default and the existing per-customer
+   override layer: precedence is now per-customer override > tier >
+   global default, for both the minimum order subtotal and a percentage
+   discount off each product's group wholesale price. **Decision**:
+   Bronze has no row in the Tiers settings table — it *is* the existing
+   global default (Settings::get_min_order(), the group price with 0%
+   discount), so "everyone starts on Bronze" needed no extra state.
+   Silver/Gold/Platinum each get an optional minimum-order override and
+   discount percentage under WooCommerce → Wholesale → Tiers. See
+   `class-tiers.php`.
+
 ## Verified against staging (2026-09-17)
 
 Once staging access was available, both previously-open items were

@@ -101,3 +101,25 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] Quantity stepper on a single product page as a wholesale customer: confirm the +/- stepper (if Salient adds one) respects the case-size step/minimum rather than allowing single-pack increments.
 - [ ] My Account navigation: confirm the "Quick Order" tab is styled consistently with the other My Account tabs (icon/spacing/active state), not just functional.
 - [ ] `/wholesale` portal page in each of its four states: confirm the login form, pending message, and retail-only message inherit Salient's page/typography styling rather than looking like unstyled fallback HTML.
+
+## 13. "Wholesale only" products
+
+> Added 2026-09-17, verified only by code review + confirming no fatal errors on the relevant admin screens (product editor, Products/Tiers tabs) — not yet tested against a live product's actual front-end visibility. Spot-check this section carefully before relying on it.
+
+- [ ] On a **test product** (not a real catalog item), check "Wholesale only" (General pricing section) and set a wholesale price. Save.
+- [ ] As a guest/retail account: confirm the product does **not** appear on the shop page, in search, or in its category.
+- [ ] As that same guest/retail account, visit the product's direct URL. Confirm the title/images/description still render, but in place of the price and Add to Cart button you see "Available to approved wholesale accounts only." with a working "Apply for a wholesale account" link — and that there's no way to add it to cart.
+- [ ] As the approved wholesale customer: confirm the product appears normally on the Quick Order form with its wholesale price, and (if you also check the shop page) is visible there too.
+- [ ] Open **WooCommerce → Wholesale → Products** and confirm this test product is listed with "Yes" under Wholesale only.
+- [ ] Uncheck "Wholesale only" on the test product and confirm it reappears in the shop/search for retail visitors.
+
+## 14. Wholesale tiers
+
+> Also added 2026-09-17, same caveat as above — verified by code review and confirming the Tiers tab and profile tier dropdown render without errors, not yet tested end-to-end against a live order.
+
+- [ ] Open **WooCommerce → Wholesale → Tiers**. Set Silver's minimum order override to a distinct test value (e.g. $200) and its discount to 10%.
+- [ ] On a test wholesale account with **no** per-customer minimum-order or price override set, assign the **Silver** tier from their user profile.
+- [ ] Confirm that account's cart/checkout minimum is now $200 (Silver's override), not the global default — and that a *different* wholesale account left on **Bronze** still enforces the global default.
+- [ ] Confirm a product with a group wholesale price (e.g. $5.00) shows as $4.50 for the Silver-tier account (10% off), while showing the plain $5.00 for a Bronze-tier account.
+- [ ] On the Silver account, add a **per-customer price override** for that same product (e.g. $3.00). Confirm the override wins — the account now sees $3.00, not the tier-discounted $4.50.
+- [ ] Confirm the tier is never visible anywhere the customer can see it (Quick Order, My Account, emails, the portal page).

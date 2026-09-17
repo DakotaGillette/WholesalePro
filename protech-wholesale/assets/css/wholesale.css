@@ -202,6 +202,19 @@
 	font-style: italic;
 	color: var( --protech-muted );
 }
+.protech-wholesale-only-notice {
+	display: inline-block;
+	padding: 0.6em 0.9em;
+	font-size: 0.85em;
+	color: var( --protech-muted );
+	background: var( --protech-bg-subtle );
+	border: 1px solid var( --protech-border );
+	border-radius: var( --protech-radius );
+}
+.protech-wholesale-only-notice a {
+	font-weight: 600;
+	color: var( --protech-accent );
+}
 
 /* -- Portal page ( /wholesale ): login / pending / retail_only states -- */
 .protech-wholesale-portal {

@@ -41,6 +41,7 @@ class Pricing {
 		add_filter( 'woocommerce_get_price_html', array( $this, 'filter_price_html' ), 10, 2 );
 
 		add_filter( 'woocommerce_product_is_visible', array( $this, 'filter_catalog_visibility' ), 10, 2 );
+		add_filter( 'woocommerce_is_purchasable', array( $this, 'restrict_wholesale_only_purchase' ), 10, 2 );
 
 		add_filter( 'woocommerce_coupon_is_valid', array( $this, 'restrict_retail_coupons' ), 10, 2 );
 		add_filter( 'woocommerce_coupon_error', array( $this, 'coupon_error_message' ), 10, 3 );
@@ -49,6 +50,10 @@ class Pricing {
 	/**
 	 * The price a specific user pays for a product/variation, or null if
 	 * that item isn't available to them at wholesale.
+	 *
+	 * Precedence: per-customer override > their tier's discount off the
+	 * group price (Bronze has none) > the plain group price > not
+	 * available.
 	 */
 	public static function get_wholesale_price( int $product_id, int $user_id ): ?float {
 		if ( ! $user_id || ! Roles::is_wholesale_customer( $user_id ) ) {
@@ -63,11 +68,17 @@ class Pricing {
 
 		$group_price = get_post_meta( $product_id, ProductFields::META_WHOLESALE_PRICE, true );
 
-		if ( is_numeric( $group_price ) ) {
-			return (float) $group_price;
+		if ( ! is_numeric( $group_price ) ) {
+			return null;
 		}
 
-		return null;
+		$discount_percent = Tiers::get_tier_discount_percent( Tiers::get_user_tier( $user_id ) );
+
+		if ( $discount_percent > 0 ) {
+			return round( (float) $group_price * ( 1 - $discount_percent / 100 ), 2 );
+		}
+
+		return (float) $group_price;
 	}
 
 	public static function is_available_at_wholesale( int $product_id, int $user_id ): bool {
@@ -139,11 +150,37 @@ class Pricing {
 	}
 
 	/**
+	 * A variation's "wholesale only" status lives on its parent product —
+	 * the flag is a whole-product concept (hide the listing entirely),
+	 * not something that varies per color/variation.
+	 */
+	private function wholesale_only_id( \WC_Product $product ): int {
+		return $product->is_type( 'variation' ) ? $product->get_parent_id() : $product->get_id();
+	}
+
+	private function wholesale_only_notice_html(): string {
+		return '<span class="protech-wholesale-only-notice">' .
+			esc_html__( 'Available to approved wholesale accounts only.', 'protech-wholesale' ) .
+			' <a href="' . esc_url( home_url( '/wholesale-application' ) ) . '">' .
+			esc_html__( 'Apply for a wholesale account', 'protech-wholesale' ) .
+			'</a></span>';
+	}
+
+	/**
 	 * @param string      $price_html
 	 * @param \WC_Product $product
 	 */
 	public function filter_price_html( string $price_html, $product ): string {
 		$user_id = get_current_user_id();
+
+		// On the single product page, a "wholesale only" item shows an
+		// apply-here message instead of a price for anyone who isn't an
+		// approved wholesale customer — it's already hidden from shop/
+		// search/category listings by filter_catalog_visibility(), so
+		// this only matters for someone reaching it by direct URL.
+		if ( is_product() && ! Roles::is_wholesale_customer( $user_id ) && ProductFields::is_wholesale_only( $this->wholesale_only_id( $product ) ) ) {
+			return $this->wholesale_only_notice_html();
+		}
 
 		if ( ! Roles::is_wholesale_customer( $user_id ) ) {
 			return $price_html;
@@ -161,17 +198,31 @@ class Pricing {
 	}
 
 	/**
-	 * Hides products with no wholesale price from the shop/search catalog
-	 * for wholesale customers when the "hide" setting is active. Does not
-	 * block direct access to the single product page — see DECISIONS.md.
+	 * Two independent things this hides from the shop/search catalog,
+	 * neither of which blocks direct access to the single product page
+	 * itself (see filter_price_html()/restrict_wholesale_only_purchase()
+	 * for what happens there instead):
+	 *  - "Wholesale only" products, from anyone who isn't an approved
+	 *    wholesale customer.
+	 *  - Products with no wholesale price, from wholesale customers,
+	 *    when the "hide" empty-price setting is active.
 	 *
 	 * @param bool $visible
 	 * @param int  $product_id
 	 */
 	public function filter_catalog_visibility( bool $visible, int $product_id ): bool {
-		$user_id = get_current_user_id();
+		if ( is_admin() ) {
+			return $visible;
+		}
 
-		if ( is_admin() || ! Roles::is_wholesale_customer( $user_id ) ) {
+		$user_id      = get_current_user_id();
+		$is_wholesale = Roles::is_wholesale_customer( $user_id );
+
+		if ( ProductFields::is_wholesale_only( $product_id ) && ! $is_wholesale ) {
+			return false;
+		}
+
+		if ( ! $is_wholesale ) {
 			return $visible;
 		}
 
@@ -180,6 +231,24 @@ class Pricing {
 		}
 
 		return 'hide' === Settings::empty_price_behavior() ? false : $visible;
+	}
+
+	/**
+	 * A "wholesale only" product can never be added to cart — by anyone
+	 * who isn't an approved wholesale customer, regardless of whether
+	 * it also has a wholesale price. WooCommerce's own add-to-cart flow
+	 * already checks is_purchasable() before allowing an add, so this
+	 * alone blocks it both at the UI layer and server-side.
+	 *
+	 * @param bool        $purchasable
+	 * @param \WC_Product $product
+	 */
+	public function restrict_wholesale_only_purchase( bool $purchasable, $product ): bool {
+		if ( ! $purchasable || Roles::is_wholesale_customer() ) {
+			return $purchasable;
+		}
+
+		return ! ProductFields::is_wholesale_only( $this->wholesale_only_id( $product ) );
 	}
 
 	/**

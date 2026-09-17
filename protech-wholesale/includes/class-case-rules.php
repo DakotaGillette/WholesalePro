@@ -45,12 +45,22 @@ class CaseRules {
 		return $size > 0 ? $size : Settings::get_default_case_size();
 	}
 
+	/**
+	 * Precedence: per-customer override > their tier's minimum (Bronze has
+	 * none, and always falls through) > the global default.
+	 */
 	public static function get_minimum_order( int $user_id ): float {
 		if ( $user_id ) {
 			$override = get_user_meta( $user_id, Approval::META_MIN_ORDER, true );
 
 			if ( '' !== $override && null !== $override ) {
 				return (float) $override;
+			}
+
+			$tier_min = Tiers::get_tier_min_order( Tiers::get_user_tier( $user_id ) );
+
+			if ( null !== $tier_min ) {
+				return $tier_min;
 			}
 		}
 

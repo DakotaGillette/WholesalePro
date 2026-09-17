@@ -22,6 +22,7 @@ final class Plugin {
 
 	private Roles $roles;
 	private Settings $settings;
+	private Tiers $tiers;
 	private ApplicationForm $application_form;
 	private Approval $approval;
 	private ProductFields $product_fields;
@@ -53,6 +54,7 @@ final class Plugin {
 
 		$this->roles             = new Roles();
 		$this->settings          = new Settings();
+		$this->tiers             = new Tiers();
 		$this->application_form  = new ApplicationForm();
 		$this->approval          = new Approval();
 		$this->product_fields    = new ProductFields();
@@ -69,6 +71,7 @@ final class Plugin {
 			array(
 				$this->roles,
 				$this->settings,
+				$this->tiers,
 				$this->application_form,
 				$this->approval,
 				$this->product_fields,
