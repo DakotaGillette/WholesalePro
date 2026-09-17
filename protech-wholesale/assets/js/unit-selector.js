@@ -9,17 +9,24 @@
  * if that color's case size ever differs from another's.
  *
  * Also AJAXifies this form's Add to Cart submission, via the WooCommerce
- * Store API (`/wp-json/wc/store/v1/cart/add-item`) rather than the
- * classic `?wc-ajax=add_to_cart` endpoint — that older endpoint only
- * ever reads `product_id`/`quantity` from the request and has no concept
- * of `variation_id` at all, so it can't actually add a specific color of
- * a variable product like this one (confirmed live: it returns a bare
- * `{error:true}` with no notice, for exactly that reason). WooCommerce's
- * single product page does a full page reload on submit by default
- * (unlike the shop loop's own Add to Cart buttons, which are AJAX out of
- * the box) — so without this, the sticky global tier bar
- * (global-tier-bar.js) would only ever see the new cart state after a
- * full navigation, not update in place the way it does everywhere else.
+ * Store API (`cart/add-item`) rather than the classic `?wc-ajax=add_to_cart`
+ * endpoint — that older endpoint only ever reads `product_id`/`quantity`
+ * and has no concept of `variation_id`, so it can't add a specific color
+ * of a variable product. The REST root and a Store API nonce come from
+ * wp_localize_script() (Plugin::enqueue_frontend_assets()), so there's no
+ * hardcoded /wp-json/ path and no extra round trip per add; a stale nonce
+ * (cached page) is refreshed once from the cart endpoint and retried.
+ *
+ * After a successful add it (a) asks WooCommerce's cart-fragments script
+ * to refresh the mini-cart, if that script is loaded, and (b) dispatches a
+ * `protech:cart-changed` DOM event that global-tier-bar.js listens for —
+ * so the sticky tier bar updates even on sites where cart-fragments isn't
+ * loaded on product pages (WooCommerce stopped loading it there by
+ * default in 7.8 unless the classic mini-cart widget is active).
+ *
+ * If Salient's own "AJAX add to cart" theme option is on, its click
+ * handler takes over the button (it prevents the form's submit event) and
+ * fires `added_to_cart` itself, which the tier bar also listens for.
  *
  * @package ProtechWholesale
  */
@@ -34,6 +41,9 @@
 		if ( ! selector ) {
 			return;
 		}
+
+		var settings = window.ProtechUnitSelector || {};
+		var i18n = settings.i18n || {};
 
 		var unitSelect = document.getElementById( 'protech-unit-select' );
 		var friendlyQty = document.getElementById( 'protech-unit-qty' );
@@ -52,6 +62,10 @@
 
 		var caseSize = parseInt( selector.getAttribute( 'data-case-size' ), 10 ) || 1;
 		var displaysPerCase = parseInt( selector.getAttribute( 'data-displays-per-case' ), 10 ) || 1;
+
+		function format( template, n ) {
+			return String( template || '%d' ).replace( '%d', String( n ) );
+		}
 
 		function packsPerUnit() {
 			return 'case' === unitSelect.value ? caseSize * displaysPerCase : caseSize;
@@ -76,11 +90,7 @@
 			// theme adds one) still notices the new value.
 			nativeQty.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 
-			if ( hint ) {
-				hint.textContent = packs + ( 1 === packs
-					? ' pack total'
-					: ' packs total' );
-			}
+			showMessage( format( 1 === packs ? i18n.packTotal : i18n.packsTotal, packs ), false );
 		}
 
 		function refreshUnitLabels() {
@@ -88,12 +98,21 @@
 			var caseOption = unitSelect.querySelector( 'option[value="case"]' );
 
 			if ( displayOption ) {
-				displayOption.textContent = 'Display (' + caseSize + ' packs)';
+				displayOption.textContent = format( i18n.display, caseSize );
 			}
 
 			if ( caseOption ) {
-				caseOption.textContent = 'Case (' + ( caseSize * displaysPerCase ) + ' packs)';
+				caseOption.textContent = format( i18n.case, caseSize * displaysPerCase );
 			}
+		}
+
+		function showMessage( text, isError ) {
+			if ( ! hint ) {
+				return;
+			}
+
+			hint.textContent = text;
+			hint.classList.toggle( 'protech-unit-selector-hint--error', !! isError );
 		}
 
 		unitSelect.addEventListener( 'change', sync );
@@ -120,17 +139,49 @@
 
 		var form = nativeQty.closest( 'form' );
 
-		if ( form ) {
+		if ( form && window.fetch ) {
 			form.addEventListener( 'submit', handleSubmit );
 		}
 
-		function showMessage( text, isError ) {
-			if ( ! hint ) {
-				return;
-			}
+		var storeApiNonce = settings.nonce || '';
 
-			hint.textContent = text;
-			hint.classList.toggle( 'protech-unit-selector-hint--error', !! isError );
+		function restUrl( path ) {
+			return ( settings.restRoot || '/wp-json/wc/store/v1/' ) + path;
+		}
+
+		function refreshNonce() {
+			return fetch( restUrl( 'cart' ), { credentials: 'same-origin' } ).then( function ( response ) {
+				storeApiNonce = response.headers.get( 'Nonce' ) || storeApiNonce;
+			} );
+		}
+
+		function addItem( itemId, packs, retried ) {
+			return fetch( restUrl( 'cart/add-item' ), {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					Nonce: storeApiNonce,
+				},
+				body: JSON.stringify( { id: itemId, quantity: packs } ),
+			} )
+				.then( function ( response ) {
+					return response.json().then( function ( body ) {
+						return { ok: response.ok, status: response.status, body: body };
+					} );
+				} )
+				.then( function ( result ) {
+					var code = ( result.body && result.body.code ) || '';
+					var nonceProblem = ! result.ok && ( 401 === result.status || 403 === result.status ) && -1 !== code.indexOf( 'nonce' );
+
+					if ( nonceProblem && ! retried ) {
+						return refreshNonce().then( function () {
+							return addItem( itemId, packs, true );
+						} );
+					}
+
+					return result;
+				} );
 		}
 
 		function handleSubmit( event ) {
@@ -138,12 +189,6 @@
 			// in case some other script's change handler ran after ours
 			// and touched the native field in between.
 			sync();
-
-			if ( ! window.jQuery ) {
-				return; // No AJAX contract available — fall back to the normal full-page submit.
-			}
-
-			event.preventDefault();
 
 			var submitButton = form.querySelector( '.single_add_to_cart_button' );
 			var variationField = form.querySelector( 'input[name="variation_id"]' );
@@ -154,52 +199,34 @@
 			var packs = parseInt( nativeQty.value, 10 );
 
 			if ( ! itemId || ! packs ) {
-				return;
+				return; // Let WooCommerce's own validation handle it.
 			}
+
+			event.preventDefault();
 
 			if ( submitButton ) {
 				submitButton.classList.add( 'loading' );
 				submitButton.disabled = true;
 			}
 
-			fetch( '/wp-json/wc/store/v1/cart', { credentials: 'same-origin' } )
-				.then( function ( response ) {
-					return response.headers.get( 'Nonce' ) || '';
-				} )
-				.then( function ( nonce ) {
-					return fetch( '/wp-json/wc/store/v1/cart/add-item', {
-						method: 'POST',
-						credentials: 'same-origin',
-						headers: {
-							'Content-Type': 'application/json',
-							Nonce: nonce,
-						},
-						body: JSON.stringify( { id: itemId, quantity: packs } ),
-					} );
-				} )
-				.then( function ( response ) {
-					return response.json().then( function ( body ) {
-						return { ok: response.ok, body: body };
-					} );
-				} )
+			addItem( itemId, packs, false )
 				.then( function ( result ) {
 					if ( ! result.ok ) {
-						showMessage( ( result.body && result.body.message ) || 'Could not add this to your cart.', true );
+						showMessage( ( result.body && result.body.message ) || i18n.addFailed || 'Could not add this to your cart.', true );
 						return;
 					}
 
-					// Tells WooCommerce's own cart-fragments.js to refresh
-					// the mini-cart, etc.; it fires `wc_fragments_refreshed`
-					// once done, which global-tier-bar.js already listens
-					// for to refresh itself with the new cart state.
-					window.jQuery( document.body ).trigger( 'wc_fragment_refresh' );
+					// Mini-cart refresh via WooCommerce's own mechanism when
+					// cart-fragments.js is present ...
+					if ( window.jQuery ) {
+						window.jQuery( document.body ).trigger( 'wc_fragment_refresh' );
+					}
 
-					// No separate "added" message here — the sticky tier
-					// bar updating live, plus the reset quantity below, is
-					// already clear confirmation, and avoids this getting
-					// immediately overwritten by sync()'s own hint text.
-					// Reset back to a fresh 1-Display default, matching
-					// what a new page load would have started at.
+					// ... and a direct signal to the sticky tier bar either way.
+					document.dispatchEvent( new CustomEvent( 'protech:cart-changed' ) );
+
+					// Reset back to a fresh 1-Display default, matching what
+					// a new page load would have started at.
 					unitSelect.value = 'display';
 					friendlyQty.value = '1';
 					sync();
@@ -208,6 +235,7 @@
 					// Network/parsing failure — fall back to an ordinary
 					// (non-AJAX) submit so the add-to-cart still goes
 					// through rather than silently doing nothing.
+					form.removeEventListener( 'submit', handleSubmit );
 					form.submit();
 				} )
 				.then( function () {

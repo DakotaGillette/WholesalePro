@@ -25,8 +25,35 @@ class Roles {
 	/** Custom capability granted to both roles, used for asset/UI gating. */
 	public const CAP_WHOLESALE = 'protech_wholesale_customer';
 
+	/** @var array<string, bool> "role:user id" => result, for this request. */
+	private static array $role_cache = array();
+
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'maybe_create_roles' ) );
+
+		foreach ( array( 'set_user_role', 'add_user_role', 'remove_user_role', 'clean_user_cache', 'wp_login', 'wp_logout' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'flush_cache' ) );
+		}
+	}
+
+	public static function flush_cache(): void {
+		self::$role_cache = array();
+	}
+
+	/**
+	 * user_can() builds a fresh WP_User (and re-reads its capabilities)
+	 * on every call, and these two checks run from every price filter on
+	 * a page — hundreds of times per request. Memoized per user for the
+	 * request; flushed by the role-change hooks in register_hooks().
+	 */
+	private static function has_role_cached( int $user_id, string $role ): bool {
+		$key = $role . ':' . $user_id;
+
+		if ( ! isset( self::$role_cache[ $key ] ) ) {
+			self::$role_cache[ $key ] = user_can( $user_id, $role );
+		}
+
+		return self::$role_cache[ $key ];
 	}
 
 	/**
@@ -131,7 +158,7 @@ class Roles {
 			return false;
 		}
 
-		return user_can( $user_id, self::CUSTOMER );
+		return self::has_role_cached( $user_id, self::CUSTOMER );
 	}
 
 	public static function is_wholesale_pending( int $user_id = 0 ): bool {
@@ -141,6 +168,6 @@ class Roles {
 			return false;
 		}
 
-		return user_can( $user_id, self::PENDING );
+		return self::has_role_cached( $user_id, self::PENDING );
 	}
 }

@@ -34,6 +34,17 @@ class Test_Shipping_And_Orders extends WP_UnitTestCase {
 		$this->assertFalse( ( new WholesaleShippingMethod() )->is_available( array( 'contents' => array() ) ) );
 	}
 
+	public function test_method_is_unavailable_when_the_cart_holds_nothing_wholesale_eligible(): void {
+		wp_set_current_user( Protech_Test_Factory::wholesale_customer() );
+		$retail_only = Protech_Test_Factory::simple_product(); // No wholesale price.
+		$priced      = Protech_Test_Factory::simple_product( '5.50' );
+
+		$method = new WholesaleShippingMethod();
+
+		$this->assertFalse( $method->is_available( array( 'contents' => Protech_Test_Factory::cart_items( array( array( $retail_only, 10 ) ) ) ) ) );
+		$this->assertTrue( $method->is_available( array( 'contents' => Protech_Test_Factory::cart_items( array( array( $priced, 10 ) ) ) ) ) );
+	}
+
 	public function test_flat_rate_below_threshold_and_free_at_threshold(): void {
 		$customer_id = Protech_Test_Factory::wholesale_customer();
 		$product     = Protech_Test_Factory::simple_product( '5.50' ); // 10 packs/display.

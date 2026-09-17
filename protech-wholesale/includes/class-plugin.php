@@ -18,6 +18,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class Plugin {
 
+	/**
+	 * Bump when a one-off data migration must run on the next load — see
+	 * maybe_upgrade() for what each version does.
+	 */
+	public const DB_VERSION     = '2';
+	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
+
 	private static ?Plugin $instance = null;
 
 	private Roles $roles;
@@ -28,6 +35,7 @@ final class Plugin {
 	private Approval $approval;
 	private ProductFields $product_fields;
 	private Pricing $pricing;
+	private CatalogQuery $catalog_query;
 	private CaseRules $case_rules;
 	private Reorder $reorder;
 	private MyAccount $my_account;
@@ -61,6 +69,7 @@ final class Plugin {
 		$this->approval          = new Approval();
 		$this->product_fields    = new ProductFields();
 		$this->pricing           = new Pricing();
+		$this->catalog_query     = new CatalogQuery();
 		$this->case_rules        = new CaseRules();
 		$this->reorder           = new Reorder();
 		$this->my_account        = new MyAccount();
@@ -79,6 +88,7 @@ final class Plugin {
 				$this->approval,
 				$this->product_fields,
 				$this->pricing,
+				$this->catalog_query,
 				$this->case_rules,
 				$this->reorder,
 				$this->my_account,
@@ -91,6 +101,7 @@ final class Plugin {
 			$component->register_hooks();
 		}
 
+		add_action( 'init', array( $this, 'maybe_upgrade' ), 20 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 	}
@@ -105,6 +116,34 @@ final class Plugin {
 
 	public function pricing(): Pricing {
 		return $this->pricing;
+	}
+
+	/**
+	 * One-off data migrations, keyed by DB_VERSION.
+	 *
+	 *  2: backfill the parent-level _protech_has_wholesale_price flag that
+	 *     CatalogQuery filters on — without it every product that hadn't
+	 *     been re-saved since the flag was introduced would be hidden
+	 *     from wholesale customers.
+	 */
+	public function maybe_upgrade(): void {
+		if ( self::DB_VERSION === get_option( self::OPT_DB_VERSION ) ) {
+			return;
+		}
+
+		// Cheap lock so two overlapping requests don't both run it.
+		if ( get_transient( 'protech_wholesale_upgrading' ) ) {
+			return;
+		}
+
+		set_transient( 'protech_wholesale_upgrading', 1, 5 * MINUTE_IN_SECONDS );
+
+		$count = ProductFields::backfill_has_wholesale_price_flags();
+
+		update_option( self::OPT_DB_VERSION, self::DB_VERSION );
+		delete_transient( 'protech_wholesale_upgrading' );
+
+		Logger::info( sprintf( 'Upgraded plugin data to version %s (%d products flagged).', self::DB_VERSION, $count ) );
 	}
 
 	/**
@@ -169,12 +208,44 @@ final class Plugin {
 		}
 
 		if ( $is_wholesale && is_product() ) {
+			$product      = wc_get_product( get_the_ID() );
+			$dependencies = array( 'jquery' );
+
+			// Only a variable product's page carries WooCommerce's
+			// variation script (whose found_variation event we listen to).
+			if ( $product instanceof \WC_Product && $product->is_type( 'variable' ) ) {
+				$dependencies[] = 'wc-add-to-cart-variation';
+			}
+
 			wp_enqueue_script(
 				'protech-wholesale-unit-selector',
 				PROTECH_WHOLESALE_URL . 'assets/js/unit-selector.js',
-				array( 'jquery', 'wc-add-to-cart-variation' ),
+				$dependencies,
 				$this->asset_version( 'assets/js/unit-selector.js' ),
 				true
+			);
+
+			wp_localize_script(
+				'protech-wholesale-unit-selector',
+				'ProtechUnitSelector',
+				array(
+					// Real REST root (subdirectory installs, plain permalinks)
+					// and a Store API nonce, so the add-to-cart call needs no
+					// extra round trip and no hardcoded /wp-json/ path.
+					'restRoot' => esc_url_raw( rest_url( 'wc/store/v1/' ) ),
+					'nonce'    => wp_create_nonce( 'wc_store_api' ),
+					'i18n'     => array(
+						/* translators: %d: packs per display. */
+						'display'    => __( 'Display (%d packs)', 'protech-wholesale' ),
+						/* translators: %d: packs per case. */
+						'case'       => __( 'Case (%d packs)', 'protech-wholesale' ),
+						/* translators: %d: number of packs. */
+						'packTotal'  => __( '%d pack total', 'protech-wholesale' ),
+						/* translators: %d: number of packs. */
+						'packsTotal' => __( '%d packs total', 'protech-wholesale' ),
+						'addFailed'  => __( 'Could not add this to your cart.', 'protech-wholesale' ),
+					),
+				)
 			);
 		}
 	}

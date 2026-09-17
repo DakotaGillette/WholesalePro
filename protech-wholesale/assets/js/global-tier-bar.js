@@ -128,6 +128,11 @@
 			window.jQuery( document.body ).on( 'added_to_cart removed_from_cart wc_fragments_refreshed', scheduleRefresh );
 		}
 
+		// Fired by unit-selector.js after a successful Store API add on the
+		// single product page — that path doesn't go through cart-fragments,
+		// which WooCommerce no longer loads on product pages by default.
+		document.addEventListener( 'protech:cart-changed', scheduleRefresh );
+
 		// WooCommerce Blocks (Mini-Cart/Cart/Checkout) manage cart state
 		// through a wp.data store instead of the classic jQuery events —
 		// subscribe when it's present so add/remove actions taken through

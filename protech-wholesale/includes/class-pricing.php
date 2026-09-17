@@ -45,6 +45,53 @@ class Pricing {
 
 		add_filter( 'woocommerce_coupon_is_valid', array( $this, 'restrict_retail_coupons' ), 10, 2 );
 		add_filter( 'woocommerce_coupon_error', array( $this, 'coupon_error_message' ), 10, 3 );
+
+		// Per-request memoization (see get_current_tier()). Anything that
+		// changes the cart's contents invalidates the cached tier ...
+		foreach (
+			array(
+				'woocommerce_add_to_cart',
+				'woocommerce_after_cart_item_quantity_update',
+				'woocommerce_cart_item_removed',
+				'woocommerce_cart_item_restored',
+				'woocommerce_cart_emptied',
+				'woocommerce_cart_loaded_from_session',
+			) as $hook
+		) {
+			add_action( $hook, array( __CLASS__, 'flush_caches' ) );
+		}
+
+		// ... and a change to a user's roles, or to any of this plugin's
+		// own user/product meta (tier, overrides, prices), invalidates the rest.
+		foreach ( array( 'set_user_role', 'add_user_role', 'remove_user_role' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'flush_caches' ) );
+		}
+
+		foreach ( array( 'updated_user_meta', 'added_user_meta', 'deleted_user_meta', 'updated_post_meta', 'added_post_meta', 'deleted_post_meta' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'flush_on_meta_change' ), 10, 3 );
+		}
+	}
+
+	/** @var array<int, string> user id => quantity tier, for this request. */
+	private static array $tier_cache = array();
+
+	/** @var array<string, bool> "product id:user id" => availability including variations, for this request. */
+	private static array $availability_cache = array();
+
+	public static function flush_caches(): void {
+		self::$tier_cache         = array();
+		self::$availability_cache = array();
+	}
+
+	/**
+	 * @param int|string $meta_id
+	 * @param int|string $object_id
+	 * @param string     $meta_key
+	 */
+	public static function flush_on_meta_change( $meta_id, $object_id, $meta_key ): void {
+		if ( str_starts_with( (string) $meta_key, '_protech_' ) ) {
+			self::flush_caches();
+		}
 	}
 
 	/**
@@ -63,13 +110,23 @@ class Pricing {
 	 * Making the filter itself cart-aware avoids that race entirely.
 	 */
 	private static function get_current_tier( int $user_id ): string {
-		if ( ! $user_id || null === WC()->cart ) {
+		// No cart before wp_loaded (WooCommerce warns if get_cart() is
+		// called earlier), none at all in admin/REST/cron contexts.
+		if ( ! $user_id || ! function_exists( 'WC' ) || null === WC()->cart || ! did_action( 'wp_loaded' ) ) {
 			return VolumePricing::TIER_STANDARD;
 		}
 
-		$totals = VolumePricing::get_totals_for_items( WC()->cart->get_cart(), $user_id );
+		// Memoized: this runs inside every price filter call, of which a
+		// shop page makes hundreds (four filters x every variation), and
+		// each evaluation walks the whole cart. The cache is flushed by the
+		// cart-change hooks registered in register_hooks().
+		if ( ! isset( self::$tier_cache[ $user_id ] ) ) {
+			$totals = VolumePricing::get_totals_for_items( WC()->cart->get_cart(), $user_id );
 
-		return VolumePricing::get_tier_for_totals( $totals['displays'], $totals['cases'] );
+			self::$tier_cache[ $user_id ] = VolumePricing::get_tier_for_totals( $totals['displays'], $totals['cases'] );
+		}
+
+		return self::$tier_cache[ $user_id ];
 	}
 
 	/**
@@ -138,6 +195,16 @@ class Pricing {
 	 * its variations being correctly priced and purchasable.
 	 */
 	public static function is_available_at_wholesale_including_variations( int $product_id, int $user_id ): bool {
+		$cache_key = $product_id . ':' . $user_id;
+
+		if ( ! isset( self::$availability_cache[ $cache_key ] ) ) {
+			self::$availability_cache[ $cache_key ] = self::compute_availability_including_variations( $product_id, $user_id );
+		}
+
+		return self::$availability_cache[ $cache_key ];
+	}
+
+	private static function compute_availability_including_variations( int $product_id, int $user_id ): bool {
 		if ( self::is_available_at_wholesale( $product_id, $user_id ) ) {
 			return true;
 		}
@@ -162,7 +229,14 @@ class Pricing {
 	 * @param \WC_Product $product
 	 */
 	public function filter_price( $price, $product ) {
-		$user_id          = get_current_user_id();
+		$user_id = get_current_user_id();
+
+		// Role first: for guests and retail customers this filter must be
+		// as close to free as possible (it runs for every price on a page).
+		if ( ! Roles::is_wholesale_customer( $user_id ) ) {
+			return $price;
+		}
+
 		$wholesale_price = self::get_wholesale_price( $product->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? (string) wc_format_decimal( $wholesale_price ) : $price;
@@ -176,7 +250,12 @@ class Pricing {
 	 * @param \WC_Product $product
 	 */
 	public function filter_sale_price( $price, $product ) {
-		$user_id          = get_current_user_id();
+		$user_id = get_current_user_id();
+
+		if ( ! Roles::is_wholesale_customer( $user_id ) ) {
+			return $price;
+		}
+
 		$wholesale_price = self::get_wholesale_price( $product->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? '' : $price;
@@ -192,14 +271,24 @@ class Pricing {
 	 * @param \WC_Product $product
 	 */
 	public function filter_variation_prices_array_entry( $price, $variation, $product ) {
-		$user_id          = get_current_user_id();
+		$user_id = get_current_user_id();
+
+		if ( ! Roles::is_wholesale_customer( $user_id ) ) {
+			return $price;
+		}
+
 		$wholesale_price = self::get_wholesale_price( $variation->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? wc_format_decimal( $wholesale_price ) : $price;
 	}
 
 	public function filter_variation_prices_array_sale_entry( $price, $variation, $product ) {
-		$user_id          = get_current_user_id();
+		$user_id = get_current_user_id();
+
+		if ( ! Roles::is_wholesale_customer( $user_id ) ) {
+			return $price;
+		}
+
 		$wholesale_price = self::get_wholesale_price( $variation->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? '' : $price;

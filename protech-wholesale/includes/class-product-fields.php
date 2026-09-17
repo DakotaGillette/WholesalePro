@@ -257,6 +257,34 @@ class ProductFields {
 	}
 
 	/**
+	 * Writes the flag onto every product once — run by Plugin::maybe_upgrade()
+	 * when the flag is introduced, since CatalogQuery would otherwise hide
+	 * every not-yet-resaved product from wholesale customers.
+	 *
+	 * @return int Number of products processed.
+	 */
+	public static function backfill_has_wholesale_price_flags(): int {
+		$ids = CatalogQuery::without_filtering(
+			static function (): array {
+				return wc_get_products(
+					array(
+						'status' => 'any',
+						'type'   => array( 'simple', 'variable' ),
+						'limit'  => -1,
+						'return' => 'ids',
+					)
+				);
+			}
+		);
+
+		foreach ( $ids as $product_id ) {
+			self::sync_has_wholesale_price_flag( (int) $product_id );
+		}
+
+		return count( $ids );
+	}
+
+	/**
 	 * @param int        $loop
 	 * @param array      $variation_data
 	 * @param \WP_Post   $variation

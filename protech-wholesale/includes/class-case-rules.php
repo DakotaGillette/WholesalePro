@@ -42,10 +42,16 @@ class CaseRules {
 		add_action( 'woocommerce_check_cart_items', array( $this, 'validate_cart_and_notify' ) );
 		add_action( 'woocommerce_checkout_process', array( $this, 'validate_cart_and_notify' ) );
 
-		// WooCommerce Blocks (Store API) cart & checkout. See PLAN.md /
-		// DECISIONS.md — confirm this hook still matches the Blocks
-		// version installed once the site's cart/checkout type is known.
+		// WooCommerce Blocks (Store API) cart & checkout — confirmed
+		// load-bearing on this site (both pages are Blocks).
 		add_filter( 'woocommerce_store_api_cart_errors', array( $this, 'validate_cart_for_store_api' ), 10, 2 );
+
+		// The Blocks cart's own quantity controls ignore the classic
+		// woocommerce_quantity_input_args filter; these are their
+		// equivalent — the +/- steps by display size, and the Store API
+		// rejects a non-multiple on update-item/add-item itself.
+		add_filter( 'woocommerce_store_api_product_quantity_multiple_of', array( $this, 'store_api_quantity_rule' ), 10, 3 );
+		add_filter( 'woocommerce_store_api_product_quantity_minimum', array( $this, 'store_api_quantity_rule' ), 10, 3 );
 
 		// The order minimum no longer blocks checkout (see DECISIONS.md,
 		// 2026-09-17) — it's now purely the free-shipping threshold,
@@ -90,13 +96,39 @@ class CaseRules {
 			return $rates;
 		}
 
+		/**
+		 * Which retail shipping methods to hide from wholesale customers
+		 * once the wholesale method is present. Add e.g. 'local_pickup' or
+		 * a carrier plugin's method id if the store uses them.
+		 *
+		 * @param string[] $method_ids
+		 */
+		$retail_methods = (array) apply_filters( 'protech_wholesale_retail_shipping_methods', array( 'flat_rate', 'free_shipping' ) );
+
 		foreach ( $rates as $key => $rate ) {
-			if ( in_array( $rate->get_method_id(), array( 'flat_rate', 'free_shipping' ), true ) ) {
+			if ( in_array( $rate->get_method_id(), $retail_methods, true ) ) {
 				unset( $rates[ $key ] );
 			}
 		}
 
 		return $rates;
+	}
+
+	/**
+	 * Both the Store API's "multiple of" and "minimum" for a wholesale
+	 * customer are the display size (packs per display).
+	 *
+	 * @param int|float                 $value
+	 * @param \WC_Product               $product
+	 * @param array<string, mixed>|null $cart_item
+	 * @return int|float
+	 */
+	public function store_api_quantity_rule( $value, $product, $cart_item = null ) {
+		if ( ! $product instanceof \WC_Product || ! Roles::is_wholesale_customer() ) {
+			return $value;
+		}
+
+		return self::get_case_size( $product->get_id() );
 	}
 
 	/**

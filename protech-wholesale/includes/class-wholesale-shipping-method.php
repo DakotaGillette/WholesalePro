@@ -66,6 +66,15 @@ class WholesaleShippingMethod extends \WC_Shipping_Method {
 			return false;
 		}
 
+		// A wholesale customer whose cart holds only retail-priced items
+		// (nothing wholesale-eligible) is shipping a retail order: leave
+		// the zone's normal methods in place for it.
+		$totals = VolumePricing::get_totals_for_items( $package['contents'] ?? array(), get_current_user_id() );
+
+		if ( $totals['displays'] <= 0 ) {
+			return false;
+		}
+
 		return parent::is_available( $package );
 	}
 
