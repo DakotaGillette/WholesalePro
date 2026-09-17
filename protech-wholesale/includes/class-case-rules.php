@@ -42,7 +42,7 @@ class CaseRules {
 	public static function get_case_size( int $product_id ): int {
 		$size = (int) get_post_meta( $product_id, ProductFields::META_CASE_SIZE, true );
 
-		return $size > 0 ? $size : ProductFields::DEFAULT_CASE_SIZE;
+		return $size > 0 ? $size : Settings::get_default_case_size();
 	}
 
 	public static function get_minimum_order( int $user_id ): float {

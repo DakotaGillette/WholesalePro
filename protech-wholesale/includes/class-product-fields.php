@@ -56,11 +56,19 @@ class ProductFields {
 			array(
 				'id'          => self::META_CASE_SIZE,
 				'label'       => __( 'Case size (packs)', 'protech-wholesale' ),
-				'description' => __( 'Wholesale quantities must be a multiple of this. Default 10.', 'protech-wholesale' ),
+				/* translators: %d: store's default case size, set under WooCommerce -> Wholesale -> Settings. */
+				'description' => sprintf( __( 'Wholesale quantities must be a multiple of this. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_case_size() ),
 				'desc_tip'    => true,
 				'type'        => 'number',
-				'custom_attributes' => array( 'step' => '1', 'min' => '1' ),
-				'value'       => $product_object ? ( $product_object->get_meta( self::META_CASE_SIZE ) ?: self::DEFAULT_CASE_SIZE ) : self::DEFAULT_CASE_SIZE,
+				'custom_attributes' => array(
+					'step'        => '1',
+					'min'         => '1',
+					'placeholder' => (string) Settings::get_default_case_size(),
+				),
+				// Empty (not the default) when unset, so saving without
+				// touching this field doesn't bake today's default into
+				// this product's own meta — see save_price_and_case().
+				'value'       => $product_object ? $product_object->get_meta( self::META_CASE_SIZE ) : '',
 			)
 		);
 
@@ -107,8 +115,12 @@ class ProductFields {
 				'name'              => self::META_CASE_SIZE . "[{$loop}]",
 				'label'             => __( 'Case size (packs)', 'protech-wholesale' ),
 				'type'              => 'number',
-				'custom_attributes' => array( 'step' => '1', 'min' => '1' ),
-				'value'             => $product->get_meta( self::META_CASE_SIZE ) ?: self::DEFAULT_CASE_SIZE,
+				'custom_attributes' => array(
+					'step'        => '1',
+					'min'         => '1',
+					'placeholder' => (string) Settings::get_default_case_size(),
+				),
+				'value'             => $product->get_meta( self::META_CASE_SIZE ),
 				'wrapper_class'     => 'form-row form-row-last',
 			)
 		);
@@ -141,7 +153,15 @@ class ProductFields {
 		// coercing garbage input to 0.
 
 		$case_size = isset( $source[ self::META_CASE_SIZE ] ) ? absint( $source[ self::META_CASE_SIZE ] ) : 0;
-		$product->update_meta_data( self::META_CASE_SIZE, $case_size > 0 ? $case_size : self::DEFAULT_CASE_SIZE );
+
+		if ( $case_size > 0 ) {
+			$product->update_meta_data( self::META_CASE_SIZE, $case_size );
+		} else {
+			// Leave unset rather than baking in today's default — this way
+			// a later change to the global default (Settings ->
+			// get_default_case_size()) still applies to this product.
+			$product->delete_meta_data( self::META_CASE_SIZE );
+		}
 	}
 
 	/**

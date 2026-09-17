@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Settings {
 
 	public const OPT_MIN_ORDER             = 'protech_wholesale_min_order';
+	public const OPT_DEFAULT_CASE_SIZE      = 'protech_wholesale_default_case_size';
 	public const OPT_EMPTY_PRICE_BEHAVIOR   = 'protech_wholesale_empty_price_behavior'; // 'hide' | 'fallback'.
 	public const OPT_ALLOW_RETAIL_COUPONS   = 'protech_wholesale_allow_retail_coupons'; // 'no' | 'yes'.
 	public const OPT_EXCLUDE_FREE_SHIPPING  = 'protech_wholesale_exclude_free_shipping'; // 'yes' | 'no'.
@@ -36,6 +37,7 @@ class Settings {
 	public static function get_defaults(): array {
 		return array(
 			self::OPT_MIN_ORDER             => '800',
+			self::OPT_DEFAULT_CASE_SIZE      => (string) ProductFields::DEFAULT_CASE_SIZE,
 			self::OPT_EMPTY_PRICE_BEHAVIOR   => 'hide',
 			self::OPT_ALLOW_RETAIL_COUPONS   => 'no',
 			self::OPT_EXCLUDE_FREE_SHIPPING  => 'yes',
@@ -71,6 +73,19 @@ class Settings {
 				'css'      => 'width:100px;',
 			),
 			array(
+				'title'             => __( 'Default case size (packs)', 'protech-wholesale' ),
+				'desc'              => __( 'Used for any product/variation that does not set its own case size in the product data panel.', 'protech-wholesale' ),
+				'id'                => self::OPT_DEFAULT_CASE_SIZE,
+				'type'              => 'number',
+				'default'           => (string) ProductFields::DEFAULT_CASE_SIZE,
+				'desc_tip'          => true,
+				'css'               => 'width:100px;',
+				'custom_attributes' => array(
+					'min'  => '1',
+					'step' => '1',
+				),
+			),
+			array(
 				'title'   => __( 'Products with no wholesale price', 'protech-wholesale' ),
 				'desc'    => __( 'What a wholesale customer sees for a product/variation that has no group or per-customer wholesale price set.', 'protech-wholesale' ),
 				'id'      => self::OPT_EMPTY_PRICE_BEHAVIOR,
@@ -99,7 +114,7 @@ class Settings {
 				'desc'    => __( 'Which plugin renders /wholesale-application. See DECISIONS.md.', 'protech-wholesale' ),
 				'id'      => self::OPT_APPLICATION_SOURCE,
 				'type'    => 'select',
-				'default' => ApplicationForm::SOURCE_NATIVE,
+				'default' => ApplicationForm::SOURCE_FLUENT_FORMS,
 				'options' => ApplicationForm::get_source_labels(),
 			),
 			array(
@@ -146,6 +161,12 @@ class Settings {
 
 	public static function get_min_order(): float {
 		return (float) get_option( self::OPT_MIN_ORDER, 800 );
+	}
+
+	public static function get_default_case_size(): int {
+		$value = (int) get_option( self::OPT_DEFAULT_CASE_SIZE, ProductFields::DEFAULT_CASE_SIZE );
+
+		return $value > 0 ? $value : ProductFields::DEFAULT_CASE_SIZE;
 	}
 
 	public static function empty_price_behavior(): string {
