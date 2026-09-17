@@ -68,6 +68,12 @@ class Approval {
 		);
 		printf(
 			'<a href="%s" class="nav-tab %s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=pricing' ) ),
+			'pricing' === $tab ? 'nav-tab-active' : '',
+			esc_html__( 'Pricing', 'protech-wholesale' )
+		);
+		printf(
+			'<a href="%s" class="nav-tab %s">%s</a>',
 			esc_url( admin_url( 'admin.php?page=protech-wholesale&tab=tiers' ) ),
 			'tiers' === $tab ? 'nav-tab-active' : '',
 			esc_html__( 'Tiers', 'protech-wholesale' )
@@ -85,6 +91,8 @@ class Approval {
 			( new Settings() )->render_settings_tab();
 		} elseif ( 'products' === $tab ) {
 			( new ProductFields() )->render_products_tab();
+		} elseif ( 'pricing' === $tab ) {
+			VolumePricing::render_pricing_tab();
 		} elseif ( 'tiers' === $tab ) {
 			Tiers::render_tiers_tab();
 		} else {

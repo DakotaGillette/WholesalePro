@@ -20,11 +20,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class ProductFields {
 
-	public const META_WHOLESALE_PRICE = '_protech_wholesale_price';
-	public const META_CASE_SIZE       = '_protech_case_size';
-	public const META_WHOLESALE_ONLY  = '_protech_wholesale_only'; // 'yes' | unset. Product-level only, not per-variation.
+	public const META_WHOLESALE_PRICE   = '_protech_wholesale_price'; // Tier 1 / standard price, per pack.
+	public const META_CASE_SIZE         = '_protech_case_size'; // Packs per DISPLAY — name kept for backwards compatibility.
+	public const META_DISPLAYS_PER_CASE = '_protech_displays_per_case'; // Displays per (big) CASE.
+	public const META_VOLUME_PRICE      = '_protech_volume_price'; // Per-pack override for the Tier 2 (Volume) price; blank = store default.
+	public const META_BULK_PRICE        = '_protech_bulk_price'; // Per-pack override for the Tier 3 (Bulk) price; blank = store default.
+	public const META_WHOLESALE_ONLY    = '_protech_wholesale_only'; // 'yes' | unset. Product-level only, not per-variation.
 
-	public const DEFAULT_CASE_SIZE = 10;
+	public const DEFAULT_CASE_SIZE         = 10;
+	public const DEFAULT_DISPLAYS_PER_CASE = 8;
 
 	public function register_hooks(): void {
 		add_action( 'woocommerce_product_options_pricing', array( $this, 'render_simple_fields' ) );
@@ -50,7 +54,7 @@ class ProductFields {
 			array(
 				'id'                => self::META_WHOLESALE_PRICE,
 				'label'             => sprintf( __( 'Wholesale price (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
-				'description'       => __( 'Per pack. Leave empty to keep this product unavailable at wholesale.', 'protech-wholesale' ),
+				'description'       => __( 'Per pack. This is the Tier 1 (Standard) price — see WooCommerce → Wholesale → Pricing for the Volume/Bulk tiers. Leave empty to keep this product unavailable at wholesale.', 'protech-wholesale' ),
 				'desc_tip'          => true,
 				'data_type'         => 'price',
 				'value'             => $product_object ? $product_object->get_meta( self::META_WHOLESALE_PRICE ) : '',
@@ -60,8 +64,8 @@ class ProductFields {
 		woocommerce_wp_text_input(
 			array(
 				'id'          => self::META_CASE_SIZE,
-				'label'       => __( 'Case size (packs)', 'protech-wholesale' ),
-				/* translators: %d: store's default case size, set under WooCommerce -> Wholesale -> Settings. */
+				'label'       => __( 'Packs per display', 'protech-wholesale' ),
+				/* translators: %d: store's default, set under WooCommerce -> Wholesale -> Tiers. */
 				'description' => sprintf( __( 'Wholesale quantities must be a multiple of this. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_case_size() ),
 				'desc_tip'    => true,
 				'type'        => 'number',
@@ -74,6 +78,47 @@ class ProductFields {
 				// touching this field doesn't bake today's default into
 				// this product's own meta — see save_price_and_case().
 				'value'       => $product_object ? $product_object->get_meta( self::META_CASE_SIZE ) : '',
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'          => self::META_DISPLAYS_PER_CASE,
+				'label'       => __( 'Displays per case', 'protech-wholesale' ),
+				/* translators: %d: store's default, set under WooCommerce -> Wholesale -> Pricing. */
+				'description' => sprintf( __( 'How many displays make up one case for this product. Leave empty to use the store default (%d).', 'protech-wholesale' ), Settings::get_default_displays_per_case() ),
+				'desc_tip'    => true,
+				'type'        => 'number',
+				'custom_attributes' => array(
+					'step'        => '1',
+					'min'         => '1',
+					'placeholder' => (string) Settings::get_default_displays_per_case(),
+				),
+				'value'       => $product_object ? $product_object->get_meta( self::META_DISPLAYS_PER_CASE ) : '',
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'          => self::META_VOLUME_PRICE,
+				'label'       => sprintf( __( 'Volume price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				/* translators: %d: displays, %s: price. Both are the store defaults set under WooCommerce -> Wholesale -> Pricing. */
+				'description' => sprintf( __( 'Per pack, once the cart reaches %1$d combined displays. Leave empty to use the store default (%2$s).', 'protech-wholesale' ), Settings::get_volume_threshold_displays(), wp_strip_all_tags( wc_price( Settings::get_volume_price() ) ) ),
+				'desc_tip'    => true,
+				'data_type'   => 'price',
+				'value'       => $product_object ? $product_object->get_meta( self::META_VOLUME_PRICE ) : '',
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'          => self::META_BULK_PRICE,
+				'label'       => sprintf( __( 'Bulk price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				/* translators: %d: cases, %s: price. Both are the store defaults set under WooCommerce -> Wholesale -> Pricing. */
+				'description' => sprintf( __( 'Per pack, once the cart reaches %1$d combined cases. Leave empty to use the store default (%2$s).', 'protech-wholesale' ), Settings::get_bulk_threshold_cases(), wp_strip_all_tags( wc_price( Settings::get_bulk_price() ) ) ),
+				'desc_tip'    => true,
+				'data_type'   => 'price',
+				'value'       => $product_object ? $product_object->get_meta( self::META_BULK_PRICE ) : '',
 			)
 		);
 
@@ -99,8 +144,29 @@ class ProductFields {
 
 		$this->save_price_and_case( $product, $_POST );
 
+		$this->save_optional_price_field( $product, self::META_VOLUME_PRICE, $_POST[ self::META_VOLUME_PRICE ] ?? null );
+		$this->save_optional_price_field( $product, self::META_BULK_PRICE, $_POST[ self::META_BULK_PRICE ] ?? null );
+		$this->save_optional_int_field( $product, self::META_DISPLAYS_PER_CASE, $_POST[ self::META_DISPLAYS_PER_CASE ] ?? null );
+
 		// Product-level only — never saved from save_variation_fields().
-		$product->update_meta_data( self::META_WHOLESALE_ONLY, ! empty( $_POST[ self::META_WHOLESALE_ONLY ] ) ? 'yes' : 'no' );
+		$wholesale_only = ! empty( $_POST[ self::META_WHOLESALE_ONLY ] );
+		$product->update_meta_data( self::META_WHOLESALE_ONLY, $wholesale_only ? 'yes' : 'no' );
+
+		// A "wholesale only" product must keep WooCommerce's OWN native
+		// catalog visibility at "visible" — that native setting (the
+		// "Catalog visibility" dropdown further down this same panel) is
+		// an unconditional, role-blind exclusion at the database query
+		// level, applied before our own woocommerce_product_is_visible
+		// filter (Pricing::filter_catalog_visibility()) ever runs. If an
+		// admin sets it to "Hidden" — the intuitive-looking way to hide a
+		// product from retail, without knowing this checkbox already
+		// handles that per-role — the product disappears from the shop
+		// for wholesale customers too, with no way for our filter to add
+		// it back. Forcing this here means our checkbox is the only
+		// visibility control that matters for a wholesale-only product.
+		if ( $wholesale_only && 'visible' !== $product->get_catalog_visibility() ) {
+			$product->set_catalog_visibility( 'visible' );
+		}
 
 		$product->save();
 	}
@@ -132,7 +198,7 @@ class ProductFields {
 			array(
 				'id'                => self::META_CASE_SIZE . "_{$loop}",
 				'name'              => self::META_CASE_SIZE . "[{$loop}]",
-				'label'             => __( 'Case size (packs)', 'protech-wholesale' ),
+				'label'             => __( 'Packs per display', 'protech-wholesale' ),
 				'type'              => 'number',
 				'custom_attributes' => array(
 					'step'        => '1',
@@ -140,6 +206,28 @@ class ProductFields {
 					'placeholder' => (string) Settings::get_default_case_size(),
 				),
 				'value'             => $product->get_meta( self::META_CASE_SIZE ),
+				'wrapper_class'     => 'form-row form-row-last',
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'                => self::META_VOLUME_PRICE . "_{$loop}",
+				'name'              => self::META_VOLUME_PRICE . "[{$loop}]",
+				'label'             => sprintf( __( 'Volume price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'data_type'         => 'price',
+				'value'             => $product->get_meta( self::META_VOLUME_PRICE ),
+				'wrapper_class'     => 'form-row form-row-first',
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'                => self::META_BULK_PRICE . "_{$loop}",
+				'name'              => self::META_BULK_PRICE . "[{$loop}]",
+				'label'             => sprintf( __( 'Bulk price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'data_type'         => 'price',
+				'value'             => $product->get_meta( self::META_BULK_PRICE ),
 				'wrapper_class'     => 'form-row form-row-last',
 			)
 		);
@@ -156,6 +244,10 @@ class ProductFields {
 		$case  = $_POST[ self::META_CASE_SIZE ][ $loop ] ?? null;
 
 		$this->save_price_and_case( $product, array( self::META_WHOLESALE_PRICE => $price, self::META_CASE_SIZE => $case ) );
+
+		$this->save_optional_price_field( $product, self::META_VOLUME_PRICE, $_POST[ self::META_VOLUME_PRICE ][ $loop ] ?? null );
+		$this->save_optional_price_field( $product, self::META_BULK_PRICE, $_POST[ self::META_BULK_PRICE ][ $loop ] ?? null );
+
 		$product->save();
 	}
 
@@ -180,6 +272,36 @@ class ProductFields {
 			// a later change to the global default (Settings ->
 			// get_default_case_size()) still applies to this product.
 			$product->delete_meta_data( self::META_CASE_SIZE );
+		}
+	}
+
+	/**
+	 * Shared by the volume/bulk price override fields: empty clears the
+	 * override (falls back to the store default), a non-numeric value is
+	 * ignored rather than saved as garbage.
+	 *
+	 * @param mixed $raw
+	 */
+	private function save_optional_price_field( \WC_Product $product, string $meta_key, $raw ): void {
+		$value = null === $raw ? '' : sanitize_text_field( wp_unslash( (string) $raw ) );
+
+		if ( '' === trim( $value ) ) {
+			$product->delete_meta_data( $meta_key );
+		} elseif ( is_numeric( $value ) ) {
+			$product->update_meta_data( $meta_key, wc_format_decimal( $value ) );
+		}
+	}
+
+	/**
+	 * @param mixed $raw
+	 */
+	private function save_optional_int_field( \WC_Product $product, string $meta_key, $raw ): void {
+		$value = null === $raw ? 0 : absint( $raw );
+
+		if ( $value > 0 ) {
+			$product->update_meta_data( $meta_key, $value );
+		} else {
+			$product->delete_meta_data( $meta_key );
 		}
 	}
 
@@ -257,7 +379,7 @@ class ProductFields {
 				__( 'Product', 'protech-wholesale' ),
 				__( 'Type', 'protech-wholesale' ),
 				__( 'Wholesale price', 'protech-wholesale' ),
-				__( 'Case size', 'protech-wholesale' ),
+				__( 'Packs/display', 'protech-wholesale' ),
 				__( 'Wholesale only', 'protech-wholesale' ),
 			) as $heading
 		) {

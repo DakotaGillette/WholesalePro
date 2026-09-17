@@ -43,15 +43,18 @@ function protech_wholesale_get_price( int $product_id, int $user_id = 0 ): ?floa
 }
 
 /**
- * The case size (packs per case) configured for a product/variation.
+ * Packs per display configured for a product/variation ("case" in
+ * CaseRules's own naming — see that class's docblock).
  */
 function protech_wholesale_get_case_size( int $product_id ): int {
 	return CaseRules::get_case_size( $product_id );
 }
 
 /**
- * The minimum wholesale order subtotal that applies to a given user
- * (per-customer override if set, otherwise the global setting).
+ * The old dollar-based minimum wholesale order subtotal for a given user
+ * (per-customer override if set, otherwise the global setting). No
+ * longer enforced anywhere — see DECISIONS.md, "Display/Case
+ * quantity-tier pricing + shipping pivot".
  */
 function protech_wholesale_get_minimum_order( int $user_id = 0 ): float {
 	return CaseRules::get_minimum_order( $user_id ?: get_current_user_id() );

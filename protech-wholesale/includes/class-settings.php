@@ -22,10 +22,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Settings {
 
 	public const OPT_MIN_ORDER             = 'protech_wholesale_min_order';
-	public const OPT_DEFAULT_CASE_SIZE      = 'protech_wholesale_default_case_size';
+	public const OPT_DEFAULT_CASE_SIZE      = 'protech_wholesale_default_case_size'; // Packs per DISPLAY — name kept for backwards compatibility, see class-case-rules.php.
+	public const OPT_DEFAULT_DISPLAYS_PER_CASE = 'protech_wholesale_default_displays_per_case'; // Displays per (big) CASE.
 	public const OPT_EMPTY_PRICE_BEHAVIOR   = 'protech_wholesale_empty_price_behavior'; // 'hide' | 'fallback'.
 	public const OPT_ALLOW_RETAIL_COUPONS   = 'protech_wholesale_allow_retail_coupons'; // 'no' | 'yes'.
 	public const OPT_EXCLUDE_FREE_SHIPPING  = 'protech_wholesale_exclude_free_shipping'; // 'yes' | 'no'.
+	public const OPT_SHIPPING_FLAT_RATE     = 'protech_wholesale_shipping_flat_rate'; // Charged below the volume threshold.
+	public const OPT_VOLUME_THRESHOLD_DISPLAYS = 'protech_wholesale_volume_threshold_displays'; // Also the free-shipping cutoff.
+	public const OPT_VOLUME_PRICE           = 'protech_wholesale_volume_price';
+	public const OPT_BULK_THRESHOLD_CASES   = 'protech_wholesale_bulk_threshold_cases';
+	public const OPT_BULK_PRICE             = 'protech_wholesale_bulk_price';
 	public const OPT_APPLICATION_SOURCE     = 'protech_wholesale_application_source';
 	public const OPT_APPLICATION_FORM_ID    = 'protech_wholesale_application_form_id'; // '' = accept any form from that plugin.
 	public const OPT_PURGE_ON_UNINSTALL     = 'protech_wholesale_purge_on_uninstall'; // 'no' | 'yes'.
@@ -39,9 +45,15 @@ class Settings {
 		return array(
 			self::OPT_MIN_ORDER             => '800',
 			self::OPT_DEFAULT_CASE_SIZE      => (string) ProductFields::DEFAULT_CASE_SIZE,
+			self::OPT_DEFAULT_DISPLAYS_PER_CASE => (string) ProductFields::DEFAULT_DISPLAYS_PER_CASE,
 			self::OPT_EMPTY_PRICE_BEHAVIOR   => 'hide',
 			self::OPT_ALLOW_RETAIL_COUPONS   => 'no',
 			self::OPT_EXCLUDE_FREE_SHIPPING  => 'yes',
+			self::OPT_SHIPPING_FLAT_RATE     => '19.95',
+			self::OPT_VOLUME_THRESHOLD_DISPLAYS => '16',
+			self::OPT_VOLUME_PRICE          => '5.00',
+			self::OPT_BULK_THRESHOLD_CASES   => '16',
+			self::OPT_BULK_PRICE            => '4.50',
 			// Confirmed against staging 2026-09-17 — Fluent Forms form #4
 			// renders /wholesale-application. See DECISIONS.md.
 			self::OPT_APPLICATION_SOURCE     => ApplicationForm::SOURCE_FLUENT_FORMS,
@@ -62,7 +74,7 @@ class Settings {
 		return array(
 			array(
 				'title' => __( 'Wholesale Settings', 'protech-wholesale' ),
-				'desc'  => __( 'The minimum order subtotal and default case size moved to the Tiers tab (as the Bronze row) — everything tier-related lives there now.', 'protech-wholesale' ),
+				'desc'  => __( 'The minimum order subtotal moved to the Tiers tab (as the Bronze row); the quantity price ladder, case composition, and shipping rate moved to the Pricing tab.', 'protech-wholesale' ),
 				'type'  => 'title',
 				'id'    => 'protech_wholesale_settings_title',
 			),
@@ -85,7 +97,7 @@ class Settings {
 			),
 			array(
 				'title'   => __( 'Exclude wholesale orders from free shipping', 'protech-wholesale' ),
-				'desc'    => __( 'Keeps the retail free-shipping-over-$30 rule from applying to wholesale orders.', 'protech-wholesale' ),
+				'desc'    => __( 'Keeps the retail free-shipping-over-$30 rule from applying to wholesale orders in zones that don\'t have "Protech Wholesale Shipping" added — see WooCommerce → Wholesale → Pricing for the wholesale shipping rate and free-shipping threshold.', 'protech-wholesale' ),
 				'id'      => self::OPT_EXCLUDE_FREE_SHIPPING,
 				'type'    => 'checkbox',
 				'default' => 'yes',
@@ -159,6 +171,38 @@ class Settings {
 		$value = (int) get_option( self::OPT_DEFAULT_CASE_SIZE, ProductFields::DEFAULT_CASE_SIZE );
 
 		return $value > 0 ? $value : ProductFields::DEFAULT_CASE_SIZE;
+	}
+
+	/** Editable under WooCommerce → Wholesale → Pricing, not this Settings tab. */
+	public static function get_default_displays_per_case(): int {
+		$value = (int) get_option( self::OPT_DEFAULT_DISPLAYS_PER_CASE, ProductFields::DEFAULT_DISPLAYS_PER_CASE );
+
+		return $value > 0 ? $value : ProductFields::DEFAULT_DISPLAYS_PER_CASE;
+	}
+
+	/** Editable under WooCommerce → Wholesale → Pricing. Flat fee below the volume threshold; free at/above it. */
+	public static function get_shipping_flat_rate(): float {
+		return (float) get_option( self::OPT_SHIPPING_FLAT_RATE, 19.95 );
+	}
+
+	/** Editable under WooCommerce → Wholesale → Pricing. Also the free-shipping cutoff — see get_shipping_flat_rate(). */
+	public static function get_volume_threshold_displays(): int {
+		return max( 1, (int) get_option( self::OPT_VOLUME_THRESHOLD_DISPLAYS, 16 ) );
+	}
+
+	/** Editable under WooCommerce → Wholesale → Pricing — the storewide default; a product may override it. */
+	public static function get_volume_price(): float {
+		return (float) get_option( self::OPT_VOLUME_PRICE, 5.00 );
+	}
+
+	/** Editable under WooCommerce → Wholesale → Pricing. */
+	public static function get_bulk_threshold_cases(): int {
+		return max( 1, (int) get_option( self::OPT_BULK_THRESHOLD_CASES, 16 ) );
+	}
+
+	/** Editable under WooCommerce → Wholesale → Pricing — the storewide default; a product may override it. */
+	public static function get_bulk_price(): float {
+		return (float) get_option( self::OPT_BULK_PRICE, 4.50 );
 	}
 
 	public static function empty_price_behavior(): string {

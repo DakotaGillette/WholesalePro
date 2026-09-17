@@ -2,9 +2,9 @@
 /**
  * R2: wholesale pricing engine — precedence, cart/checkout/email price
  * filters, per-role variation cache busting, and the wholesale label.
- *
- * Precedence: per-customer override > group (product/variation) price >
- * not available at wholesale (falls through to retail).
+ * See get_wholesale_price() for the full precedence order, and
+ * class-volume-pricing.php for the Standard/Volume/Bulk quantity ladder
+ * this now layers on top of the original flat group price.
  *
  * @package ProtechWholesale
  */
@@ -48,14 +48,44 @@ class Pricing {
 	}
 
 	/**
+	 * The Standard/Volume/Bulk tier that applies right now, for a given
+	 * user — based on the combined Display/Case quantity across every
+	 * wholesale-eligible item already in their cart, if any.
+	 *
+	 * This is deliberately what every price filter below consults
+	 * directly, rather than trying to push a tier-adjusted price onto
+	 * cart line items via woocommerce_before_calculate_totals +
+	 * set_price(): WooCommerce (and the Store API) re-invoke
+	 * woocommerce_product_get_price on demand throughout a request —
+	 * checkout, cart totals, the Store API's own item schema — and each
+	 * of those calls would otherwise re-run filter_price() with no tier
+	 * argument and silently overwrite whatever set_price() had done.
+	 * Making the filter itself cart-aware avoids that race entirely.
+	 */
+	private static function get_current_tier( int $user_id ): string {
+		if ( ! $user_id || null === WC()->cart ) {
+			return VolumePricing::TIER_STANDARD;
+		}
+
+		$totals = VolumePricing::get_totals_for_items( WC()->cart->get_cart(), $user_id );
+
+		return VolumePricing::get_tier_for_totals( $totals['displays'], $totals['cases'] );
+	}
+
+	/**
 	 * The price a specific user pays for a product/variation, or null if
 	 * that item isn't available to them at wholesale.
 	 *
-	 * Precedence: per-customer override > their tier's discount off the
-	 * group price (Bronze has none) > the plain group price > not
-	 * available.
+	 * Precedence: per-customer override (ignores quantity entirely) >
+	 * the quantity-tier price for $tier (VolumePricing; a product may
+	 * override Volume/Bulk, Standard is always its own wholesale price)
+	 * > the customer's hidden tier discount off that (Bronze has none) >
+	 * not available.
+	 *
+	 * @param string|null $tier One of VolumePricing::TIER_*; null = Standard,
+	 *                          which is what every non-cart-aware call site uses.
 	 */
-	public static function get_wholesale_price( int $product_id, int $user_id ): ?float {
+	public static function get_wholesale_price( int $product_id, int $user_id, ?string $tier = null ): ?float {
 		if ( ! $user_id || ! Roles::is_wholesale_customer( $user_id ) ) {
 			return null;
 		}
@@ -66,19 +96,24 @@ class Pricing {
 			return (float) $overrides[ $product_id ];
 		}
 
-		$group_price = get_post_meta( $product_id, ProductFields::META_WHOLESALE_PRICE, true );
+		$base_price = get_post_meta( $product_id, ProductFields::META_WHOLESALE_PRICE, true );
 
-		if ( ! is_numeric( $group_price ) ) {
-			return null;
+		if ( ! is_numeric( $base_price ) ) {
+			return null; // Not wholesale-eligible at all, regardless of tier.
 		}
+
+		$tier       = $tier ?? VolumePricing::TIER_STANDARD;
+		$list_price = VolumePricing::TIER_STANDARD === $tier
+			? (float) $base_price
+			: ( VolumePricing::get_tier_price( $product_id, $tier ) ?? (float) $base_price );
 
 		$discount_percent = Tiers::get_tier_discount_percent( Tiers::get_user_tier( $user_id ) );
 
 		if ( $discount_percent > 0 ) {
-			return round( (float) $group_price * ( 1 - $discount_percent / 100 ), 2 );
+			return round( $list_price * ( 1 - $discount_percent / 100 ), 2 );
 		}
 
-		return (float) $group_price;
+		return $list_price;
 	}
 
 	public static function is_available_at_wholesale( int $product_id, int $user_id ): bool {
@@ -86,11 +121,49 @@ class Pricing {
 	}
 
 	/**
+	 * Whether $product_id is available at wholesale, OR — if it's a
+	 * variable product — whether ANY of its variations are. Cart/order
+	 * line pricing (get_wholesale_price(), is_available_at_wholesale())
+	 * never needs this: a line item always resolves to one specific
+	 * simple product or variation ID, never an ambiguous parent. But
+	 * WooCommerce hands filters like woocommerce_get_price_html and
+	 * woocommerce_product_is_visible the PARENT product for a variable
+	 * product's range/loop display — and the standard way to set up
+	 * wholesale pricing on a variable product is per-variation (this
+	 * plugin's own variation edit-screen fields), so the parent itself
+	 * typically has no wholesale price of its own. Checking only the bare
+	 * parent ID there would treat every such product as unavailable at
+	 * wholesale — hiding it from the wholesale shop grid entirely and
+	 * never showing the "Wholesale price" label — despite every one of
+	 * its variations being correctly priced and purchasable.
+	 */
+	public static function is_available_at_wholesale_including_variations( int $product_id, int $user_id ): bool {
+		if ( self::is_available_at_wholesale( $product_id, $user_id ) ) {
+			return true;
+		}
+
+		$product = wc_get_product( $product_id );
+
+		if ( ! $product instanceof \WC_Product || ! $product->is_type( 'variable' ) ) {
+			return false;
+		}
+
+		foreach ( $product->get_children() as $variation_id ) {
+			if ( self::is_available_at_wholesale( $variation_id, $user_id ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * @param string      $price
 	 * @param \WC_Product $product
 	 */
 	public function filter_price( $price, $product ) {
-		$wholesale_price = self::get_wholesale_price( $product->get_id(), get_current_user_id() );
+		$user_id          = get_current_user_id();
+		$wholesale_price = self::get_wholesale_price( $product->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? (string) wc_format_decimal( $wholesale_price ) : $price;
 	}
@@ -103,7 +176,8 @@ class Pricing {
 	 * @param \WC_Product $product
 	 */
 	public function filter_sale_price( $price, $product ) {
-		$wholesale_price = self::get_wholesale_price( $product->get_id(), get_current_user_id() );
+		$user_id          = get_current_user_id();
+		$wholesale_price = self::get_wholesale_price( $product->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? '' : $price;
 	}
@@ -118,13 +192,15 @@ class Pricing {
 	 * @param \WC_Product $product
 	 */
 	public function filter_variation_prices_array_entry( $price, $variation, $product ) {
-		$wholesale_price = self::get_wholesale_price( $variation->get_id(), get_current_user_id() );
+		$user_id          = get_current_user_id();
+		$wholesale_price = self::get_wholesale_price( $variation->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? wc_format_decimal( $wholesale_price ) : $price;
 	}
 
 	public function filter_variation_prices_array_sale_entry( $price, $variation, $product ) {
-		$wholesale_price = self::get_wholesale_price( $variation->get_id(), get_current_user_id() );
+		$user_id          = get_current_user_id();
+		$wholesale_price = self::get_wholesale_price( $variation->get_id(), $user_id, self::get_current_tier( $user_id ) );
 
 		return null !== $wholesale_price ? '' : $price;
 	}
@@ -186,7 +262,7 @@ class Pricing {
 			return $price_html;
 		}
 
-		if ( self::is_available_at_wholesale( $product->get_id(), $user_id ) ) {
+		if ( self::is_available_at_wholesale_including_variations( $product->get_id(), $user_id ) ) {
 			return $price_html . ' <span class="protech-wholesale-label">' . esc_html__( 'Wholesale price', 'protech-wholesale' ) . '</span>';
 		}
 
@@ -226,7 +302,7 @@ class Pricing {
 			return $visible;
 		}
 
-		if ( self::is_available_at_wholesale( $product_id, $user_id ) ) {
+		if ( self::is_available_at_wholesale_including_variations( $product_id, $user_id ) ) {
 			return $visible;
 		}
 
