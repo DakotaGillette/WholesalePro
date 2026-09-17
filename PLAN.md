@@ -39,9 +39,10 @@ protech-wholesale/
     class-approval.php           WP_List_Table admin screen + approve/reject actions + emails
     class-pricing.php            Price filters, precedence, per-role variation price cache busting
     class-case-rules.php         Case size, multiple-of-case validation, order minimum enforcement
-    class-order-form.php         [protech_wholesale_order_form] shortcode + AJAX add-all-to-cart
-    class-reorder.php            Reorder button + prefill logic (My Account orders + order detail)
-    class-my-account.php         "Quick Order" tab, login redirect, pending notice
+    class-global-tier-bar.php    Sticky site-wide tier progress bar (see DECISIONS.md)
+    class-reorder.php            Reorder button — adds a past order straight to cart (My Account orders + order detail + dashboard)
+    class-my-account.php         Login redirect (wholesale → shop), pending-application notice
+    [class-order-form.php removed 2026-09-17 — the Quick Order page it powered was removed; see DECISIONS.md]
     class-portal.php             /wholesale page + [protech_wholesale_portal] shortcode
     class-orders-admin.php       Orders list wholesale filter/column, _protech_is_wholesale flag
     class-emails.php             Admin "WHOLESALE ORDER" subject prefix, applicant/approval emails
@@ -93,19 +94,20 @@ README.md, QA.md, DECISIONS.md, PLAN.md
 | `woocommerce_quantity_input_args` | Wholesale step/min = case size on product pages |
 
 ### Fast reorder (R4)
+> The Quick Order page/tab this section originally described was removed 2026-09-17 (see DECISIONS.md) — wholesale pricing is visible directly on ordinary shop/product pages instead.
+
 | Hook | Purpose |
 |---|---|
-| `init` (shortcode) | `[protech_wholesale_order_form]` |
-| `wp_ajax_protech_add_all_to_cart` | AJAX add-all-to-cart from the order form grid |
-| `woocommerce_account_menu_items`, `woocommerce_account_{tab}_endpoint` | "Quick Order" My Account tab |
-| `woocommerce_my_account_my_orders_actions` | "Reorder" button on the orders list |
-| `wp_ajax_protech_reorder` | Builds prefill payload from a past order, flags out-of-stock lines |
+| `woocommerce_my_account_my_orders_actions`, `woocommerce_order_details_after_order_table`, `woocommerce_account_dashboard` | "Reorder" button/prompt (orders list, order detail, dashboard shortcut) |
+| `admin_post_protech_reorder` | Adds a past order's still-available items straight to the cart, redirects to `/cart/` |
+| `wp_footer` (GlobalTierBar) | Sticky site-wide tier progress bar |
+| `wp_ajax_protech_global_tier_bar_state` | Live AJAX refresh of the sticky bar after any cart change |
 
 ### Portal, redirects, shipping (R5/R5b)
 | Hook | Purpose |
 |---|---|
 | `init` (Activator) | Create `/wholesale` page with `[protech_wholesale_portal]` if missing |
-| `login_redirect` | Send wholesale users to `/wholesale` (Quick Order) after login |
+| `login_redirect` | Send wholesale users to the shop page after login |
 | `template_redirect` | Pending users hitting the shop see the "under review" notice instead of prices |
 | `woocommerce_shipping_free_shipping_is_available` | Exclude wholesale orders from retail free-shipping threshold |
 

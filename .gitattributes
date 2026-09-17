@@ -1,0 +1,12 @@
+# Normalize line endings: store LF in the repo and check out LF everywhere,
+# regardless of the local core.autocrlf setting (Windows machines default it
+# to true, which produced constant "LF will be replaced by CRLF" warnings and
+# would break bin/deploy.sh if a CRLF copy were ever committed).
+* text=auto eol=lf
+
+# Binary assets, if any are ever added.
+*.png binary
+*.jpg binary
+*.gif binary
+*.woff binary
+*.woff2 binary
