@@ -32,7 +32,7 @@ set -a
 source "${ENV_FILE}"
 set +a
 
-required_vars=(CW_SSH_HOST CW_SSH_USER CW_SSH_KEY CW_APP_PATH CW_STAGING_URL)
+required_vars=(CW_SSH_HOST CW_SSH_USER CW_APP_PATH CW_STAGING_URL)
 for var in "${required_vars[@]}"; do
 	if [[ -z "${!var:-}" ]]; then
 		echo "Error: ${var} is not set in ${ENV_FILE}. See .env.example." >&2
@@ -40,13 +40,33 @@ for var in "${required_vars[@]}"; do
 	fi
 done
 
+# Auth: either a key file (CW_SSH_KEY) or a password (CW_SSH_PASSWORD, via
+# sshpass) — Cloudways app credentials come in both flavors depending on
+# how the app was set up. Key auth is preferred when both are present.
+SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
+
+if [[ -n "${CW_SSH_KEY:-}" ]]; then
+	SSH_CMD=(ssh -i "${CW_SSH_KEY}" "${SSH_OPTS[@]}")
+elif [[ -n "${CW_SSH_PASSWORD:-}" ]]; then
+	if ! command -v sshpass >/dev/null 2>&1; then
+		echo "Error: CW_SSH_PASSWORD is set but 'sshpass' isn't installed." >&2
+		echo "Install it (e.g. 'brew install sshpass' / 'apt install sshpass'), or use CW_SSH_KEY instead." >&2
+		exit 1
+	fi
+	SSH_CMD=(sshpass -e ssh "${SSH_OPTS[@]}")
+	export SSHPASS="${CW_SSH_PASSWORD}"
+else
+	echo "Error: set either CW_SSH_KEY or CW_SSH_PASSWORD in ${ENV_FILE}. See .env.example." >&2
+	exit 1
+fi
+
 PLUGIN_SRC="${REPO_ROOT}/protech-wholesale/"
 PLUGIN_DEST="${CW_SSH_USER}@${CW_SSH_HOST}:${CW_APP_PATH}/wp-content/plugins/protech-wholesale/"
 
 echo "Deploying protech-wholesale to staging (${CW_STAGING_URL}) ..."
 
 rsync -avz --delete \
-	-e "ssh -i ${CW_SSH_KEY}" \
+	-e "${SSH_CMD[*]}" \
 	--exclude ".git" \
 	--exclude ".DS_Store" \
 	--exclude "Thumbs.db" \
@@ -58,7 +78,7 @@ rsync -avz --delete \
 
 echo "Flushing the WordPress object cache on staging ..."
 
-ssh -i "${CW_SSH_KEY}" "${CW_SSH_USER}@${CW_SSH_HOST}" \
+"${SSH_CMD[@]}" "${CW_SSH_USER}@${CW_SSH_HOST}" \
 	"cd ${CW_APP_PATH} && wp cache flush"
 
 echo ""
