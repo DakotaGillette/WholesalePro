@@ -159,7 +159,18 @@ class ProductFields {
 			return;
 		}
 
-		$price = isset( $data['value'] ) ? wc_format_decimal( sanitize_text_field( wp_unslash( (string) $data['value'] ) ) ) : '';
+		// admin.js prompts for the price and relies on WooCommerce's own
+		// bulk-edit AJAX call to carry it as `value`. If that value is
+		// missing (e.g. the prompt was cancelled, or WooCommerce's JS on
+		// this version doesn't forward it for a non-core bulk action),
+		// do nothing rather than guessing — an empty value here must
+		// never be read as "clear every variation's wholesale price".
+		if ( ! isset( $data['value'] ) || '' === trim( (string) $data['value'] ) ) {
+			Logger::warning( "Bulk 'set wholesale prices' selected on product #{$variable_product_id} with no price value; no changes made." );
+			return;
+		}
+
+		$price = wc_format_decimal( sanitize_text_field( wp_unslash( (string) $data['value'] ) ) );
 
 		foreach ( $variation_ids as $variation_id ) {
 			$variation = wc_get_product( $variation_id );
@@ -168,12 +179,7 @@ class ProductFields {
 				continue;
 			}
 
-			if ( '' === $price ) {
-				$variation->delete_meta_data( self::META_WHOLESALE_PRICE );
-			} else {
-				$variation->update_meta_data( self::META_WHOLESALE_PRICE, $price );
-			}
-
+			$variation->update_meta_data( self::META_WHOLESALE_PRICE, $price );
 			$variation->save();
 		}
 

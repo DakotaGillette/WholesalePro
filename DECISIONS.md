@@ -67,3 +67,12 @@ Flagged in the master prompt as needing verification once on staging
   have its own qty stepper JS that needs to respect `step`/`min` set by
   `woocommerce_quantity_input_args`).
 - My Account nav styling for the new "Quick Order" tab.
+- The "set all variations to $___" bulk price helper (`assets/js/admin.js`)
+  intercepts WooCommerce's variations bulk-action dropdown to prompt for
+  a price, since WooCommerce's own JS only does this natively for its
+  built-in bulk actions. This couldn't be tested against a live
+  WooCommerce admin screen; the failure mode is safe either way —
+  `ProductFields::handle_bulk_edit()` refuses to change any prices when
+  no value was submitted, so a JS mismatch means the button quietly does
+  nothing rather than corrupting data. Confirm on staging and adjust the
+  interception in `admin.js` if needed.

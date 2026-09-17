@@ -175,5 +175,13 @@ final class Plugin {
 			PROTECH_WHOLESALE_VERSION,
 			true
 		);
+
+		wp_localize_script(
+			'protech-wholesale-admin',
+			'protechWholesaleAdmin',
+			array(
+				'bulkPricePrompt' => __( 'Set wholesale price for all variations ($ per pack):', 'protech-wholesale' ),
+			)
+		);
 	}
 }

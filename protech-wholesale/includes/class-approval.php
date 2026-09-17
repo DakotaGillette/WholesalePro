@@ -179,7 +179,13 @@ class Approval {
 							</p>
 						<?php endforeach; ?>
 					</div>
-					<button type="button" class="button" id="protech-add-override-row"><?php esc_html_e( '+ Add price override', 'protech-wholesale' ); ?></button>
+					<button
+						type="button"
+						class="button"
+						id="protech-add-override-row"
+						data-placeholder-id="<?php esc_attr_e( 'Product/variation ID', 'protech-wholesale' ); ?>"
+						data-placeholder-price="<?php esc_attr_e( 'Price per pack', 'protech-wholesale' ); ?>"
+					><?php esc_html_e( '+ Add price override', 'protech-wholesale' ); ?></button>
 					<p class="description"><?php esc_html_e( 'Beats the group wholesale price for this customer only. Leave empty for none.', 'protech-wholesale' ); ?></p>
 				</td>
 			</tr>
