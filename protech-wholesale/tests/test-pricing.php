@@ -125,7 +125,8 @@ class Test_Pricing extends WP_UnitTestCase {
 		$this->assertSame( 20.0, Pricing::get_msrp( $product->get_id() ) );
 
 		wp_set_current_user( $this->create_wholesale_customer() );
-		$this->assertSame( 5.0, wc_get_product( $product->get_id() )->get_regular_price() );
+		// get_regular_price() returns a formatted string, hence the cast.
+		$this->assertSame( 5.0, (float) wc_get_product( $product->get_id() )->get_regular_price() );
 		$this->assertSame( 20.0, Pricing::get_msrp( $product->get_id() ) );
 	}
 
