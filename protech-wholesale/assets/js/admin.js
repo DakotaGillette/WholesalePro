@@ -12,7 +12,31 @@
 		initBulkWholesalePriceActions();
 		initApplicantActions();
 		initMessaging();
+		initStarterKitToggle();
 	} );
+
+	/**
+	 * Product edit screen, Wholesale tab: hides the "Displays in a kit" /
+	 * "Make up the difference with" fields while "One of every colour" is
+	 * checked, since StarterKit ignores them in that mode. Pure
+	 * progressive enhancement — without JS the fields just stay visible,
+	 * with their own description explaining they're ignored.
+	 */
+	function initStarterKitToggle() {
+		var checkbox = document.getElementById( '_protech_kit_one_of_each' );
+		var fields = document.getElementById( 'protech-kit-target-fields' );
+
+		if ( ! checkbox || ! fields ) {
+			return;
+		}
+
+		var sync = function () {
+			fields.style.display = checkbox.checked ? 'none' : '';
+		};
+
+		checkbox.addEventListener( 'change', sync );
+		sync();
+	}
 
 	/**
 	 * User profile screen: "+ Add price override" / remove-row buttons

@@ -89,6 +89,7 @@ class CustomersTab {
 				__( 'Last order', 'protech-wholesale' ),
 				__( 'Lifetime spend', 'protech-wholesale' ),
 				__( 'SMS', 'protech-wholesale' ),
+				__( 'Tax exempt', 'protech-wholesale' ),
 				'',
 			) as $heading
 		) {
@@ -135,6 +136,8 @@ class CustomersTab {
 			echo '</td>';
 			echo '<td>' . wp_kses_post( wc_price( wc_get_customer_total_spent( (int) $user->ID ) ) ) . '</td>';
 			echo '<td>' . esc_html( self::sms_status_label( $sms_state ) ) . '</td>';
+			$tax_exempt_label = TaxExemption::label( (int) $user->ID );
+			echo '<td>' . ( '' !== $tax_exempt_label ? '<span class="protech-admin-badge" style="display:inline-block;padding:1px 6px;border-radius:3px;background:#dde5f2;color:#2a4166;font-size:11px;">' . esc_html( $tax_exempt_label ) . '</span>' : '&#8212;' ) . '</td>';
 			echo '<td><a href="' . esc_url( MessagingTab::url( 'compose', array( 'ids' => $user->ID ) ) ) . '">' . esc_html__( 'Message', 'protech-wholesale' ) . '</a></td>';
 			echo '</tr>';
 		}

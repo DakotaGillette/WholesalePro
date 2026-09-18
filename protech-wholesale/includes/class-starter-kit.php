@@ -12,16 +12,20 @@
  * number typed onto the kit product.
  *
  * Composition is a rule, not a list, so it needs no upkeep as colours are
- * added:
- *   1. one display of every variation of the source product that this
- *      customer can buy at wholesale and that is in stock;
- *   2. if that is fewer than the kit's target (default: the Volume
- *      threshold), the shortfall is made up with extra displays of the
- *      chosen filler colours, in order, round-robin.
- * With 14 colours, a target of 16 and fillers Black, White that is every
- * colour plus a second Black and a second White; add two colours and it
- * becomes one of each, with nothing to edit. A colour that is out of
- * stock is left out and the fillers cover for it.
+ * added. Two modes, set per kit:
+ *   - "One of every colour" (META_ONE_OF_EACH): exactly one display of
+ *     every variation this customer can buy at wholesale and that is in
+ *     stock — no target, no padding. 14 colours today is 14 displays;
+ *     add a 15th tomorrow and the kit is 15 displays with nothing to
+ *     edit, forever.
+ *   - Padded to a target (the original mode, still available for a kit
+ *     that should always land on a specific tier): one of every colour,
+ *     then if that is fewer than the target (default: the Volume
+ *     threshold) the shortfall is made up with extra displays of the
+ *     chosen filler colours, in order, round-robin. With 14 colours, a
+ *     target of 16 and fillers Black, White that is every colour plus a
+ *     second Black and a second White.
+ * Either way, a colour that is out of stock is simply left out.
  *
  * Configured per product on the Wholesale tab (simple products).
  *
@@ -43,6 +47,7 @@ class StarterKit {
 
 	public const META_ENABLED         = '_protech_kit_enabled'; // 'yes' | 'no'.
 	public const META_SOURCE          = '_protech_kit_source'; // Variable product ID.
+	public const META_ONE_OF_EACH     = '_protech_kit_one_of_each'; // 'yes' | 'no'. When 'yes', target/fillers below are ignored.
 	public const META_TARGET_DISPLAYS = '_protech_kit_target_displays'; // int | '' (= Volume threshold).
 	public const META_FILLERS         = '_protech_kit_fillers'; // int[] variation IDs, in priority order.
 
@@ -78,6 +83,10 @@ class StarterKit {
 		return function_exists( 'is_product' ) && is_product() && Roles::is_wholesale_customer() && self::is_kit( (int) get_queried_object_id() );
 	}
 
+	public static function is_one_of_each( int $kit_id ): bool {
+		return 'yes' === get_post_meta( $kit_id, self::META_ONE_OF_EACH, true );
+	}
+
 	public static function get_target_displays( int $kit_id ): int {
 		$target = (int) get_post_meta( $kit_id, self::META_TARGET_DISPLAYS, true );
 
@@ -99,12 +108,16 @@ class StarterKit {
 	 * @return array{lines: array<int, array{variation_id: int, parent_id: int, name: string, color: string, displays: int, packs: int}>, unavailable: string[], displays: int, packs: int, target: int}
 	 */
 	public static function get_composition( int $kit_id, int $user_id ): array {
+		$one_of_each = self::is_one_of_each( $kit_id );
+
 		$empty = array(
 			'lines'       => array(),
 			'unavailable' => array(),
 			'displays'    => 0,
 			'packs'       => 0,
-			'target'      => self::get_target_displays( $kit_id ),
+			// Meaningless in "one of every colour" mode — there is no fixed
+			// target, the kit simply is however many colours exist.
+			'target'      => $one_of_each ? 0 : self::get_target_displays( $kit_id ),
 		);
 
 		$source = wc_get_product( (int) get_post_meta( $kit_id, self::META_SOURCE, true ) );
@@ -140,30 +153,35 @@ class StarterKit {
 			$variations[ $variation_id ] = $variation;
 		}
 
-		// Make up any shortfall with the filler colours, round-robin, for as
-		// long as at least one of them can still supply another display.
-		$shortfall = $empty['target'] - count( $displays );
-		$fillers   = array_values( array_intersect( self::get_filler_ids( $kit_id ), array_keys( $displays ) ) );
+		// "One of every colour" skips all of this: no target, no padding —
+		// whatever count() of available colours came out of the loop above
+		// is the whole kit.
+		if ( ! $one_of_each ) {
+			// Make up any shortfall with the filler colours, round-robin, for
+			// as long as at least one of them can still supply another display.
+			$shortfall = $empty['target'] - count( $displays );
+			$fillers   = array_values( array_intersect( self::get_filler_ids( $kit_id ), array_keys( $displays ) ) );
 
-		while ( $shortfall > 0 && ! empty( $fillers ) ) {
-			$progressed = false;
+			while ( $shortfall > 0 && ! empty( $fillers ) ) {
+				$progressed = false;
 
-			foreach ( $fillers as $filler_id ) {
-				if ( $shortfall <= 0 ) {
+				foreach ( $fillers as $filler_id ) {
+					if ( $shortfall <= 0 ) {
+						break;
+					}
+
+					if ( ! self::can_supply( $variations[ $filler_id ], $displays[ $filler_id ] + 1 ) ) {
+						continue;
+					}
+
+					++$displays[ $filler_id ];
+					--$shortfall;
+					$progressed = true;
+				}
+
+				if ( ! $progressed ) {
 					break;
 				}
-
-				if ( ! self::can_supply( $variations[ $filler_id ], $displays[ $filler_id ] + 1 ) ) {
-					continue;
-				}
-
-				++$displays[ $filler_id ];
-				--$shortfall;
-				$progressed = true;
-			}
-
-			if ( ! $progressed ) {
-				break;
 			}
 		}
 
@@ -192,7 +210,9 @@ class StarterKit {
 			'unavailable' => $unavailable,
 			'displays'    => $total_displays,
 			'packs'       => $total_packs,
-			'target'      => $empty['target'],
+			// In "one of every colour" mode there is no fixed target — report
+			// however many displays this kit actually turned out to be.
+			'target'      => $one_of_each ? $total_displays : $empty['target'],
 		);
 	}
 
@@ -626,6 +646,17 @@ class StarterKit {
 
 		echo '</select> ' . wc_help_tip( __( 'The variable product whose colours make up the kit. Every colour with a wholesale price, in stock, gets one display.', 'protech-wholesale' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wc_help_tip() escapes.
 
+		woocommerce_wp_checkbox(
+			array(
+				'id'          => self::META_ONE_OF_EACH,
+				'label'       => __( 'One of every colour', 'protech-wholesale' ),
+				'description' => __( 'The kit is exactly one display of every colour currently available — no padding to a fixed count. Add or remove a colour on the product above and the kit updates on its own; the two fields below are ignored while this is checked.', 'protech-wholesale' ),
+				'value'       => $product_id && self::is_one_of_each( $product_id ) ? 'yes' : 'no',
+			)
+		);
+
+		echo '<div id="protech-kit-target-fields">';
+
 		woocommerce_wp_text_input(
 			array(
 				'id'                => self::META_TARGET_DISPLAYS,
@@ -658,6 +689,8 @@ class StarterKit {
 
 		echo '</select> ' . wc_help_tip( __( 'Colours of the product above that get an extra display while there are fewer colours than displays in the kit, in this order. Once there are enough colours these are no longer used.', 'protech-wholesale' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wc_help_tip() escapes.
 
+		echo '</div>'; // #protech-kit-target-fields.
+
 		echo '</div>';
 	}
 
@@ -666,16 +699,18 @@ class StarterKit {
 	 */
 	public function save_admin_fields( int $post_id ): void {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- woocommerce_process_product_meta fires after WooCommerce verifies woocommerce_meta_nonce.
-		$enabled = ! empty( $_POST[ self::META_ENABLED ] );
-		$source  = isset( $_POST[ self::META_SOURCE ] ) ? absint( $_POST[ self::META_SOURCE ] ) : 0;
-		$target  = isset( $_POST[ self::META_TARGET_DISPLAYS ] ) ? absint( $_POST[ self::META_TARGET_DISPLAYS ] ) : 0;
-		$fillers = isset( $_POST[ self::META_FILLERS ] ) && is_array( $_POST[ self::META_FILLERS ] )
+		$enabled     = ! empty( $_POST[ self::META_ENABLED ] );
+		$source      = isset( $_POST[ self::META_SOURCE ] ) ? absint( $_POST[ self::META_SOURCE ] ) : 0;
+		$one_of_each = ! empty( $_POST[ self::META_ONE_OF_EACH ] );
+		$target      = isset( $_POST[ self::META_TARGET_DISPLAYS ] ) ? absint( $_POST[ self::META_TARGET_DISPLAYS ] ) : 0;
+		$fillers     = isset( $_POST[ self::META_FILLERS ] ) && is_array( $_POST[ self::META_FILLERS ] )
 			? array_values( array_unique( array_filter( array_map( 'absint', wp_unslash( $_POST[ self::META_FILLERS ] ) ) ) ) )
 			: array();
 		// phpcs:enable
 
 		update_post_meta( $post_id, self::META_ENABLED, $enabled ? 'yes' : 'no' );
 		update_post_meta( $post_id, self::META_SOURCE, $source > 0 ? $source : '' );
+		update_post_meta( $post_id, self::META_ONE_OF_EACH, $one_of_each ? 'yes' : 'no' );
 		update_post_meta( $post_id, self::META_TARGET_DISPLAYS, $target > 0 ? $target : '' );
 		update_post_meta( $post_id, self::META_FILLERS, $fillers );
 

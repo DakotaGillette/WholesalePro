@@ -219,6 +219,43 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$this->assertSame( 'yes', get_post_meta( $this->kit_id, \ProtechWholesale\ProductFields::META_HAS_WHOLESALE_PRICE, true ) );
 	}
 
+	public function test_one_of_each_mode_ignores_the_target_and_fillers(): void {
+		update_post_meta( $this->kit_id, StarterKit::META_ONE_OF_EACH, 'yes' );
+
+		$composition = StarterKit::get_composition( $this->kit_id, $this->customer_id );
+
+		// Target is 5 and Black/White are configured as fillers, but "one of
+		// every colour" ignores both: exactly one of each of the 3 colours.
+		$this->assertSame(
+			array( 1, 1, 1 ),
+			array_values( $this->displays_by_variation( $composition ) )
+		);
+		$this->assertSame( 3, $composition['displays'] );
+		$this->assertSame( 3, $composition['target'], '"target" reports the real count reached, not the ignored fixed target.' );
+	}
+
+	public function test_one_of_each_mode_picks_up_a_newly_added_colour_with_no_config_change(): void {
+		update_post_meta( $this->kit_id, StarterKit::META_ONE_OF_EACH, 'yes' );
+
+		// A colour added to the source product after the kit was set up —
+		// the whole point of this mode is that nothing on the kit itself
+		// needs editing when this happens.
+		$blue = new WC_Product_Variation();
+		$blue->set_parent_id( $this->sleeves['parent']->get_id() );
+		$blue->set_attributes( array( 'color' => 'blue' ) );
+		$blue->set_regular_price( '9.99' );
+		$blue->set_status( 'publish' );
+		$blue->set_manage_stock( false );
+		$blue->set_stock_status( 'instock' );
+		$blue->save();
+		update_post_meta( $blue->get_id(), \ProtechWholesale\ProductFields::META_WHOLESALE_PRICE, '5.50' );
+
+		$composition = StarterKit::get_composition( $this->kit_id, $this->customer_id );
+
+		$this->assertSame( 4, $composition['displays'] );
+		$this->assertArrayHasKey( $blue->get_id(), $this->displays_by_variation( $composition ) );
+	}
+
 	public function test_retail_customers_cannot_add_a_kit(): void {
 		$retail_id = Protech_Test_Factory::retail_customer();
 		wp_set_current_user( $retail_id );
