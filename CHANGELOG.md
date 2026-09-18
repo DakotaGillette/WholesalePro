@@ -3,6 +3,17 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.3.1 — 2026-09-18
+
+### Fixed
+- On a variable product's page the theme's own quantity stepper was back
+  beside the Display/Case control, with no read-back line and a plain "Add
+  to cart" button, and the quantity no longer stepped by the display. The
+  1.3.0 "sold at wholesale" check looked at the variable product's parent,
+  which never carries a price itself; it now looks through to the colours.
+  Regression test added. (Sample packs without any wholesale price are still
+  exempt, as intended.)
+
 ## 1.3.0 — 2026-09-18
 
 Admin-side audit, and updates from GitHub.

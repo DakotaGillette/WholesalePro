@@ -147,7 +147,15 @@ class CaseRules {
 	public static function sold_by_the_display( int $product_id, int $user_id = 0 ): bool {
 		$user_id = $user_id ?: get_current_user_id();
 
-		return Roles::is_wholesale_customer( $user_id ) && Pricing::is_available_at_wholesale( $product_id, $user_id );
+		// "Including variations": WooCommerce builds a variable product's
+		// quantity box (woocommerce_quantity_input_args) from the PARENT,
+		// which never carries a price itself — its colours do. Checking the
+		// bare parent said "not wholesale" for the flagship sleeves, so the
+		// theme's own stepper came back and the Display/Case control had
+		// nothing to drive (1.3.0, caught by the owner on staging). Cart
+		// lines and the Store API always pass the variation, so for them
+		// this is the plain per-item check.
+		return Roles::is_wholesale_customer( $user_id ) && Pricing::is_available_at_wholesale_including_variations( $product_id, $user_id );
 	}
 
 	/**

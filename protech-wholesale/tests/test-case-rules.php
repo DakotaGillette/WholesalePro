@@ -98,6 +98,22 @@ class Test_CaseRules extends WP_UnitTestCase {
 		$this->assertSame( array(), $item_data, 'No "Displays" annotation on a line not sold by the display.' );
 	}
 
+	public function test_quantity_box_of_a_variable_product_steps_by_the_display(): void {
+		// The parent has no price of its own; its colours do. WooCommerce
+		// hands the parent to woocommerce_quantity_input_args.
+		$built       = Protech_Test_Factory::variable_product( array( 'blue', 'red' ), array( 'blue' => '5.50', 'red' => '5.50' ) );
+		$customer_id = $this->create_wholesale_customer();
+
+		wp_set_current_user( $customer_id );
+
+		$this->assertTrue( CaseRules::sold_by_the_display( $built['parent']->get_id(), $customer_id ) );
+		$this->assertTrue( CaseRules::sold_by_the_display( $built['variations']['blue']->get_id(), $customer_id ) );
+
+		$args = ( new CaseRules() )->set_quantity_step( array( 'step' => 1, 'min_value' => 1, 'input_value' => 1 ), $built['parent'] );
+		$this->assertSame( 10, $args['step'], 'The stepper jumps by the display size, so unit-selector.js can take it over.' );
+		$this->assertContains( 'protech-native-qty', $args['classes'] );
+	}
+
 	public function test_display_rules_still_apply_to_a_wholesale_priced_product(): void {
 		$product     = Protech_Test_Factory::simple_product( '5.50', 10 );
 		$customer_id = $this->create_wholesale_customer();
