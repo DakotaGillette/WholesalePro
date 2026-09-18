@@ -181,30 +181,31 @@ class VolumePricing {
 	}
 
 	/**
-	 * What the current tier is saving this cart against Standard pricing:
-	 * per eligible line, quantity x (Standard price - the price actually
-	 * being paid). Zero at Standard, and for any line on a per-customer
-	 * override (which ignores the ladder, so both prices are the same).
+	 * What this cart is really saving against buying every line at its
+	 * full retail list price ("MSRP" — Pricing::get_msrp(), the store's
+	 * own regular price): per eligible line, quantity x (MSRP - the price
+	 * actually being paid at $tier). Counts a per-customer override line
+	 * too — the override ignores the quantity ladder, but the customer is
+	 * still paying less than retail, which is the whole point of this
+	 * number. Non-zero even at Standard, unlike the old "savings against
+	 * the Standard tier price" version of this metric (always zero
+	 * there, by definition) that this replaced.
 	 *
 	 * @param array<int|string, array<string, mixed>> $items
 	 */
 	public static function get_savings_for_items( array $items, int $user_id, string $tier ): float {
-		if ( self::TIER_STANDARD === $tier ) {
-			return 0.0;
-		}
-
 		$savings = 0.0;
 
 		foreach ( $items as $item ) {
 			$product_id = (int) ( $item['variation_id'] ?: $item['product_id'] );
-			$standard   = Pricing::get_wholesale_price( $product_id, $user_id, self::TIER_STANDARD );
+			$msrp       = Pricing::get_msrp( $product_id );
 			$current    = Pricing::get_wholesale_price( $product_id, $user_id, $tier );
 
-			if ( null === $standard || null === $current || $current >= $standard ) {
+			if ( null === $msrp || null === $current || $current >= $msrp ) {
 				continue;
 			}
 
-			$savings += ( $standard - $current ) * (int) ( $item['quantity'] ?? 0 );
+			$savings += ( $msrp - $current ) * (int) ( $item['quantity'] ?? 0 );
 		}
 
 		return round( $savings, 2 );

@@ -162,8 +162,8 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 		$this->assertSame( VolumePricing::TIER_VOLUME, $state['tier'] );
 		$this->assertSame( 'Volume', $state['tier_label'] );
 		$this->assertSame( VolumePricing::VOLUME_MARKER_PERCENT, $state['fill_percent'] );
-		// 160 packs x ( 5.50 Standard - 5.00 Volume ).
-		$this->assertSame( 80.0, $state['savings'] );
+		// 160 packs x ( 20.00 MSRP - 5.00 Volume ).
+		$this->assertSame( 2400.0, $state['savings'] );
 		$this->assertNotSame( '', $state['savings_html'] );
 		$this->assertStringContainsString( '<strong>14</strong>', $state['message_html'] );
 
@@ -182,21 +182,51 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 
 		$this->assertSame( VolumePricing::TIER_BULK, $state['tier'] );
 		$this->assertSame( 100.0, $state['fill_percent'] );
-		// 1280 packs x ( 5.50 Standard - 4.50 Bulk ).
-		$this->assertSame( 1280.0, $state['savings'] );
+		// 1280 packs x ( 20.00 MSRP - 4.50 Bulk ).
+		$this->assertSame( 19840.0, $state['savings'] );
 
 		WC()->cart->empty_cart();
 	}
 
-	public function test_savings_ignore_lines_on_a_per_customer_override(): void {
+	/**
+	 * Unlike the old "savings against the Standard tier price" metric —
+	 * where an override line was correctly excluded, since an override
+	 * ignores the quantity ladder and both sides of that comparison were
+	 * always the same number — savings against MSRP still applies: the
+	 * customer is still paying less than retail, tier or no tier.
+	 */
+	public function test_savings_count_a_per_customer_override_against_msrp(): void {
 		$customer_id = Protech_Test_Factory::wholesale_customer();
-		$product     = Protech_Test_Factory::simple_product( '5.50' );
+		$product     = Protech_Test_Factory::simple_product( '5.50' ); // MSRP (regular price) is 20.00.
 
 		update_user_meta( $customer_id, Approval::META_PRICE_OVERRIDES, array( $product->get_id() => 3.25 ) );
 
 		$items = Protech_Test_Factory::cart_items( array( array( $product, 160 ) ) );
 
-		$this->assertSame( 0.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_VOLUME ) );
+		// 160 packs x ( 20.00 MSRP - 3.25 override ) — identical either way,
+		// since the override ignores the $tier argument entirely.
+		$this->assertSame( 2680.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_VOLUME ) );
+		$this->assertSame( 2680.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_STANDARD ) );
+	}
+
+	public function test_savings_against_msrp_apply_even_at_standard(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' ); // MSRP (regular price) is 20.00.
+
+		$items = Protech_Test_Factory::cart_items( array( array( $product, 10 ) ) );
+
+		// 10 packs x ( 20.00 MSRP - 5.50 Standard ) — this used to be
+		// hard-coded to zero at Standard; MSRP savings are real here too.
+		$this->assertSame( 145.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_STANDARD ) );
+	}
+
+	public function test_savings_skip_a_line_with_no_msrp(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' );
+		delete_post_meta( $product->get_id(), '_regular_price' );
+
+		$items = Protech_Test_Factory::cart_items( array( array( $product, 10 ) ) );
+
 		$this->assertSame( 0.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_STANDARD ) );
 	}
 

@@ -178,6 +178,19 @@ class Pricing {
 	}
 
 	/**
+	 * The product/variation's real retail list price ("MSRP") — the
+	 * store's own regular price, read straight from post meta rather than
+	 * through $product->get_regular_price(), which filter_price() above
+	 * would otherwise have already swapped for the wholesale price on
+	 * this very same request.
+	 */
+	public static function get_msrp( int $product_id ): ?float {
+		$regular_price = get_post_meta( $product_id, '_regular_price', true );
+
+		return is_numeric( $regular_price ) ? (float) $regular_price : null;
+	}
+
+	/**
 	 * Whether $product_id is available at wholesale, OR — if it's a
 	 * variable product — whether ANY of its variations are. Cart/order
 	 * line pricing (get_wholesale_price(), is_available_at_wholesale())

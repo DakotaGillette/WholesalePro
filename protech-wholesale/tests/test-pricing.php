@@ -111,4 +111,30 @@ class Test_Pricing extends WP_UnitTestCase {
 		$this->assertFalse( Roles::is_wholesale_customer( 0 ) );
 		$this->assertFalse( Roles::is_wholesale_customer( $retail_id ) );
 	}
+
+	/**
+	 * get_msrp() reads the raw postmeta directly rather than
+	 * $product->get_regular_price(), so it stays the true retail price
+	 * even while filter_price() is actively substituting the wholesale
+	 * price for a logged-in wholesale customer viewing the same product.
+	 */
+	public function test_msrp_is_unaffected_by_the_wholesale_price_substitution(): void {
+		$product = $this->create_product(); // regular_price 20.00.
+		update_post_meta( $product->get_id(), ProductFields::META_WHOLESALE_PRICE, '5.00' );
+
+		$this->assertSame( 20.0, Pricing::get_msrp( $product->get_id() ) );
+
+		wp_set_current_user( $this->create_wholesale_customer() );
+		$this->assertSame( 5.0, wc_get_product( $product->get_id() )->get_regular_price() );
+		$this->assertSame( 20.0, Pricing::get_msrp( $product->get_id() ) );
+	}
+
+	public function test_msrp_is_null_without_a_regular_price(): void {
+		$product = new WC_Product_Simple();
+		$product->set_name( 'No MSRP' );
+		$product->set_status( 'publish' );
+		$product->save();
+
+		$this->assertNull( Pricing::get_msrp( $product->get_id() ) );
+	}
 }

@@ -584,6 +584,13 @@ body .protech-kit button.protech-kit-add.loading {
 	font-weight: 700;
 	white-space: nowrap;
 }
+.protech-tier-ladder-msrp {
+	color: var( --protech-muted );
+	white-space: nowrap;
+}
+.protech-tier-ladder-msrp del {
+	text-decoration-color: var( --protech-muted );
+}
 .protech-tier-ladder-table .protech-tier-ladder-row.is-active td {
 	background: var( --protech-blue-tint );
 }

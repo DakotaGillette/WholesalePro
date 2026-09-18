@@ -66,11 +66,11 @@ class TierLadder {
 	}
 
 	/**
-	 * One row per quantity tier. For a variable product the price is the
-	 * range across its wholesale-priced variations (usually a single value,
-	 * since every colour is normally priced the same).
+	 * One row per quantity tier. For a variable product the price (and
+	 * MSRP) is the range across its wholesale-priced variations (usually
+	 * a single value, since every colour is normally priced the same).
 	 *
-	 * @return array<int, array{tier: string, label: string, threshold: string, note: string, price_html: string, min: float, max: float}>
+	 * @return array<int, array{tier: string, label: string, threshold: string, note: string, price_html: string, min: float, max: float, msrp: ?float, msrp_html: string}>
 	 */
 	public static function get_rows( \WC_Product $product, int $user_id ): array {
 		$ids = self::priced_ids( $product, $user_id );
@@ -107,12 +107,21 @@ class TierLadder {
 
 		foreach ( $definitions as $tier => $definition ) {
 			$prices = array();
+			$msrps  = array();
 
 			foreach ( $ids as $id ) {
 				$price = Pricing::get_wholesale_price( $id, $user_id, $tier );
 
-				if ( null !== $price ) {
-					$prices[] = $price;
+				if ( null === $price ) {
+					continue;
+				}
+
+				$prices[] = $price;
+
+				$msrp = Pricing::get_msrp( $id );
+
+				if ( null !== $msrp ) {
+					$msrps[] = $msrp;
 				}
 			}
 
@@ -120,8 +129,9 @@ class TierLadder {
 				continue;
 			}
 
-			$min = min( $prices );
-			$max = max( $prices );
+			$min      = min( $prices );
+			$max      = max( $prices );
+			$msrp_min = ! empty( $msrps ) ? min( $msrps ) : null;
 
 			$rows[] = array(
 				'tier'       => $tier,
@@ -131,6 +141,8 @@ class TierLadder {
 				'price_html' => $min === $max ? wc_price( $min ) : wc_format_price_range( $min, $max ),
 				'min'        => $min,
 				'max'        => $max,
+				'msrp'       => $msrp_min,
+				'msrp_html'  => null !== $msrp_min ? wc_price( $msrp_min ) : '',
 			);
 		}
 

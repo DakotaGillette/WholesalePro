@@ -69,4 +69,25 @@ class Test_Tier_Ladder extends WP_UnitTestCase {
 
 		$this->assertSame( array(), TierLadder::get_rows( Protech_Test_Factory::simple_product(), $customer_id ) );
 	}
+
+	public function test_rows_report_msrp_alongside_the_wholesale_price(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' ); // regular_price 20.00, from the factory.
+
+		$rows = TierLadder::get_rows( $product, $customer_id );
+
+		$this->assertSame( array( 20.0, 20.0, 20.0 ), array_column( $rows, 'msrp' ) );
+		$this->assertStringContainsString( '20.00', $rows[0]['msrp_html'] );
+	}
+
+	public function test_msrp_is_null_without_a_regular_price(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' );
+		delete_post_meta( $product->get_id(), '_regular_price' );
+
+		$rows = TierLadder::get_rows( $product, $customer_id );
+
+		$this->assertNull( $rows[0]['msrp'] );
+		$this->assertSame( '', $rows[0]['msrp_html'] );
+	}
 }

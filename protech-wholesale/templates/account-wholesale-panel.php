@@ -73,7 +73,7 @@ $protech_tiers = array(
 			</div>
 			<?php if ( '' !== $state['savings_html'] ) : ?>
 				<div class="protech-account-panel-stat protech-account-panel-stat--savings">
-					<dt><?php esc_html_e( 'Tier savings', 'protech-wholesale' ); ?></dt>
+					<dt><?php esc_html_e( 'Savings vs retail', 'protech-wholesale' ); ?></dt>
 					<dd><?php echo wp_kses_post( $state['savings_html'] ); ?></dd>
 				</div>
 			<?php endif; ?>
