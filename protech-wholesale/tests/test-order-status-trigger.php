@@ -26,15 +26,18 @@ class Test_Order_Status_Trigger extends WP_UnitTestCase {
 
 	private function shipped_rule(): array {
 		$rule = Automations::defaults( Automations::TRIGGER_ORDER_STATUS );
-		$rule['id']      = 'r_shipped';
 		$rule['name']    = 'Shipped';
 		$rule['enabled'] = true;
 		$rule['params']  = array( 'status' => 'completed', 'delay_minutes' => 10 );
 		$rule['email']   = array( 'subject' => 'Shipped!', 'heading' => 'On its way', 'body' => 'Order #{order_number}' );
 
-		Automations::save( $rule );
+		// save() assigns a fresh id for any rule it doesn't already know
+		// about (the real editor always submits a new rule with an empty
+		// id) — read the id back from its return value rather than
+		// assuming a caller-chosen one survives.
+		$id = Automations::save( $rule );
 
-		return Automations::get( $rule['id'] );
+		return Automations::get( $id );
 	}
 
 	public function test_a_wholesale_order_reaching_the_matching_status_schedules_a_delayed_action(): void {
@@ -42,7 +45,7 @@ class Test_Order_Status_Trigger extends WP_UnitTestCase {
 			$this->markTestSkipped( 'Action Scheduler is not available in this test environment.' );
 		}
 
-		$this->shipped_rule();
+		$rule    = $this->shipped_rule();
 		$user_id = Protech_Test_Factory::consented_customer();
 		$product = Protech_Test_Factory::simple_product( '5.00' );
 		$order   = Protech_Test_Factory::order_for( $user_id, $product, 10, 'processing' );
@@ -54,7 +57,7 @@ class Test_Order_Status_Trigger extends WP_UnitTestCase {
 		$order->set_status( 'completed' );
 		$order->save();
 
-		$scheduled = as_next_scheduled_action( \ProtechWholesale\AutomationRunner::HOOK_ORDER_EVENT, array( 'order_id' => $order->get_id(), 'rule_id' => 'r_shipped', 'status' => 'completed' ), \ProtechWholesale\AutomationRunner::GROUP );
+		$scheduled = as_next_scheduled_action( \ProtechWholesale\AutomationRunner::HOOK_ORDER_EVENT, array( 'order_id' => $order->get_id(), 'rule_id' => $rule['id'], 'status' => 'completed' ), \ProtechWholesale\AutomationRunner::GROUP );
 		$this->assertNotFalse( $scheduled, 'Reaching the matching status must schedule the order-event action.' );
 		$this->assertGreaterThan( time() + 9 * MINUTE_IN_SECONDS, $scheduled, 'The delay from the rule must be honored.' );
 	}

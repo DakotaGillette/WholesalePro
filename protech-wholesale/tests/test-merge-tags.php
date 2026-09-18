@@ -19,14 +19,17 @@ class Test_Merge_Tags extends WP_UnitTestCase {
 	public function test_first_name_prefers_the_application_answer_over_billing_and_display_name(): void {
 		$user_id = Protech_Test_Factory::wholesale_customer();
 		wp_update_user( array( 'ID' => $user_id, 'display_name' => 'Display Name' ) );
-		update_user_meta( $user_id, 'billing_first_name', 'Billing' );
 
 		$context = MergeTags::context_for_customer( $user_id );
 		$this->assertSame( 'Display Name', $context['first_name'], 'Falls back to display name with nothing else set.' );
 
+		update_user_meta( $user_id, 'billing_first_name', 'Billing' );
+		$context = MergeTags::context_for_customer( $user_id );
+		$this->assertSame( 'Billing', $context['first_name'], 'billing_first_name outranks the display name.' );
+
 		update_user_meta( $user_id, '_protech_wholesale_app_name', 'Ada Lovelace' );
 		$context = MergeTags::context_for_customer( $user_id );
-		$this->assertSame( 'Ada', $context['first_name'] );
+		$this->assertSame( 'Ada', $context['first_name'], 'The application answer outranks billing_first_name.' );
 		$this->assertSame( 'Ada Lovelace', $context['name'] );
 	}
 
