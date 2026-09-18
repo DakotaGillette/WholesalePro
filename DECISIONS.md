@@ -1268,3 +1268,40 @@ suffixes from Standard/Volume/Bulk.
     built packages without the `destination` that
     `WC_Shipping_Method::is_available()` reads. Then: 106 tests, 335
     assertions, green. The gate is real from here on.
+
+## Header banner, per-audience (2026-09-18, version 1.4.0)
+
+The owner's ask: the navbar has custom "Text To Display In Header" copy
+("FREE SHIPPING WITH $30+ ORDERS", a Salient customizer field) and wanted
+a logged-in wholesale customer to see the wholesale free-shipping line
+instead, everyone else unchanged.
+
+1. **No theme edit, because none was needed.** That field is not a plain
+   string echoed verbatim — Salient runs it through `do_shortcode()`
+   (confirmed against ThemeNectar's own support documentation, not
+   guessed: a documented pattern is embedding a widget-area shortcode in
+   that same field). That makes a shortcode the right tool, not a JS DOM
+   swap or a theme child-template override — no flash of the wrong text,
+   no touching Salient files, works whether the site is cached or not.
+
+2. **The owner wraps their own text; the plugin never stores or
+   generates the retail copy.** `[protech_header_notice]FREE SHIPPING
+   WITH $30+ ORDERS[/protech_header_notice]` — a non-wholesale visitor
+   gets exactly what's enclosed, unchanged (run through `do_shortcode()`
+   itself, so a nested shortcode still works as it would have without
+   this wrapper). This is a one-time manual edit to that one customizer
+   field; nothing here can safely script a change to Salient's customizer
+   state from outside a browser, and it's a thirty-second edit.
+
+3. **The wholesale line is generated, not typed**, from
+   `Settings::get_volume_threshold_displays()` — the exact number the
+   sticky bar and the portal page already use — so it can't drift out of
+   sync with the real ladder if that setting ever changes. A `wholesale`
+   attribute or the `protech_wholesale_header_notice` filter overrides it
+   with fixed text if the owner ever wants different wording.
+
+4. **Deliberately static, not cart-aware.** The header text is baked into
+   the page HTML on render, not updated by AJAX — matching what it always
+   was, and appropriate for a persistent banner rather than a live cart
+   summary (that's the sticky tier bar's job). It reflects the customer's
+   status (logged in as wholesale or not), not their current cart.

@@ -3,6 +3,16 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.4.0 — 2026-09-18
+
+### Added
+- `[protech_header_notice]` shortcode for Salient's "Text To Display In
+  Header" customizer field: wrap the existing retail text in it and a
+  logged-in wholesale customer sees a wholesale line instead ("FREE
+  SHIPPING ON WHOLESALE ORDERS OF 16+ DISPLAYS" by default, built from the
+  live Volume threshold), with a `wholesale` attribute and a
+  `protech_wholesale_header_notice` filter for custom text. No theme edit.
+
 ## 1.3.1 — 2026-09-18
 
 ### Fixed

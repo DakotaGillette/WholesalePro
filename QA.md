@@ -316,3 +316,13 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] With staging on an older version than the latest GitHub release: the row shows "There is a new version of Protech Wholesale available" with View details; Update now installs it, the plugin stays active, and the version on the row changes.
 - [ ] Settings → Updates shows installed version, latest release with date, last checked, and Check now.
 
+## 20. Header banner shortcode (1.4.0)
+
+> Requires a one-time manual step: in Salient's Theme Options (or Customizer) → Header → "Text To Display In Header", wrap the existing text: `[protech_header_notice]FREE SHIPPING WITH $30+ ORDERS[/protech_header_notice]`. Not done automatically — see README, "Other customer-facing pieces".
+
+- [ ] Logged out: the header still reads exactly "FREE SHIPPING WITH $30+ ORDERS", same as before.
+- [ ] Logged in as a retail (non-wholesale) customer: same, unchanged.
+- [ ] Logged in as an approved wholesale customer: the header instead reads "FREE SHIPPING ON WHOLESALE ORDERS OF 16+ DISPLAYS" (or the current Volume threshold from Pricing & Shipping).
+- [ ] Change the Volume threshold on Pricing & Shipping to a different number, reload as a wholesale customer: the header number matches.
+- [ ] Confirm the styling (colour, alignment, size) matches the rest of that header text — it inherits the theme's own CSS since no markup is added, only the text.
+

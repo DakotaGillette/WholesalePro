@@ -46,6 +46,7 @@ final class Plugin {
 	private TierLadder $tier_ladder;
 	private StarterKit $starter_kit;
 	private Updater $updater;
+	private HeaderNotice $header_notice;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -83,6 +84,7 @@ final class Plugin {
 		$this->tier_ladder       = new TierLadder();
 		$this->starter_kit       = new StarterKit();
 		$this->updater           = new Updater();
+		$this->header_notice     = new HeaderNotice();
 
 		foreach (
 			array(
@@ -105,6 +107,7 @@ final class Plugin {
 				$this->tier_ladder,
 				$this->starter_kit,
 				$this->updater,
+				$this->header_notice,
 			) as $component
 		) {
 			$component->register_hooks();

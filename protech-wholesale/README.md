@@ -88,6 +88,7 @@ A Protech Blue dock floating at the bottom of the viewport (full width on phones
 - **My Account**: a "Wholesale Partner" strip with the business name on every account page (amber "Application under review" for pending applicants), and a dashboard card with the cart's tier, progress and savings.
 - **`/wholesale`**: a two-panel login page whose benefit list is built from the live thresholds (`protech_wholesale_portal_benefits` filter), and a status card for pending / rejected / retail-only visitors.
 - All of it is styled in Protech Blue (`--protech-blue` in `assets/css/wholesale.css`); the theme's own buttons keep the theme's colour.
+- **Header banner** ("FREE SHIPPING WITH $30+ ORDERS"): Salient's own "Text To Display In Header" field already runs `do_shortcode()`, so wrapping its text in `[protech_header_notice]...[/protech_header_notice]` shows that text unchanged to everyone except a logged-in wholesale customer, who sees a wholesale line instead — by default "FREE SHIPPING ON WHOLESALE ORDERS OF 16+ DISPLAYS", generated from the live Volume threshold so it can't go stale. Pass `wholesale="…"` for fixed text, or use the `protech_wholesale_header_notice` filter. No theme edit. See `class-header-notice.php`.
 
 ## How to approve a customer
 
