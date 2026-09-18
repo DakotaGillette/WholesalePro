@@ -19,6 +19,11 @@ use ProtechWholesale\Roles;
  */
 class Test_Customers_Tab extends WP_UnitTestCase {
 
+	public function set_up(): void {
+		parent::set_up();
+		reset_phpmailer_instance();
+	}
+
 	public function tear_down(): void {
 		unset(
 			$_POST['protech_wholesale_add_existing_nonce'],

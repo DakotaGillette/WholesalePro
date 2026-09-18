@@ -18,6 +18,7 @@ class Test_Approval extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+		reset_phpmailer_instance();
 
 		// WP_List_Table needs the screen machinery, which only wp-admin loads.
 		foreach ( array( 'class-wp-screen.php', 'screen.php', 'template.php' ) as $file ) {
