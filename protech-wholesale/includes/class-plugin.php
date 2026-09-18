@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '2';
+	public const DB_VERSION     = '3';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -47,6 +47,13 @@ final class Plugin {
 	private StarterKit $starter_kit;
 	private Updater $updater;
 	private HeaderNotice $header_notice;
+	private MessagingSettings $messaging_settings;
+	private Automations $automations;
+	private AutomationRunner $automation_runner;
+	private SmsConsent $sms_consent;
+	private Unsubscribe $unsubscribe;
+	private NotificationsEndpoint $notifications_endpoint;
+	private MessagingTab $messaging_tab;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -83,8 +90,15 @@ final class Plugin {
 		$this->global_tier_bar   = new GlobalTierBar();
 		$this->tier_ladder       = new TierLadder();
 		$this->starter_kit       = new StarterKit();
-		$this->updater           = new Updater();
-		$this->header_notice     = new HeaderNotice();
+		$this->updater                = new Updater();
+		$this->header_notice          = new HeaderNotice();
+		$this->messaging_settings     = new MessagingSettings();
+		$this->automations            = new Automations();
+		$this->automation_runner      = new AutomationRunner();
+		$this->sms_consent            = new SmsConsent();
+		$this->unsubscribe            = new Unsubscribe();
+		$this->notifications_endpoint = new NotificationsEndpoint();
+		$this->messaging_tab          = new MessagingTab();
 
 		foreach (
 			array(
@@ -108,6 +122,13 @@ final class Plugin {
 				$this->starter_kit,
 				$this->updater,
 				$this->header_notice,
+				$this->messaging_settings,
+				$this->automations,
+				$this->automation_runner,
+				$this->sms_consent,
+				$this->unsubscribe,
+				$this->notifications_endpoint,
+				$this->messaging_tab,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -170,15 +191,26 @@ final class Plugin {
 	}
 
 	/**
-	 * One-off data migrations, keyed by DB_VERSION.
+	 * One-off data migrations, keyed by DB_VERSION. Each step only runs
+	 * once, in order — an update from version 1 straight to 3 runs both
+	 * the version-2 and version-3 steps in the same request.
 	 *
 	 *  2: backfill the parent-level _protech_has_wholesale_price flag that
 	 *     CatalogQuery filters on — without it every product that hadn't
 	 *     been re-saved since the flag was introduced would be hidden
 	 *     from wholesale customers.
+	 *  3: create the message log table (Messaging & automations, 1.5.0),
+	 *     backfill an approval date for every existing wholesale
+	 *     customer (Automations::backfill_approved_at()), and flush
+	 *     rewrite rules for the new My Account "Notifications" endpoint —
+	 *     none of which activation would otherwise do, since this plugin
+	 *     updates itself from GitHub releases rather than being
+	 *     reinstalled (see class-updater.php).
 	 */
 	public function maybe_upgrade(): void {
-		if ( self::DB_VERSION === get_option( self::OPT_DB_VERSION ) ) {
+		$current = get_option( self::OPT_DB_VERSION, '0' );
+
+		if ( self::DB_VERSION === $current ) {
 			return;
 		}
 
@@ -189,12 +221,20 @@ final class Plugin {
 
 		set_transient( 'protech_wholesale_upgrading', 1, 5 * MINUTE_IN_SECONDS );
 
-		$count = ProductFields::backfill_has_wholesale_price_flags();
+		if ( version_compare( $current, '2', '<' ) ) {
+			$count = ProductFields::backfill_has_wholesale_price_flags();
+			Logger::info( sprintf( 'Upgraded plugin data to version 2 (%d products flagged).', $count ) );
+		}
+
+		if ( version_compare( $current, '3', '<' ) ) {
+			MessageLog::install_table();
+			$backfilled = Automations::backfill_approved_at();
+			flush_rewrite_rules();
+			Logger::info( sprintf( 'Upgraded plugin data to version 3 (message log created, %d customer(s) backfilled with an approval date).', $backfilled ) );
+		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );
 		delete_transient( 'protech_wholesale_upgrading' );
-
-		Logger::info( sprintf( 'Upgraded plugin data to version %s (%d products flagged).', self::DB_VERSION, $count ) );
 	}
 
 	/**
@@ -409,6 +449,15 @@ final class Plugin {
 			wp_enqueue_style( 'woocommerce_admin_styles' );
 		}
 
+		if ( $is_wholesale_screen ) {
+			wp_enqueue_style(
+				'protech-wholesale-admin',
+				PROTECH_WHOLESALE_URL . 'assets/css/admin.css',
+				array(),
+				$this->asset_version( 'assets/css/admin.css' )
+			);
+		}
+
 		wp_enqueue_script(
 			'protech-wholesale-admin',
 			PROTECH_WHOLESALE_URL . 'assets/js/admin.js',
@@ -429,6 +478,8 @@ final class Plugin {
 				'bulkBulkPrompt'   => sprintf( __( 'Set the Bulk price override for all variations (%s per pack):', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
 				'approveConfirm'   => __( 'Approve this application? The applicant is emailed a password link and sees wholesale pricing immediately.', 'protech-wholesale' ),
 				'rejectPrompt'     => __( 'Reject this application? Enter an optional reason to include in the email to the applicant, or leave blank:', 'protech-wholesale' ),
+				'deleteAutomationConfirm' => __( 'Delete this automation rule? This cannot be undone.', 'protech-wholesale' ),
+				'sendMessageConfirm'      => __( 'Send this message now? This cannot be undone.', 'protech-wholesale' ),
 			)
 		);
 	}

@@ -123,6 +123,41 @@ class SetupChecks {
 	}
 
 	/**
+	 * Null unless messaging is turned on (an unconnected Brevo is not a
+	 * problem for a store that never enabled automations or SMS).
+	 */
+	public static function brevo_connected(): ?bool {
+		if ( ! MessagingSettings::enabled() ) {
+			return null;
+		}
+
+		return BrevoClient::is_configured();
+	}
+
+	/**
+	 * Soft/advisory: null when there is no privacy policy page to check
+	 * at all. A simple keyword check, not a legal review — see the
+	 * Compliance view for suggested text to add.
+	 */
+	public static function privacy_policy_mentions_sms(): ?bool {
+		$page_id = (int) get_option( 'wp_page_for_privacy_policy' );
+
+		if ( ! $page_id ) {
+			return null;
+		}
+
+		$page = get_post( $page_id );
+
+		if ( ! $page instanceof \WP_Post ) {
+			return null;
+		}
+
+		$content = strtolower( (string) $page->post_content );
+
+		return false !== strpos( $content, 'sms' ) || false !== strpos( $content, 'text message' );
+	}
+
+	/**
 	 * Everything that is currently wrong, each with a fix link. Empty means
 	 * the notice is not shown.
 	 *
@@ -164,6 +199,22 @@ class SetupChecks {
 				),
 				'url'  => Approval::tab_url( 'settings' ),
 				'link' => __( 'Check the form ID', 'protech-wholesale' ),
+			);
+		}
+
+		if ( false === self::brevo_connected() ) {
+			$problems[] = array(
+				'text' => __( 'Automations are on but Brevo is not connected, so no automated emails or texts are actually going out.', 'protech-wholesale' ),
+				'url'  => MessagingTab::url( 'settings' ),
+				'link' => __( 'Connect Brevo', 'protech-wholesale' ),
+			);
+		}
+
+		if ( false === self::privacy_policy_mentions_sms() && MessagingSettings::enabled() ) {
+			$problems[] = array(
+				'text' => __( 'Your privacy policy doesn\'t appear to mention SMS yet — Brevo\'s toll-free number verification looks for this.', 'protech-wholesale' ),
+				'url'  => MessagingTab::url( 'compliance' ),
+				'link' => __( 'See suggested wording', 'protech-wholesale' ),
 			);
 		}
 

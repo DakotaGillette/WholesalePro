@@ -82,7 +82,8 @@ class Portal {
 	 * usable from a WPBakery layout.
 	 */
 	public function maybe_redirect_approved_customer(): void {
-		if ( ! Roles::is_wholesale_customer() || ! is_singular() ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only, set by Unsubscribe::handle()'s redirect.
+		if ( ! Roles::is_wholesale_customer() || ! is_singular() || isset( $_GET[ Unsubscribe::QUERY_FLAG ] ) ) {
 			return;
 		}
 
@@ -95,9 +96,22 @@ class Portal {
 	}
 
 	public function render(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only, set by Unsubscribe::handle()'s redirect.
+		$unsubscribed = isset( $_GET[ Unsubscribe::QUERY_FLAG ] );
+
 		if ( Roles::is_wholesale_customer() ) {
 			// Reachable only if maybe_redirect_approved_customer() didn't
-			// fire (e.g. output already started elsewhere on the page).
+			// fire (e.g. output already started elsewhere on the page, or
+			// the customer just clicked an unsubscribe link and should see
+			// the confirmation before bouncing straight back to the shop).
+			if ( $unsubscribed ) {
+				return $this->unsubscribed_notice() . sprintf(
+					'<p><a href="%s">%s</a></p>',
+					esc_url( wc_get_page_permalink( 'shop' ) ),
+					esc_html__( 'Continue to the shop', 'protech-wholesale' )
+				);
+			}
+
 			return sprintf(
 				'<p><a href="%s">%s</a></p>',
 				esc_url( wc_get_page_permalink( 'shop' ) ),
@@ -121,18 +135,24 @@ class Portal {
 		wc_get_template(
 			'portal.php',
 			array(
-				'state'       => $state,
-				'login_error' => self::$login_error,
-				'username'    => self::$attempted_username,
-				'benefits'    => self::get_benefits(),
-				'apply_url'   => home_url( '/wholesale-application' ),
-				'contact_url' => apply_filters( 'protech_wholesale_contact_url', home_url( '/contact-us' ) ),
+				'state'         => $state,
+				'login_error'   => self::$login_error,
+				'username'      => self::$attempted_username,
+				'benefits'      => self::get_benefits(),
+				'apply_url'     => home_url( '/wholesale-application' ),
+				'contact_url'   => apply_filters( 'protech_wholesale_contact_url', home_url( '/contact-us' ) ),
+				'unsubscribed'  => $unsubscribed,
 			),
 			'',
 			PROTECH_WHOLESALE_DIR . 'templates/'
 		);
 
 		return (string) ob_get_clean();
+	}
+
+	/** Shown above the login/pending/rejected/retail-only card right after a customer clicks an unsubscribe link. */
+	private function unsubscribed_notice(): string {
+		return '<div class="woocommerce-message">' . esc_html__( 'You\'re unsubscribed from marketing emails. Order emails still arrive. Manage texts and preferences under My Account → Notifications.', 'protech-wholesale' ) . '</div>';
 	}
 
 	/**

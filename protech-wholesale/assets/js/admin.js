@@ -11,6 +11,7 @@
 		initPriceOverrideRepeater();
 		initBulkWholesalePriceActions();
 		initApplicantActions();
+		initMessaging();
 	} );
 
 	/**
@@ -148,6 +149,70 @@
 			form.querySelector( '[name="_wpnonce"]' ).value = link.dataset.nonce || '';
 			form.querySelector( '[name="reason"]' ).value = reason.trim();
 			form.submit();
+		} );
+	}
+
+	/**
+	 * Messaging tab: the Customers-tab "select all" checkbox, a merge-tag
+	 * chip that inserts itself into whichever text field/textarea was
+	 * last focused, and the two confirm-before-you-send-this prompts
+	 * (a real customer send, and deleting an automation rule).
+	 */
+	function initMessaging() {
+		var selectAll = document.getElementById( 'protech-select-all-customers' );
+
+		if ( selectAll ) {
+			selectAll.addEventListener( 'change', function () {
+				document.querySelectorAll( '.protech-customer-checkbox' ).forEach( function ( checkbox ) {
+					checkbox.checked = selectAll.checked;
+				} );
+			} );
+		}
+
+		var lastFocused = null;
+
+		document.querySelectorAll( '.protech-tag-target' ).forEach( function ( field ) {
+			field.addEventListener( 'focus', function () {
+				lastFocused = field;
+			} );
+		} );
+
+		document.querySelectorAll( '.protech-insert-tag' ).forEach( function ( button ) {
+			button.addEventListener( 'click', function () {
+				var field = lastFocused;
+
+				if ( ! field ) {
+					return;
+				}
+
+				var tag   = button.dataset.tag || '';
+				var start = field.selectionStart || field.value.length;
+				var end   = field.selectionEnd || field.value.length;
+
+				field.value = field.value.slice( 0, start ) + tag + field.value.slice( end );
+				field.focus();
+				field.selectionStart = field.selectionEnd = start + tag.length;
+			} );
+		} );
+
+		var strings = window.protechWholesaleAdmin || {};
+
+		document.addEventListener( 'click', function ( event ) {
+			var target = event.target;
+
+			if ( target && target.classList && target.classList.contains( 'protech-confirm-delete' ) ) {
+				if ( ! window.confirm( strings.deleteAutomationConfirm || 'Delete this automation rule?' ) ) {
+					event.preventDefault();
+				}
+			}
+		} );
+
+		document.querySelectorAll( '.protech-confirm-send' ).forEach( function ( button ) {
+			button.addEventListener( 'click', function ( event ) {
+				if ( ! window.confirm( strings.sendMessageConfirm || 'Send this message now? This cannot be undone.' ) ) {
+					event.preventDefault();
+				}
+			} );
 		} );
 	}
 } )();

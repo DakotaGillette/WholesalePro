@@ -28,6 +28,21 @@ class OrdersAdmin {
 
 	public const META_IS_WHOLESALE = '_protech_is_wholesale';
 
+	/**
+	 * Whether an order is a wholesale order: the flag stamped at checkout
+	 * (see stamp_wholesale_flag()) when present, falling back to the
+	 * customer's current role for orders placed before the Store API
+	 * stamp hook existed (see Emails::flag_wholesale_order_subject(),
+	 * the original home of this check, and Automations::on_order_status_changed(),
+	 * which reuses it to gate order-status messages).
+	 */
+	public static function is_wholesale_order( \WC_Order $order ): bool {
+		$flag = (string) $order->get_meta( self::META_IS_WHOLESALE );
+
+		return 'yes' === $flag
+			|| ( '' === $flag && Roles::is_wholesale_customer( (int) $order->get_customer_id() ) );
+	}
+
 	public function register_hooks(): void {
 		// Classic (shortcode) checkout builds the order in WC_Checkout::create_order().
 		add_action( 'woocommerce_checkout_create_order', array( $this, 'stamp_wholesale_flag' ), 10, 2 );

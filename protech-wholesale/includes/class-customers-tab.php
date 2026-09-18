@@ -77,6 +77,7 @@ class CustomersTab {
 		wp_nonce_field( 'protech_wholesale_customer_tiers', 'protech_wholesale_customer_tiers_nonce' );
 
 		echo '<table class="widefat striped"><thead><tr>';
+		echo '<td class="manage-column column-cb check-column"><input type="checkbox" id="protech-select-all-customers" /></td>';
 
 		foreach (
 			array(
@@ -87,6 +88,8 @@ class CustomersTab {
 				__( 'Orders', 'protech-wholesale' ),
 				__( 'Last order', 'protech-wholesale' ),
 				__( 'Lifetime spend', 'protech-wholesale' ),
+				__( 'SMS', 'protech-wholesale' ),
+				'',
 			) as $heading
 		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
@@ -99,10 +102,12 @@ class CustomersTab {
 		foreach ( $query->get_results() as $user ) {
 			/** @var \WP_User $user */
 			$overrides  = get_user_meta( $user->ID, Approval::META_PRICE_OVERRIDES, true );
-			$last_order = self::last_order( (int) $user->ID );
+			$last_order = Reorder::get_last_order_for_user( (int) $user->ID );
 			$user_tier  = Tiers::get_user_tier( (int) $user->ID );
+			$sms_state  = SmsConsent::state( (int) $user->ID );
 
 			echo '<tr>';
+			echo '<th class="check-column"><input type="checkbox" class="protech-customer-checkbox" name="protech_customer_ids[]" value="' . esc_attr( (string) $user->ID ) . '" /></th>';
 			echo '<td><a href="' . esc_url( get_edit_user_link( $user->ID ) ) . '"><strong>' . esc_html( $user->display_name ) . '</strong></a><br /><span class="description">' . esc_html( $user->user_email ) . '</span></td>';
 			echo '<td>' . esc_html( (string) get_user_meta( $user->ID, '_protech_wholesale_app_store_name', true ) ?: '—' ) . '</td>';
 
@@ -129,12 +134,21 @@ class CustomersTab {
 
 			echo '</td>';
 			echo '<td>' . wp_kses_post( wc_price( wc_get_customer_total_spent( (int) $user->ID ) ) ) . '</td>';
+			echo '<td>' . esc_html( self::sms_status_label( $sms_state ) ) . '</td>';
+			echo '<td><a href="' . esc_url( MessagingTab::url( 'compose', array( 'ids' => $user->ID ) ) ) . '">' . esc_html__( 'Message', 'protech-wholesale' ) . '</a></td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
 
-		submit_button( __( 'Save tiers', 'protech-wholesale' ), 'secondary', 'protech_save_customer_tiers' );
+		submit_button( __( 'Save tiers', 'protech-wholesale' ), 'secondary', 'protech_save_customer_tiers', true, array( 'style' => 'margin-right:8px;' ) );
+
+		printf(
+			'<button type="submit" class="button" formaction="%s" formmethod="post" name="action" value="protech_message_customers">%s</button>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			esc_html__( 'Send message to selected', 'protech-wholesale' )
+		);
+
 		echo '</form>';
 
 		$pages = (int) ceil( $total / self::PER_PAGE );
@@ -155,18 +169,23 @@ class CustomersTab {
 		}
 	}
 
-	private static function last_order( int $user_id ): ?\WC_Order {
-		$orders = wc_get_orders(
-			array(
-				'customer' => $user_id,
-				'status'   => array( 'wc-completed', 'wc-processing', 'wc-on-hold' ),
-				'limit'    => 1,
-				'orderby'  => 'date',
-				'order'    => 'DESC',
-			)
-		);
+	/**
+	 * @param array{phone: string, sms_transactional: string, sms_marketing: string, email_marketing: string} $state
+	 */
+	private static function sms_status_label( array $state ): string {
+		if ( '' === $state['phone'] ) {
+			return '—';
+		}
 
-		return $orders[0] ?? null;
+		if ( 'yes' === $state['sms_marketing'] ) {
+			return __( 'Marketing + updates', 'protech-wholesale' );
+		}
+
+		if ( 'yes' === $state['sms_transactional'] ) {
+			return __( 'Order updates only', 'protech-wholesale' );
+		}
+
+		return __( 'Not opted in', 'protech-wholesale' );
 	}
 
 	/** The "Save tiers" button: only rows whose tier actually changed are written. */

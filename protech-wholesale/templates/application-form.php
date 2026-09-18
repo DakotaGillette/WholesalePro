@@ -10,6 +10,8 @@
  *
  * @package ProtechWholesale
  * @var string $action_url
+ * @var string $wording_transactional
+ * @var string $wording_marketing
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -87,6 +89,20 @@ $notice = isset( $_GET['wholesale_application'] ) ? sanitize_key( wp_unslash( $_
 		<p>
 			<label for="pw-spend"><?php esc_html_e( 'Estimated monthly spend', 'protech-wholesale' ); ?></label>
 			<input type="text" id="pw-spend" name="estimated_monthly_spend" />
+		</p>
+		<p>
+			<label>
+				<input type="checkbox" name="sms_transactional_consent" value="1" />
+				<?php esc_html_e( 'Text me order updates', 'protech-wholesale' ); ?>
+			</label>
+			<br /><span class="description"><?php echo esc_html( $wording_transactional ); ?></span>
+		</p>
+		<p>
+			<label>
+				<input type="checkbox" name="sms_marketing_consent" value="1" />
+				<?php esc_html_e( 'Text me offers and reorder reminders', 'protech-wholesale' ); ?>
+			</label>
+			<br /><span class="description"><?php echo esc_html( $wording_marketing ); ?></span>
 		</p>
 		<p>
 			<label>

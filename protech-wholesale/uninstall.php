@@ -58,9 +58,32 @@ $protech_option_keys = array(
 	'protech_wholesale_notification_email',
 	'protech_wholesale_tier_settings', // Tiers::OPT_TIER_SETTINGS.
 	'protech_wholesale_db_version',    // Plugin::OPT_DB_VERSION.
+	// Messaging & automations, 1.5.0 (mirrors MessagingSettings::get_defaults() keys).
+	'protech_wholesale_msg_enabled',
+	'protech_wholesale_msg_brevo_api_key',
+	'protech_wholesale_msg_from_name',
+	'protech_wholesale_msg_from_email',
+	'protech_wholesale_msg_reply_to',
+	'protech_wholesale_msg_sms_sender',
+	'protech_wholesale_msg_brand',
+	'protech_wholesale_msg_daily_hour',
+	'protech_wholesale_msg_quiet_start',
+	'protech_wholesale_msg_quiet_end',
+	'protech_wholesale_msg_frequency_cap_days',
+	'protech_wholesale_msg_sms_append_stop',
+	'protech_wholesale_msg_sms_optin_confirmation',
+	'protech_wholesale_msg_email_footer',
+	'protech_wholesale_msg_privacy_url',
+	'protech_wholesale_msg_terms_url',
+	'protech_wholesale_msg_consent_wording',
+	'protech_wholesale_msg_log_retention_days',
+	'protech_wholesale_msg_last_daily_run',
+	'protech_wholesale_automations', // Automations::OPTION.
+	'protech_wholesale_campaigns',   // Campaigns::OPTION.
 );
 
 delete_transient( 'protech_wholesale_upgrading' );
+delete_transient( 'protech_wholesale_as_selfheal' ); // AutomationRunner::SELF_HEAL_TRANSIENT.
 
 foreach ( $protech_option_keys as $protech_option_key ) {
 	delete_option( $protech_option_key );
@@ -69,6 +92,30 @@ foreach ( $protech_option_keys as $protech_option_key ) {
 	// via the same wp_options table per blog, so nothing extra is needed
 	// here; delete_site_option() is intentionally not called since these
 	// settings are never registered as network-wide options.
+}
+
+// -----------------------------------------------------------------
+// 1b. The message log table (MessageLog::TABLE) and Action Scheduler's
+//     own queued/scheduled actions for this plugin's hooks — mirrors
+//     AutomationRunner::GROUP and its five hook constants. Action
+//     Scheduler ships as part of WooCommerce, which is a hard
+//     dependency, so its unschedule function is expected to exist.
+// -----------------------------------------------------------------
+global $wpdb;
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_messages" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+
+if ( function_exists( 'as_unschedule_all_actions' ) ) {
+	foreach (
+		array(
+			'protech_wholesale_daily_automations',
+			'protech_wholesale_deliver_messages',
+			'protech_wholesale_order_event',
+			'protech_wholesale_sync_contact',
+			'protech_wholesale_purge_messages',
+		) as $protech_as_hook
+	) {
+		as_unschedule_all_actions( $protech_as_hook, array(), 'protech-wholesale' );
+	}
 }
 
 // -----------------------------------------------------------------
@@ -118,6 +165,17 @@ $protech_user_meta_keys = array(
 	'_protech_wholesale_app_hosts_events',
 	'_protech_wholesale_app_estimated_monthly_spend',
 	'_protech_wholesale_app_accuracy_confirmation',
+	// Messaging & automations, 1.5.0.
+	'_protech_wholesale_app_contact_methods',
+	'_protech_wholesale_app_sms_transactional_consent',
+	'_protech_wholesale_app_sms_marketing_consent',
+	'_protech_wholesale_approved_at',            // Approval::META_APPROVED_AT.
+	'_protech_wholesale_sms_phone',              // SmsConsent::META_PHONE.
+	'_protech_wholesale_sms_transactional',      // SmsConsent::META_SMS_TRANSACTIONAL.
+	'_protech_wholesale_sms_marketing',          // SmsConsent::META_SMS_MARKETING.
+	'_protech_wholesale_email_marketing',        // SmsConsent::META_EMAIL_MARKETING.
+	'_protech_wholesale_consent_log',            // SmsConsent::META_CONSENT_LOG.
+	'_protech_wholesale_unsub_token',            // Unsubscribe::META_TOKEN.
 );
 
 foreach ( $protech_user_meta_keys as $protech_user_meta_key ) {

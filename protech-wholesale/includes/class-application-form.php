@@ -50,6 +50,15 @@ class ApplicationForm {
 		'hosts_events',
 		'estimated_monthly_spend',
 		'accuracy_confirmation',
+		// 1.5.0, Messaging & automations: a stated preference, not consent
+		// on its own (see SmsConsent) — some sites' forms ask "how would
+		// you like to hear from us" without a compliant opt-in checkbox.
+		'contact_methods',
+		// The two real SMS opt-ins, each its own checkbox with wording
+		// from SmsConsent::wording_variants() — read by
+		// SmsConsent::on_application_submitted().
+		'sms_transactional_consent',
+		'sms_marketing_consent',
 	);
 
 	public static function get_source_labels(): array {
@@ -88,10 +97,16 @@ class ApplicationForm {
 			}
 		}
 
+		$wording = SmsConsent::wording_variants();
+
 		ob_start();
 		wc_get_template(
 			'application-form.php',
-			array( 'action_url' => admin_url( 'admin-post.php' ) ),
+			array(
+				'action_url'             => admin_url( 'admin-post.php' ),
+				'wording_transactional'  => $wording['transactional'],
+				'wording_marketing'      => $wording['marketing'],
+			),
 			'',
 			PROTECH_WHOLESALE_DIR . 'templates/'
 		);
@@ -124,11 +139,22 @@ class ApplicationForm {
 
 		foreach ( self::FIELD_KEYS as $key ) {
 			$raw = wp_unslash( $_POST[ $key ] ?? '' );
+
+			// contact_methods is the one checkbox GROUP among these fields
+			// (e.g. contact_methods[]=Email&contact_methods[]=Text); every
+			// other field here is a single value.
+			if ( is_array( $raw ) ) {
+				$data[ $key ] = implode( ', ', array_map( 'sanitize_text_field', $raw ) );
+				continue;
+			}
+
 			$data[ $key ] = 'address' === $key ? sanitize_textarea_field( $raw ) : sanitize_text_field( $raw );
 		}
 
-		$data['hosts_events']           = ! empty( $_POST['hosts_events'] );
-		$data['accuracy_confirmation']  = ! empty( $_POST['accuracy_confirmation'] );
+		$data['hosts_events']                 = ! empty( $_POST['hosts_events'] );
+		$data['accuracy_confirmation']        = ! empty( $_POST['accuracy_confirmation'] );
+		$data['sms_transactional_consent']    = ! empty( $_POST['sms_transactional_consent'] );
+		$data['sms_marketing_consent']        = ! empty( $_POST['sms_marketing_consent'] );
 
 		$result = $this->create_pending_applicant( $data );
 
@@ -376,6 +402,14 @@ class ApplicationForm {
 				'hosts_events'            => array( 'play store', 'lgs', 'hosts events', 'host events', 'hosts tcg events' ),
 				'estimated_monthly_spend' => array( 'estimated monthly', 'monthly spend', 'purchase volume' ),
 				'accuracy_confirmation'   => array( 'i confirm', 'confirm accuracy', 'accuracy', 'accurate' ),
+				// 1.5.0: a preference ("Preferred Contact Methods: Email /
+				// Phone / Text"), never treated as consent on its own.
+				'contact_methods'           => array( 'preferred contact', 'contact method', 'how would you like' ),
+				// Two separate opt-ins, matched independently — a form with
+				// one combined checkbox covering both is free to phrase it
+				// so both needle lists match, which correctly grants both.
+				'sms_transactional_consent' => array( 'order update', 'shipping update', 'order text', 'text me about my order' ),
+				'sms_marketing_consent'     => array( 'text message', 'marketing text', 'promotional text', 'reorder reminder', 'text me' ),
 			)
 		);
 
@@ -421,8 +455,14 @@ class ApplicationForm {
 		// mortar LGS...", "No – We are primarily online-only..."), so
 		// treat only a leading "no" as declining rather than requiring
 		// an exact 'no'/'0'/'false' value.
-		$data['hosts_events']          = '' !== $data['hosts_events'] && ! preg_match( '/^no\b/i', trim( (string) $data['hosts_events'] ) );
-		$data['accuracy_confirmation'] = ! empty( $data['accuracy_confirmation'] );
+		$data['hosts_events']              = '' !== $data['hosts_events'] && ! preg_match( '/^no\b/i', trim( (string) $data['hosts_events'] ) );
+		$data['accuracy_confirmation']     = ! empty( $data['accuracy_confirmation'] );
+		// A matched checkbox field's submitted value is truthy ('1', 'on',
+		// 'yes', ...) when checked and simply absent (mapped to '') when
+		// not — there is no real-sentence "declining" option to parse the
+		// way hosts_events has, so a plain truthiness check is enough.
+		$data['sms_transactional_consent'] = ! empty( $data['sms_transactional_consent'] );
+		$data['sms_marketing_consent']     = ! empty( $data['sms_marketing_consent'] );
 
 		return array_map(
 			static fn( $value ) => is_bool( $value ) ? $value : sanitize_text_field( (string) $value ),

@@ -7,8 +7,10 @@
  * @package ProtechWholesale
  */
 
+use ProtechWholesale\Approval;
 use ProtechWholesale\ProductFields;
 use ProtechWholesale\Roles;
+use ProtechWholesale\SmsConsent;
 
 /**
  * Class Protech_Test_Factory
@@ -109,6 +111,38 @@ class Protech_Test_Factory {
 
 	public static function retail_customer(): int {
 		return self::factory()->user->create( array( 'role' => 'customer' ) );
+	}
+
+	/**
+	 * A wholesale customer approved $days_ago days in the past — the
+	 * automation triggers measure elapsed time from this timestamp
+	 * (see Automations::anchor_for()).
+	 */
+	public static function approved_customer( int $days_ago = 0 ): int {
+		$user_id = self::wholesale_customer();
+		Approval::set_approved_at( $user_id, time() - $days_ago * DAY_IN_SECONDS );
+
+		return $user_id;
+	}
+
+	/**
+	 * A wholesale customer who has opted in to both SMS consents and has
+	 * a valid, normalized phone number on file.
+	 */
+	public static function consented_customer( int $days_ago = 0 ): int {
+		$user_id = self::approved_customer( $days_ago );
+
+		SmsConsent::record(
+			$user_id,
+			array(
+				'phone'             => '5555550100',
+				'sms_transactional' => true,
+				'sms_marketing'     => true,
+			),
+			SmsConsent::SOURCE_MY_ACCOUNT
+		);
+
+		return $user_id;
 	}
 
 	/**

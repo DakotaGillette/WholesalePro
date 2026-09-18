@@ -1,0 +1,22 @@
+/**
+ * Protech Wholesale — wp-admin styling for the Messaging tab. Loaded
+ * only on the Wholesale admin screen (see Plugin::enqueue_admin_assets()).
+ * Everything else in this plugin's admin screens is inline-styled; this
+ * is the first admin stylesheet, kept small on purpose.
+ */
+
+.protech-automation-form .form-table th,
+.protech-compose-form .form-table th {
+	width: 200px;
+}
+
+.protech-insert-tag {
+	margin: 0 4px 4px 0 !important;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 11px !important;
+}
+
+.wrap td.check-column,
+.wrap th.check-column {
+	padding-top: 8px;
+}

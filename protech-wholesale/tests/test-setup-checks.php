@@ -6,6 +6,7 @@
  * @package ProtechWholesale
  */
 
+use ProtechWholesale\MessagingSettings;
 use ProtechWholesale\SetupChecks;
 use ProtechWholesale\WholesaleShippingMethod;
 
@@ -85,5 +86,39 @@ class Test_Setup_Checks extends WP_UnitTestCase {
 		// Fluent Forms is not installed in the test environment.
 		$this->assertNull( SetupChecks::application_form_exists() );
 		$this->assertFalse( $this->has_problem_about( 'Fluent Forms has no form' ) );
+	}
+
+	public function test_brevo_connected_is_null_unless_automations_are_enabled(): void {
+		$this->assertNull( SetupChecks::brevo_connected(), 'Not a problem for a store that never turned automations on.' );
+		$this->assertFalse( $this->has_problem_about( 'Brevo is not connected' ) );
+
+		update_option( MessagingSettings::OPT_ENABLED, 'yes' );
+		$this->assertFalse( SetupChecks::brevo_connected() );
+		$this->assertTrue( $this->has_problem_about( 'Brevo is not connected' ) );
+
+		update_option( MessagingSettings::OPT_BREVO_API_KEY, 'a-key' );
+		$this->assertTrue( SetupChecks::brevo_connected() );
+		$this->assertFalse( $this->has_problem_about( 'Brevo is not connected' ) );
+	}
+
+	public function test_privacy_policy_sms_check_is_null_without_a_privacy_page(): void {
+		update_option( 'wp_page_for_privacy_policy', 0 );
+		$this->assertNull( SetupChecks::privacy_policy_mentions_sms() );
+	}
+
+	public function test_privacy_policy_sms_check_reads_the_pages_content(): void {
+		$page_id = self::factory()->post->create(
+			array(
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => 'We collect your name and email address.',
+			)
+		);
+		update_option( 'wp_page_for_privacy_policy', $page_id );
+
+		$this->assertFalse( SetupChecks::privacy_policy_mentions_sms() );
+
+		wp_update_post( array( 'ID' => $page_id, 'post_content' => 'We may send SMS text messages about your order.' ) );
+		$this->assertTrue( SetupChecks::privacy_policy_mentions_sms() );
 	}
 }

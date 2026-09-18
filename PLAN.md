@@ -37,14 +37,30 @@ protech-wholesale/
     class-emails.php                  Application-flow emails via the WooCommerce mailer; "WHOLESALE ORDER" subject prefix
     class-logger.php                  wc_get_logger() wrapper, source "protech-wholesale"
     functions-helpers.php             Free functions for theme code
+    --- Messaging & automations (1.5.0) ---
+    class-messaging-settings.php      Messaging Settings tab: Brevo key, sender, quiet hours, frequency cap, consent wording
+    class-brevo-client.php            Brevo v3 API client: send_email/send_sms/get_account/get_contact/upsert_contact
+    class-merge-tags.php              {tag} context + rendering (html/text/subject) + AST tracking bridge + SMS segment count
+    class-message-log.php             Custom table {prefix}protech_wholesale_messages: enqueue (dedup)/claim/finish/sweep
+    class-message-transport.php       Turns a claimed log row into an actual send; Brevo or WC-mailer fallback for email
+    class-automations.php             Rule storage/validation, anchor/window evaluation, order-status listener
+    class-automation-runner.php       Action Scheduler contract: daily job, delivery queue, order-event delay, self-heal
+    class-audience.php                Compose/campaign segment resolution (all/tier/inactive/never-ordered/selected)
+    class-campaigns.php               Manual sends: create/validate, launch (queue + batches), progress, send_test
+    class-sms-consent.php             Phone normalization, the two SMS consents + email opt-out, gating, consent log, CSV
+    class-unsubscribe.php             Per-user token link → email-marketing opt-out (no login required)
+    class-notifications-endpoint.php  My Account "Notifications" endpoint: SMS/email preferences, self-service
+    class-messaging-tab.php           Messaging admin tab: Automations / Compose / Log / Compliance / Settings views
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
-                                      tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit
+                                      tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
+                                      account-notifications
   assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI — portal, bar, ladder, selector, account, cart badge
+  assets/css/admin.css                Messaging tab admin styling (merge-tag chips, form layout) — wholesale screens only
   assets/js/unit-selector.js          Display/Case → packs, Store API add-to-cart, protech:cart-changed + protech:qty-preview events
   assets/js/global-tier-bar.js        Bar refresh on cart events, tier celebration, add preview, live price-table row
   assets/js/portal.js                 /wholesale login form: show/hide password
   assets/js/starter-kit.js            Kit page: quantity, live quote, AJAX add, protech:qty-preview
-  assets/js/admin.js                  Override rows (product picker), variations bulk actions, approve/reject prompts
+  assets/js/admin.js                  Override rows, bulk actions, approve/reject prompts, Messaging tab interactions
   tests/                              PHPUnit (WP_UnitTestCase) + helpers; run inside wp-env
   composer.json, phpunit.xml.dist, .phpcs.xml.dist, phpstan.neon.dist   Dev tooling (never deployed)
 .github/workflows/ci.yml             Lint/analyse (advisory) + PHPUnit in wp-env
@@ -117,3 +133,22 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `woocommerce_product_data_tabs` / `woocommerce_product_data_panels`, `woocommerce_process_product_meta`, `woocommerce_product_after_variable_attributes`, `woocommerce_save_product_variation`, `woocommerce_variable_product_bulk_edit_actions`, `woocommerce_bulk_edit_variations` | Product fields, variation fields, bulk actions, has-wholesale-price flag sync |
 | `init` (20, Plugin) | `maybe_upgrade()` — one-off migrations keyed by `Plugin::DB_VERSION` |
 | `before_woocommerce_init` | HPOS + cart/checkout Blocks compatibility declarations |
+
+### Messaging & automations (1.5.0)
+| Hook | Purpose |
+|---|---|
+| `add_user_role`, `set_user_role` (Approval) | Stamp `_protech_wholesale_approved_at` the first time the wholesale role is granted |
+| `woocommerce_order_status_changed` (Automations) | Order-status rule: schedule a delayed `protech_wholesale_order_event` action |
+| `protech_wholesale_daily_automations` (recurring, AS group `protech-wholesale`) | Evaluate day-based rules, queue message-log rows |
+| `protech_wholesale_deliver_messages` (single/batched, AS) | Claim + `MessageTransport::deliver()` a queued row |
+| `protech_wholesale_order_event` (single/delayed, AS) | `Automations::fire_order_event()` — re-checks the order hasn't moved on |
+| `protech_wholesale_sync_contact` (async, AS) | Push a customer's SMS number to Brevo when marketing consent is granted |
+| `protech_wholesale_purge_messages` (recurring, AS) | `MessageLog::sweep()` — stuck/expired rows, retention purge |
+| `init` (30, AutomationRunner) | `self_heal()` — re-schedules the daily job if a GitHub update dropped it |
+| `show_user_profile`/`edit_user_profile` + `personal_options_update`/`edit_user_profile_update` (SmsConsent) | Admin "Messaging" profile section: phone, consents, required note |
+| `protech_wholesale_application_submitted` (SmsConsent) | Records phone + consent from a submitted application |
+| `admin_post_protech_unsubscribe` (+ `_nopriv_`) | Unsubscribe link → `SmsConsent::record()` email opt-out |
+| `init`, `woocommerce_get_query_vars`, `woocommerce_account_menu_items`, `woocommerce_account_wholesale-notifications_endpoint` (NotificationsEndpoint) | My Account "Notifications" self-service page |
+| `admin_post_protech_{save,preview,toggle,delete}_automation`, `_run_automations_now`, `_message_customers`, `_preview_message`, `_send_message`, `_send_test_message`, `_export_consent`, `_test_brevo_connection` (MessagingTab) | Messaging tab actions (each redirects; validation/preview state carried via a short-lived per-admin transient) |
+| `protech_wholesale_order_tracking` (filter) | Lets a shipment-tracking source (or a test) supply `{tracking_*}` merge-tag data |
+| `protech_wholesale_automation_catchup_days` (filter) | How many days past a rule's trigger day it still catches a customer up (default 7) |

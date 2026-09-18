@@ -32,6 +32,7 @@ Everything lives under **WooCommerce → Wholesale**. The menu item shows a coun
 | Products | Every product priced or flagged for wholesale: price, Volume and Bulk overrides, packs per display, flags. The same summary is a "Wholesale" column on Products → All Products. |
 | Pricing & Shipping | Quantity pricing (the Standard/Volume/Bulk ladder), display and case defaults, and wholesale shipping: the flat rate, which zones have the method, and the retail free-shipping exclusion. |
 | Tiers | Bronze/Silver/Gold/Platinum discount percentages (internal, never shown to customers). |
+| Messaging | Automated and one-off emails/texts to wholesale customers through Brevo — Automations (rules), Compose (manual sends), Log, Compliance (SMS opt-in proof for Brevo), Settings. See "Messaging & automations" below. |
 | Settings | Catalog (empty-price behaviour, coupons), Applications (form plugin, form ID, notification email), Updates (installed and latest release, check now), Uninstall. |
 
 Per-customer price overrides, the wholesale flag and the customer's submitted application are on their **user profile** (Users → Edit); the tier is there too.
@@ -48,6 +49,11 @@ Pricing a product happens on the product's own **Wholesale** tab. A variable pro
 | Send new-application emails to | `protech_wholesale_notification_email` | empty (site admin email) | Where the "new wholesale application" email goes. |
 | Application form source / form ID | `protech_wholesale_application_source` / `protech_wholesale_application_form_id` | `fluent_forms` / `4` | Which plugin and which exact form produce wholesale applications. Adapters exist for Gravity Forms, WPForms, Contact Form 7, and Fluent Forms, plus a native fallback form (`[protech_wholesale_application]`). |
 | On uninstall | `protech_wholesale_purge_on_uninstall` | `no` | If checked, deleting the plugin removes its settings, roles, the auto-created `/wholesale` page (only if unmodified), and wholesale user meta. Product pricing meta and order flags are never removed. See `uninstall.php`. |
+| Automations enabled (Messaging → Settings) | `protech_wholesale_msg_enabled` | `no` | Master switch for the daily automation job and order-status messages. Compose (manual sends) works either way. |
+| Brevo API key (Messaging → Settings) | `protech_wholesale_msg_brevo_api_key` | empty (uses the Brevo plugin's own key) | Only needed if this plugin should use a different Brevo account/key than the Brevo WordPress plugin already connected to the site. |
+| SMS sender / brand (Messaging → Settings) | `protech_wholesale_msg_sms_sender` / `protech_wholesale_msg_brand` | empty / site name | The Brevo-registered sender (a toll-free number in the US/Canada — alphanumeric senders aren't supported there) and the brand prefix put on every text. |
+| Quiet hours (Messaging → Settings) | `protech_wholesale_msg_quiet_start` / `_quiet_end` | `20` / `10` | No marketing texts are sent in this window (site time). |
+| Frequency cap (Messaging → Settings) | `protech_wholesale_msg_frequency_cap_days` | `7` | Fewest days between two automated marketing messages to the same customer; manual sends and order-update messages are exempt. |
 
 ## How pricing precedence works
 
@@ -133,6 +139,24 @@ To ship a release: bump `Version:` in `protech-wholesale.php`, add the section t
 
 Check **Wholesale only** on the product's **Wholesale** tab (product level — applies to all of a variable product's colours). Retail visitors then never see it in the shop, search, categories, sitemaps, or the public Store API product listing; a direct link shows an "available to approved wholesale accounts only" message with an apply link in place of the price, and it can't be added to cart. Leave WooCommerce's own "Catalog visibility" on its default: checking Wholesale only forces it back to visible on save, because the native "Hidden" setting hides a product from wholesale customers too.
 
+## Messaging & automations
+
+**WooCommerce → Wholesale → Messaging** sends email and SMS to wholesale customers, through Brevo (email falls back to the site's own WooCommerce mailer if Brevo isn't connected; SMS has no fallback). Nothing is ever sent from an admin or checkout request — everything queues through the message log and delivers via Action Scheduler.
+
+- **Automations**: four rule types — *Reorder reminder* (X days after a customer's last order, if they haven't ordered since), *Win-back* (no order in N days, repeats up to a limit), *First-order nudge* (X days after approval with no order yet), and *Order status* (an order reaching a chosen status, e.g. "completed" → a shipping email/text, with a delay so tracking numbers catch up). A day-based rule only fires inside a 7-day window starting on its trigger day — turning one on never reaches back into years of history, and a missed daily run is absorbed rather than double-sent. A rule never sends the same message twice for the same order/approval (`Automations::anchor_for()` + the message log's unique key). **Preview recipients** runs the same logic as a dry run before you commit to enabling a rule.
+- **Compose**: a one-off email or text to a chosen audience (all customers, a tier, no order in N days, never ordered, said they'd like texts but haven't opted in, or specific customers ticked on the Customers tab). "Send test to me" delivers immediately to your own account so you can check it before sending to customers.
+- **Log**: every message ever queued, its status (queued/sending/sent/failed/skipped) and, for a skip, why (no consent, unsubscribed, frequency cap, …).
+- **Compliance**: see the next section.
+- **Merge tags**: `{first_name}`, `{store_name}`, `{last_order_number}`, `{last_order_total}`, `{last_order_url}`, `{days_since_last_order}`, `{shop_url}`, `{account_url}`, `{unsubscribe_url}`, `{brand}`, and, for the order-status trigger only, `{order_number}`, `{order_status}`, `{tracking_number}`, `{tracking_url}`, `{tracking_block}` (reads the "Advanced Shipment Tracking" plugin when it's active; empty otherwise).
+- **Cron matters.** The daily automation job and delayed order-status/SMS deliveries run on Action Scheduler, which is driven by WP-Cron — and WP-Cron only fires on an actual page hit. A cached storefront (Breeze, on this site) can mean overnight cron doesn't run until the first uncached visit. If automations seem to run late, add a real server cron hitting `wp-cron.php` (or `wp action-scheduler run`) every few minutes; check WooCommerce → Status → Scheduled Actions either way.
+- Brevo's own WooCommerce plugin can run its own marketing automations — decide whether wholesale contacts should be in both, or just this plugin's.
+
+## SMS compliance (Brevo toll-free number verification)
+
+Texting from a US/Canada number through Brevo requires registering a toll-free number, which Brevo verifies against: the site working, a privacy policy/terms that cover SMS, a description of what's sent, and **proof customers opted in**. Marketing texts (offers, reorder reminders) require an explicit opt-in; order-update texts are a separate, narrower consent. Consent is captured — with the exact wording shown, a timestamp, IP, and source — on the wholesale application form (add the two checkboxes with the wording from Messaging → Compliance to your form if it doesn't have them yet), self-service under My Account → Notifications, or by an admin on the customer's profile (a note is required). Brevo's own STOP handling on the toll-free number is honored before every marketing text.
+
+**Before submitting to Brevo:** open Messaging → Compliance. It shows the exact opt-in wording and where it appears, a sample of every message type configured, a **Download consent records (CSV)** button (Brevo's proof of opt-in), and ready-to-paste privacy-policy/terms text (the "mobile information will not be shared…" line, frequency/rates/STOP/HELP). The setup notice on the Applicants tab flags it if Brevo isn't connected or the privacy policy doesn't seem to mention SMS.
+
 ## Development
 
 ```sh
@@ -152,5 +176,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the same on every push. `bin/de
 - No tax-exemption or resale-certificate handling: wholesale orders are taxed like retail.
 - The variations bulk actions follow WooCommerce's documented custom-bulk-action contract but should be exercised once on staging after each WooCommerce update.
 - Salient-specific visuals (price label inside Salient's price markup, the login/portal page typography) are worth a look after theme updates.
+- Content for automations and Compose is written in this admin screen only — there's no Brevo-designed-template picker in this build.
+- Quiet hours and the daily automation hour are site time, not each recipient's own time zone.
+- Sending an SMS from any rule or Compose will fail until a Brevo-registered sender (a US/Canada toll-free number) is set on Messaging → Settings; the failure reads clearly in the Log, but it's expected until then.
 
 None of the above affects retail customers or retail checkout in any way. See `PLAN.md` for the file layout and hook map, `DECISIONS.md` for every judgement call, `QA.md` for the staging checklist, and `CHANGELOG.md` for what changed when.

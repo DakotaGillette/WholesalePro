@@ -3,6 +3,39 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.5.0 — 2026-09-18
+
+### Added
+- **Messaging & automations**, under WooCommerce → Wholesale → Messaging.
+  Email and SMS to wholesale customers through Brevo (email falls back to
+  the site's WooCommerce mailer if Brevo isn't connected):
+  - **Automations**: reorder reminder, win-back (repeating), first-order
+    nudge, and order-status (e.g. "shipped") rules — each with a
+    tier filter, email/SMS content with merge tags, and a "Preview
+    recipients" dry run. A day-based rule only fires inside a 7-day
+    window from its trigger day, so enabling one never reaches back
+    into old history, and never repeats for the same order.
+  - **Compose**: one-off email/SMS to a chosen audience (all, a tier, no
+    order in N days, never ordered, prefers texts but hasn't opted in,
+    or specific customers ticked on the Customers tab), plus "send test
+    to me."
+  - **Log**: every message ever queued, its status, and why it was
+    skipped when it was.
+  - **Compliance**: the SMS opt-in wording in use, message types
+    configured, a consent-records CSV export, and suggested
+    privacy-policy/terms text — the proof-of-opt-in package for Brevo's
+    toll-free-number verification.
+  - **Settings**: Brevo connection (own key, or the Brevo plugin's own
+    key), sender, brand, quiet hours, frequency cap, unsubscribe footer.
+  - Self-service SMS/email preferences under My Account → Notifications;
+    an admin can also record consent on a customer's profile (a note is
+    required). The wholesale application form gained two SMS consent
+    checkboxes (order updates, marketing/reorder reminders).
+  - Delivery runs entirely on Action Scheduler — nothing is ever sent
+    from a checkout or admin request. First custom database table in
+    this plugin (`{prefix}protech_wholesale_messages`), created via
+    `DB_VERSION` 3.
+
 ## 1.4.0 — 2026-09-18
 
 ### Added

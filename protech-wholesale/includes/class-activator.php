@@ -22,17 +22,24 @@ class Activator {
 		Roles::create_roles();
 		self::create_default_options();
 		self::create_portal_page();
+		MessageLog::install_table();
+
+		if ( MessagingSettings::enabled() ) {
+			AutomationRunner::schedule_daily();
+		}
+
 		flush_rewrite_rules();
 	}
 
 	public static function deactivate(): void {
 		// Deliberately do not remove roles/options/pages on deactivation —
 		// only on uninstall, and only if the "purge" setting is enabled.
+		AutomationRunner::unschedule_all();
 		flush_rewrite_rules();
 	}
 
 	private static function create_default_options(): void {
-		foreach ( Settings::get_defaults() as $option => $value ) {
+		foreach ( array_merge( Settings::get_defaults(), MessagingSettings::get_defaults() ) as $option => $value ) {
 			if ( false === get_option( $option, false ) ) {
 				add_option( $option, $value );
 			}

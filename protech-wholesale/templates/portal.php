@@ -19,16 +19,22 @@
  * @var array<int, array{title: string, detail: string}> $benefits
  * @var string                                            $apply_url
  * @var string                                            $contact_url
+ * @var bool                                              $unsubscribed
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$username = isset( $username ) ? (string) $username : '';
-$benefits = isset( $benefits ) && is_array( $benefits ) ? $benefits : array();
+$username     = isset( $username ) ? (string) $username : '';
+$benefits     = isset( $benefits ) && is_array( $benefits ) ? $benefits : array();
+$unsubscribed = ! empty( $unsubscribed );
 ?>
 <div class="protech-wholesale-portal protech-wholesale-portal--<?php echo esc_attr( $state ); ?>">
+
+	<?php if ( $unsubscribed ) : ?>
+		<div class="woocommerce-message"><?php esc_html_e( 'You\'re unsubscribed from marketing emails. Order emails still arrive. Manage texts and preferences under My Account → Notifications once you\'re logged in.', 'protech-wholesale' ); ?></div>
+	<?php endif; ?>
 
 	<?php if ( 'login' === $state ) : ?>
 

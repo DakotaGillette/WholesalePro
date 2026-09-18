@@ -1305,3 +1305,123 @@ instead, everyone else unchanged.
    was, and appropriate for a persistent banner rather than a live cart
    summary (that's the sticky tier bar's job). It reflects the customer's
    status (logged in as wholesale or not), not their current cart.
+
+## Messaging & automations, version 1.5.0 (2026-09-18)
+
+The owner's ask: send emails and texts to wholesale customers, manually
+and on rules (e.g. "X days after an order, remind them to reorder"), run
+from the wholesale area, through Brevo (already connected on staging as
+"mailin" 3.3.5, active). The owner separately flagged that Brevo's SMS
+terms require a working site, a privacy policy/terms that cover SMS, a
+description of the message types, and **proof of opt-in** — checked
+against staging: form #4 has no consent checkbox, and neither the
+privacy policy nor the terms page mentions SMS. This build produces that
+proof rather than assuming it exists.
+
+1. **A custom database table — the first one in this plugin.** Every
+   other feature stores state in options or user meta; the message log
+   (`{prefix}protech_wholesale_messages`) needs a real `UNIQUE KEY` so
+   two evaluations of the same rule/customer/day can never queue the
+   same message twice, and the Log/Compliance views need to query
+   across every customer by rule, status and date — a serialized
+   per-user meta array can't do either. Created via `dbDelta()`, in
+   `Activator::activate()` and again in `Plugin::maybe_upgrade()`
+   (`DB_VERSION` 3, since a GitHub-release update never re-runs
+   activation).
+
+2. **A day-based rule fires once per "anchor," inside a 7-day window
+   from its trigger day, decided fresh every day rather than scheduled
+   once.** No per-customer cron job is created; instead one daily
+   Action Scheduler action scans every wholesale customer against every
+   enabled rule (`Automations::anchor_for()`). The anchor is always tied
+   to a real event — an order id, an approval date, or an order id plus
+   a repeat index for win-back — so it can't drift, and the 7-day
+   catch-up window is what makes it safe to enable a rule on a store
+   with years of order history: it never reaches back past a week of
+   the trigger day, and it absorbs a missed daily run (e.g. cron not
+   firing overnight on a cached storefront) without ever double-sending,
+   since the anchor — and therefore the message log's dedup key — is
+   identical every day inside the window.
+   **Follow-up (2026-09-19, agent review):** `run_daily()` originally
+   called `Automations::snapshot()` (a real `wc_get_orders()` query)
+   inside `candidates()`'s per-user loop — once per rule per user, so
+   evaluating 3 rules against 200 customers ran the same "last order"
+   query 3 times per customer. Snapshots are now built once per page of
+   customers and passed into `candidates()`, restoring the "one query
+   per customer per run" the design intended.
+
+3. **Two separate SMS consents, not one.** Carriers require an explicit
+   opt-in specifically for marketing texts; an "your order shipped" text
+   is a service message a customer reasonably expects once they've
+   given a phone number for that purpose. `SmsConsent` tracks
+   `sms_marketing` and `sms_transactional` independently — a customer can
+   opt into order updates without agreeing to promotional texts. Email
+   stays opt-out (CAN-SPAM), so a marketing email's gate only checks for
+   an explicit "no."
+
+4. **Marketing SMS fails closed when Brevo's blacklist status can't be
+   verified; transactional SMS fails open.** Every send re-checks Brevo
+   for a STOP-triggered blacklist immediately before sending. If Brevo
+   is unreachable (or not connected), a marketing send is refused
+   (`reason: consent_unverified`) rather than risk texting someone who
+   opted out through Brevo directly; a transactional send — already
+   gated on its own separate consent — still goes out, since refusing a
+   service message the customer explicitly asked for is the worse
+   failure mode. `Test_Sms_Consent` covers both directions explicitly,
+   including a version of this test that initially asserted the wrong
+   thing (`assertTrue` where the fail-closed behavior requires
+   `assertFalse`) and was caught before being trusted.
+
+5. **Brevo API for email, not just SMS — with a WooCommerce-mailer
+   fallback.** The owner's account already has 10,000 email credits;
+   using the same channel for both gives one delivery log, one set of
+   opens/click stats in Brevo, and one place (`MessageTransport`) that
+   decides sender/footer/branding. If Brevo is ever disconnected, email
+   still sends through the site's own mailer (provider recorded as
+   `wc_mailer` in the Log) rather than failing outright — SMS has no
+   such fallback; Brevo is the only SMS channel.
+
+6. **A per-user random unsubscribe token, not a signed link.** A
+   salt-rotation-proof HMAC was considered; a stored per-user token
+   (`Unsubscribe::META_TOKEN`) is simpler, survives a salt rotation the
+   same way, and can be individually invalidated if one is ever leaked —
+   an HMAC of a fixed salt cannot be revoked without rotating the salt
+   for everyone.
+
+7. **`{last_order_url}` points at the My Account order page, not a
+   Reorder link.** `Reorder::get_reorder_url()` is a per-user nonce URL
+   minted at request time; a merge tag rendered inside an Action
+   Scheduler background job has no request to mint one from, and a
+   stale/reused nonce would just 403. The order page already carries
+   WooCommerce's own Reorder button.
+
+8. **Quiet hours and the daily run are site time, not each recipient's.**
+   Simpler, and every wholesale customer on this store today is a
+   business, not a consumer receiving a text at an odd personal hour —
+   revisit if the customer base becomes geographically spread with real
+   evening-quiet expectations per time zone.
+
+9. **Compose has no live AJAX recipient count.** The plugin's only two
+   existing AJAX endpoints (the tier bar, starter kits) are both
+   customer-facing; every *admin* screen in this plugin is plain
+   POST-and-reload. "Preview recipients" reuses that pattern — a submit
+   button that reloads the page with the count and skip-reason
+   breakdown — rather than introducing a new admin AJAX contract for one
+   screen. Simpler and consistent; revisit if the audience count becomes
+   something an admin wants to watch update as they type.
+
+10. **The dollar figure "one message per rule per anchor" is enforced by
+    the database, not by application logic.** `MessageLog::enqueue()` is
+    an `INSERT IGNORE` keyed on `(rule_id, user_id, anchor, channel)`;
+    `MessageLog::claim()` is a conditional `UPDATE ... WHERE
+    status = 'queued'`. Two Action Scheduler workers racing to evaluate
+    the same rule, or a worker retried after a crash mid-delivery, can
+    each only succeed once — the two locks were designed together so
+    that "evaluated twice" and "delivered twice" are both impossible by
+    construction, not by convention.
+
+**Not yet human-verified** (same caveat as every prior version): this
+machine has no PHP, so nothing here has run outside PHPUnit in GitHub
+Actions. SMS cannot be verified at all until the owner registers a
+toll-free number with Brevo — the Compliance view's CSV/wording/
+suggested privacy text is what that registration needs. See QA.md §21.

@@ -35,6 +35,9 @@ class Approval {
 	public const STATUS_APPROVED        = 'approved';
 	public const STATUS_REJECTED        = 'rejected';
 
+	/** When an account first became an approved wholesale customer (GMT unix timestamp) — used by the first-order-nudge automation. Never overwritten once set, so a later re-approval keeps the original date. */
+	public const META_APPROVED_AT = '_protech_wholesale_approved_at';
+
 	public const PENDING_COUNT_TRANSIENT = 'protech_wholesale_pending_count';
 
 	public function register_hooks(): void {
@@ -42,6 +45,14 @@ class Approval {
 		add_action( 'load-woocommerce_page_protech-wholesale', array( $this, 'add_help_tab' ) );
 		add_action( 'admin_post_protech_approve_applicant', array( $this, 'handle_approve' ) );
 		add_action( 'admin_post_protech_reject_applicant', array( $this, 'handle_reject' ) );
+
+		// Stamps the approval date the moment the Customer role is added to
+		// an account, regardless of which path granted it (the Applicants
+		// queue, the profile checkbox, or a future integration calling
+		// Roles::grant() directly) — WP_User::add_role() fires this for
+		// every one of them.
+		add_action( 'add_user_role', array( __CLASS__, 'maybe_stamp_approved_at' ), 10, 2 );
+		add_action( 'set_user_role', array( __CLASS__, 'maybe_stamp_approved_at' ), 10, 3 );
 
 		// The pending count on the menu is cached; any change to an
 		// application's status starts it over.
@@ -120,6 +131,30 @@ class Approval {
 	}
 
 	/**
+	 * @param int      $user_id
+	 * @param string   $role  The role just added (add_user_role) or set (set_user_role).
+	 * @param string[] $old_roles Only present on set_user_role.
+	 */
+	public static function maybe_stamp_approved_at( int $user_id, string $role, array $old_roles = array() ): void {
+		if ( Roles::CUSTOMER !== $role || null !== self::approved_at( $user_id ) ) {
+			return;
+		}
+
+		self::set_approved_at( $user_id, time() );
+	}
+
+	/** GMT unix timestamp an account became an approved wholesale customer, or null if never recorded (see Automations::backfill_approved_at() for pre-1.5.0 accounts). */
+	public static function approved_at( int $user_id ): ?int {
+		$value = get_user_meta( $user_id, self::META_APPROVED_AT, true );
+
+		return '' !== $value ? (int) $value : null;
+	}
+
+	public static function set_approved_at( int $user_id, int $timestamp ): void {
+		update_user_meta( $user_id, self::META_APPROVED_AT, $timestamp );
+	}
+
+	/**
 	 * The WordPress "Help" pull-down on the Wholesale screen: what each tab
 	 * is for, and where the settings that are NOT on this screen live.
 	 */
@@ -140,6 +175,7 @@ class Approval {
 					'<p><strong>' . esc_html__( 'Products', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'everything priced or flagged for wholesale, for reference. Prices themselves are set on each product\'s Wholesale tab.', 'protech-wholesale' ) . '</p>' .
 					'<p><strong>' . esc_html__( 'Pricing & Shipping', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'the Standard / Volume / Bulk ladder, the display and case defaults, and the wholesale shipping rate.', 'protech-wholesale' ) . '</p>' .
 					'<p><strong>' . esc_html__( 'Tiers', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'hidden per-customer discount levels (Bronze to Platinum), on top of the ladder.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'automated and one-off emails/texts to wholesale customers, through Brevo, with a full send log and SMS consent records.', 'protech-wholesale' ) . '</p>' .
 					'<p><strong>' . esc_html__( 'Settings', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'what wholesale customers see for unpriced products, coupons, which form takes applications, notifications, updates and uninstall.', 'protech-wholesale' ) . '</p>',
 			)
 		);
@@ -165,6 +201,7 @@ class Approval {
 			'products'   => __( 'Products', 'protech-wholesale' ),
 			'pricing'    => __( 'Pricing & Shipping', 'protech-wholesale' ),
 			'tiers'      => __( 'Tiers', 'protech-wholesale' ),
+			'messaging'  => __( 'Messaging', 'protech-wholesale' ),
 			'settings'   => __( 'Settings', 'protech-wholesale' ),
 		);
 	}
@@ -220,6 +257,8 @@ class Approval {
 			VolumePricing::render_pricing_tab();
 		} elseif ( 'tiers' === $tab ) {
 			Tiers::render_tiers_tab();
+		} elseif ( 'messaging' === $tab ) {
+			MessagingTab::render();
 		} else {
 			$this->render_applicants_tab();
 		}
@@ -409,8 +448,11 @@ class Approval {
 			'sales_channels'          => __( 'Sales channels', 'protech-wholesale' ),
 			'tcgs_carried'            => __( 'TCGs carried', 'protech-wholesale' ),
 			'hosts_events'            => __( 'Hosts TCG events', 'protech-wholesale' ),
-			'estimated_monthly_spend' => __( 'Estimated monthly spend', 'protech-wholesale' ),
-			'accuracy_confirmation'   => __( 'Confirmed accuracy', 'protech-wholesale' ),
+			'estimated_monthly_spend'   => __( 'Estimated monthly spend', 'protech-wholesale' ),
+			'accuracy_confirmation'     => __( 'Confirmed accuracy', 'protech-wholesale' ),
+			'contact_methods'           => __( 'Preferred contact methods', 'protech-wholesale' ),
+			'sms_transactional_consent' => __( 'Opted in: order-update texts', 'protech-wholesale' ),
+			'sms_marketing_consent'     => __( 'Opted in: marketing texts', 'protech-wholesale' ),
 		);
 
 		$status_labels = array(
@@ -453,7 +495,7 @@ class Approval {
 				<?php
 				$value = get_user_meta( $user->ID, '_protech_wholesale_app_' . $key, true );
 
-				if ( in_array( $key, array( 'hosts_events', 'accuracy_confirmation' ), true ) ) {
+				if ( in_array( $key, array( 'hosts_events', 'accuracy_confirmation', 'sms_transactional_consent', 'sms_marketing_consent' ), true ) ) {
 					$display = $value ? __( 'Yes', 'protech-wholesale' ) : __( 'No', 'protech-wholesale' );
 				} else {
 					$display = '' === (string) $value ? '—' : (string) $value;

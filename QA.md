@@ -326,3 +326,36 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] Change the Volume threshold on Pricing & Shipping to a different number, reload as a wholesale customer: the header number matches.
 - [ ] Confirm the styling (colour, alignment, size) matches the rest of that header text — it inherits the theme's own CSS since no markup is added, only the text.
 
+## 21. Messaging & automations (1.5.0)
+
+> Requires, before SMS can work at all: a Brevo toll-free number registered and verified (see the Compliance view's CSV/wording/suggested privacy text — that's the submission package). Email works with no extra setup beyond Brevo already being connected (it is, on staging).
+
+**After the update lands** (never by zip — let staging discover the release, so the migration path itself is tested):
+- [ ] WooCommerce → Status → Scheduled Actions has no error; the plugin's table exists (`wp db query "SHOW TABLES LIKE '%protech_wholesale_messages%'"` or check via phpMyAdmin) even though the site was never reactivated.
+- [ ] `_protech_wholesale_approved_at` is set on the one existing wholesale customer (djg10212) after the update — confirms the backfill ran.
+
+**Settings**
+- [ ] Messaging → Settings → "Test Brevo connection" shows "Connected as Allen Tran" (or whoever the account is).
+- [ ] Turn on "Automations enabled", save, confirm `protech_wholesale_daily_automations` appears under Scheduled Actions (group `protech-wholesale`) with a future run time.
+
+**Compose (manual send)**
+- [ ] Customers tab: tick the one wholesale customer, "Send message to selected" lands on Compose with them pre-selected.
+- [ ] Write a subject/body with `{first_name}` and `{shop_url}`, "Send test to me" — email arrives at djg10212's address (not anyone else's) with the branded header/footer and the tags filled in.
+- [ ] "Preview recipients" shows the right count before sending for real.
+- [ ] "Send" queues it; the Log (filtered by the campaign id in the URL) shows it move from queued → sent within a minute or two of a real page load (cron permitting — see the cron note in the README if it sits at "queued").
+
+**Automations**
+- [ ] Add the "Reorder reminder" preset, leave disabled, click Preview — shows a sensible recipient count and skip reasons (most real customers will show "window" until an order is 30 days old).
+- [ ] Enable it, "Run automations now", check the Log a minute later.
+- [ ] Add the "Order status" preset for "completed", place (or advance) a real test order to Completed, confirm an email/SMS shows up in the Log tied to that order within the configured delay.
+
+**Compliance / SMS opt-in**
+- [ ] Messaging → Compliance shows both wording variants, and flags that the privacy policy doesn't mention SMS yet (until the owner adds it).
+- [ ] Download consent records CSV opens in a spreadsheet with sensible columns.
+- [ ] My Account → Notifications (logged in as the wholesale customer) saves a phone number and both SMS checkboxes; reloading the page shows them still checked.
+- [ ] An admin profile's "Messaging" section refuses to save a consent change with no note, and records one correctly with a note.
+- [ ] Click a real `{unsubscribe_url}` link from a test email while logged out: lands on `/wholesale` with the "you're unsubscribed" notice, and My Account → Notifications (once logged in) shows the email checkbox now unchecked.
+
+**SMS itself** (only once a toll-free number is registered with Brevo)
+- [ ] "Send test to me" over SMS reaches a real phone with the brand prefix and, for a marketing message, "Reply STOP to opt out."
+- [ ] Reply STOP on a real phone, then try sending another marketing text to that number — the Log shows it skipped as unsubscribed, not sent.
