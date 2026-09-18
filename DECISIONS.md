@@ -1244,8 +1244,27 @@ suffixes from Standard/Volume/Bulk.
    Standard/Volume/Bulk everywhere in admin; "tier" is reserved for the
    Bronze-to-Platinum customer levels, which keep their own tab.
 
-9. **Not seen running.** Admin screens cannot be rendered in the headless
-   harness (they need a login), so after deploy each tab was fetched
-   with the saved admin session and checked for a 200 and no critical
-   error, nothing more. The update path is proven end to end by the
-   release job publishing v1.3.0 and staging, on 1.2.0, offering it.
+9. **Seen running, at last.** Admin screens cannot be rendered in the
+   headless harness (they need a login), so after deploy each tab was
+   fetched with the saved admin session and checked for a 200, no
+   critical error and the expected new markers (all present). The
+   release job published v1.3.0 with the zip attached on the first push
+   to `main` that passed; staging, already on 1.3.0 by zip upload, answers
+   "Check for updates" with "1.3.0 is the latest release" through the
+   real GitHub call. The one-click "Update now" itself will first run on
+   the next version, since 1.2.0 on staging predated the updater.
+
+10. **The test suite had never been executed either, and it showed.** The
+    first CI run: 50 errors and 2 failures, none in the code under test.
+    `Protech_Test_Factory` called `WP_UnitTestCase::factory()`, which is
+    protected (it now owns a `WP_UnitTest_Factory`). The approval-email
+    test looked for `&id=` where `esc_url()` writes `&#038;id=`. The email
+    "wrapped in the WooCommerce template" test failed because the mailer
+    singleton was first created *inside* an earlier test, and the WP test
+    framework's hook restore at that test's end removed the header/footer
+    actions its constructor had registered while the instance lived on —
+    suite-only, diagnosed by a temporary `fwrite(STDERR)` in CI, fixed by
+    re-adding the two actions in that test's `set_up()`. A shipping test
+    built packages without the `destination` that
+    `WC_Shipping_Method::is_available()` reads. Then: 106 tests, 335
+    assertions, green. The gate is real from here on.
