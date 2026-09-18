@@ -36,12 +36,18 @@ class CustomersTab {
 
 	private const PER_PAGE = 25;
 
+	public function register_hooks(): void {
+		add_action( 'admin_post_protech_add_existing_wholesale_customers', array( __CLASS__, 'handle_add_existing' ) );
+		add_action( 'admin_post_protech_create_wholesale_customer', array( __CLASS__, 'handle_create_new' ) );
+	}
+
 	public static function render(): void {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
 		self::maybe_save_customer_changes();
+		self::maybe_show_quickadd_notice();
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only paging and search.
 		$paged  = max( 1, absint( $_GET['paged'] ?? 1 ) );
@@ -70,6 +76,8 @@ class CustomersTab {
 		$affiliate_options    = $affiliates_available ? AffiliateAssignment::get_affiliate_options() : array();
 
 		echo '<p>' . esc_html__( 'Every approved wholesale customer. Change a tier, tax status, or lifetime affiliate here and save; price overrides and the wholesale flag itself are on each customer\'s profile.', 'protech-wholesale' ) . '</p>';
+
+		self::render_quickadd_sections();
 
 		echo '<form method="get" class="search-form" style="margin:0 0 1em;">';
 		echo '<input type="hidden" name="page" value="protech-wholesale" /><input type="hidden" name="tab" value="customers" />';
@@ -202,6 +210,165 @@ class CustomersTab {
 			);
 			echo '</div></div>';
 		}
+	}
+
+	/**
+	 * Two collapsed-by-default forms above the search box: bringing an
+	 * already-existing WooCommerce customer into wholesale directly (no
+	 * application needed — for the backlog of accounts that were always
+	 * effectively wholesale before this plugin existed to say so), and
+	 * creating a brand new account that's wholesale from the moment it's
+	 * created, instead of a plain customer signup someone then has to
+	 * remember to flag.
+	 */
+	private static function render_quickadd_sections(): void {
+		echo '<details class="protech-quickadd"><summary>' . esc_html__( '+ Add existing customers to wholesale', 'protech-wholesale' ) . '</summary>';
+		echo '<form method="post" style="margin:0.75em 0 0;">';
+		wp_nonce_field( 'protech_wholesale_add_existing', 'protech_wholesale_add_existing_nonce' );
+		echo '<p>' . esc_html__( 'Already a customer, just never had a wholesale flag? Search for their account and add it directly.', 'protech-wholesale' ) . '</p>';
+		echo '<select class="wc-customer-search" multiple="multiple" style="width:100%;max-width:460px;" name="protech_existing_customer_ids[]" data-placeholder="' . esc_attr__( 'Search by name or email…', 'protech-wholesale' ) . '" data-action="woocommerce_json_search_customers"></select>';
+		echo '<p><label><input type="checkbox" name="protech_email_existing" value="1" /> ' . esc_html__( "Email them to let them know their wholesale pricing is ready", 'protech-wholesale' ) . '</label></p>';
+		printf(
+			'<button type="submit" class="button" formaction="%s" formmethod="post" name="action" value="protech_add_existing_wholesale_customers">%s</button>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			esc_html__( 'Add to wholesale', 'protech-wholesale' )
+		);
+		echo '</form></details>';
+
+		echo '<details class="protech-quickadd"><summary>' . esc_html__( '+ Add a new wholesale customer', 'protech-wholesale' ) . '</summary>';
+		echo '<form method="post" style="margin:0.75em 0 1.5em;">';
+		wp_nonce_field( 'protech_wholesale_create_customer', 'protech_wholesale_create_customer_nonce' );
+		echo '<p>' . esc_html__( "Creates the account directly with wholesale pricing already on, no application step. They'll get an email to set their password.", 'protech-wholesale' ) . '</p>';
+		echo '<p>';
+		echo '<input type="text" name="protech_new_first_name" placeholder="' . esc_attr__( 'First name', 'protech-wholesale' ) . '" required="required" /> ';
+		echo '<input type="text" name="protech_new_last_name" placeholder="' . esc_attr__( 'Last name', 'protech-wholesale' ) . '" /> ';
+		echo '<input type="email" name="protech_new_email" placeholder="' . esc_attr__( 'Email address', 'protech-wholesale' ) . '" required="required" />';
+		echo '</p>';
+		printf(
+			'<button type="submit" class="button button-primary" formaction="%s" formmethod="post" name="action" value="protech_create_wholesale_customer">%s</button>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			esc_html__( 'Create wholesale account', 'protech-wholesale' )
+		);
+		echo '</form></details>';
+	}
+
+	/** The redirect landing back on this tab after either quick-add action, per the &protech_quickadd= query arg it set. */
+	private static function maybe_show_quickadd_notice(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only, only controls which fixed notice string is echoed.
+		$notice = isset( $_GET['protech_quickadd'] ) ? sanitize_key( wp_unslash( $_GET['protech_quickadd'] ) ) : '';
+
+		$messages = array(
+			'added'         => __( 'Added the selected customer(s) to wholesale.', 'protech-wholesale' ),
+			'none_selected' => __( 'No customers were selected.', 'protech-wholesale' ),
+			'created'       => __( 'Wholesale account created.', 'protech-wholesale' ),
+			'exists'        => __( 'An account with that email address already exists — use "Add existing customers" instead.', 'protech-wholesale' ),
+			'invalid_email' => __( 'That email address is not valid.', 'protech-wholesale' ),
+		);
+
+		if ( ! isset( $messages[ $notice ] ) ) {
+			return;
+		}
+
+		$class = in_array( $notice, array( 'added', 'created' ), true ) ? 'updated' : 'notice-warning';
+		echo '<div class="' . esc_attr( $class ) . ' notice"><p>' . esc_html( $messages[ $notice ] ) . '</p></div>';
+	}
+
+	/** "Add existing customers to wholesale": grants the role to every selected, already-existing account. */
+	public static function handle_add_existing(): void {
+		if ( ! current_user_can( 'manage_woocommerce' )
+			|| ! isset( $_POST['protech_wholesale_add_existing_nonce'] )
+			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['protech_wholesale_add_existing_nonce'] ) ), 'protech_wholesale_add_existing' )
+		) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
+		}
+
+		$ids = array_map( 'absint', (array) ( $_POST['protech_existing_customer_ids'] ?? array() ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- absint() sanitizes each value.
+		$ids = array_filter( array_unique( $ids ) );
+
+		if ( empty( $ids ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&tab=customers&protech_quickadd=none_selected' ) );
+			exit;
+		}
+
+		$send_email = ! empty( $_POST['protech_email_existing'] );
+		$added      = 0;
+
+		foreach ( $ids as $id ) {
+			if ( Roles::is_wholesale_customer( $id ) ) {
+				continue;
+			}
+
+			Approval::approve_user( $id, $send_email );
+			++$added;
+		}
+
+		if ( $added > 0 ) {
+			Logger::info( sprintf( '%d existing customer(s) added to wholesale directly by admin #%d', $added, get_current_user_id() ) );
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&tab=customers&protech_quickadd=added' ) );
+		exit;
+	}
+
+	/** "Add a new wholesale customer": creates the account from scratch, already wholesale, and emails a password-setup link. */
+	public static function handle_create_new(): void {
+		if ( ! current_user_can( 'manage_woocommerce' )
+			|| ! isset( $_POST['protech_wholesale_create_customer_nonce'] )
+			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['protech_wholesale_create_customer_nonce'] ) ), 'protech_wholesale_create_customer' )
+		) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
+		}
+
+		$email = sanitize_email( wp_unslash( $_POST['protech_new_email'] ?? '' ) );
+
+		if ( ! is_email( $email ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&tab=customers&protech_quickadd=invalid_email' ) );
+			exit;
+		}
+
+		if ( email_exists( $email ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&tab=customers&protech_quickadd=exists' ) );
+			exit;
+		}
+
+		$first_name = sanitize_text_field( wp_unslash( $_POST['protech_new_first_name'] ?? '' ) );
+		$last_name  = sanitize_text_field( wp_unslash( $_POST['protech_new_last_name'] ?? '' ) );
+
+		$user_id = wp_insert_user(
+			array(
+				'user_login' => self::generate_unique_login( $email ),
+				'user_email' => $email,
+				'user_pass'  => wp_generate_password( 20 ),
+				'first_name' => $first_name,
+				'last_name'  => $last_name,
+				'role'       => Roles::CUSTOMER,
+			)
+		);
+
+		if ( is_wp_error( $user_id ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&tab=customers&protech_quickadd=invalid_email' ) );
+			exit;
+		}
+
+		update_user_meta( $user_id, Approval::META_APP_STATUS, Approval::STATUS_APPROVED );
+		Emails::send_approved( $user_id );
+		Logger::info( "Wholesale customer #{$user_id} created directly by admin #" . get_current_user_id() );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&tab=customers&protech_quickadd=created' ) );
+		exit;
+	}
+
+	private static function generate_unique_login( string $email ): string {
+		$base  = sanitize_user( current( explode( '@', $email ) ), true ) ?: 'wholesale';
+		$login = $base;
+		$i     = 1;
+
+		while ( username_exists( $login ) ) {
+			$login = $base . $i;
+			++$i;
+		}
+
+		return $login;
 	}
 
 	/**

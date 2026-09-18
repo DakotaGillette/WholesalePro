@@ -305,16 +305,30 @@ class Approval {
 		$user = get_userdata( $user_id );
 
 		if ( $user ) {
-			// Additive — whatever else this account already is stays intact.
-			Roles::grant( $user_id, Roles::CUSTOMER );
-			update_user_meta( $user_id, self::META_APP_STATUS, self::STATUS_APPROVED );
-			delete_user_meta( $user_id, self::META_APP_REJECT_REASON );
+			self::approve_user( $user_id, true );
 			Logger::info( "Wholesale applicant #{$user_id} approved by admin #" . get_current_user_id() );
-			Emails::send_approved( $user_id );
 		}
 
 		wp_safe_redirect( admin_url( 'admin.php?page=protech-wholesale&status=approved' ) );
 		exit;
+	}
+
+	/**
+	 * The one place that actually grants wholesale status — additive
+	 * (whatever else the account already is stays intact), clears any
+	 * stale rejection, and optionally emails the same "you're approved,
+	 * set your password" message the Applicants queue sends. Shared by
+	 * the applicant queue, the profile checkbox, and the Customers tab's
+	 * "add existing customers" and "add a new wholesale customer" actions.
+	 */
+	public static function approve_user( int $user_id, bool $send_email ): void {
+		Roles::grant( $user_id, Roles::CUSTOMER );
+		update_user_meta( $user_id, self::META_APP_STATUS, self::STATUS_APPROVED );
+		delete_user_meta( $user_id, self::META_APP_REJECT_REASON );
+
+		if ( $send_email ) {
+			Emails::send_approved( $user_id );
+		}
 	}
 
 	public function handle_reject(): void {
@@ -542,17 +556,11 @@ class Approval {
 		if ( $should_be_wholesale && ! $is_wholesale ) {
 			$had_pending_application = self::STATUS_PENDING === get_user_meta( $user_id, self::META_APP_STATUS, true );
 
-			Roles::grant( $user_id, Roles::CUSTOMER );
-			update_user_meta( $user_id, self::META_APP_STATUS, self::STATUS_APPROVED );
-			delete_user_meta( $user_id, self::META_APP_REJECT_REASON );
-			Logger::info( "User #{$user_id} manually flagged as wholesale by admin #" . get_current_user_id() );
-
 			// Same outcome as clicking Approve on the Applicants screen —
 			// the applicant shouldn't miss their password link because the
 			// admin approved from the profile instead.
-			if ( $had_pending_application ) {
-				Emails::send_approved( $user_id );
-			}
+			self::approve_user( $user_id, $had_pending_application );
+			Logger::info( "User #{$user_id} manually flagged as wholesale by admin #" . get_current_user_id() );
 		} elseif ( ! $should_be_wholesale && $is_wholesale ) {
 			Roles::revoke( $user_id, Roles::CUSTOMER );
 			delete_user_meta( $user_id, self::META_APP_STATUS );

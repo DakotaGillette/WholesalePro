@@ -110,6 +110,29 @@ class Test_Approval extends WP_UnitTestCase {
 		unset( $_REQUEST['user_id'], $_REQUEST['_wpnonce'] );
 	}
 
+	/**
+	 * The shared helper handle_approve(), the profile checkbox, and the
+	 * Customers tab's "add existing"/"add new" actions all call — grants
+	 * additively and clears any stale rejection, with the email optional.
+	 */
+	public function test_approve_user_grants_the_role_and_sends_the_email_when_asked(): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'silent@example.com' ) );
+		update_user_meta( $user_id, Approval::META_APP_REJECT_REASON, 'stale' );
+
+		Approval::approve_user( $user_id, false );
+
+		$this->assertTrue( Roles::is_wholesale_customer( $user_id ) );
+		$this->assertContains( 'customer', get_userdata( $user_id )->roles );
+		$this->assertSame( Approval::STATUS_APPROVED, get_user_meta( $user_id, Approval::META_APP_STATUS, true ) );
+		$this->assertSame( '', get_user_meta( $user_id, Approval::META_APP_REJECT_REASON, true ) );
+
+		$emailed_id = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'told@example.com' ) );
+		Approval::approve_user( $emailed_id, true );
+
+		$mail = tests_retrieve_phpmailer_instance()->get_sent();
+		$this->assertSame( 'told@example.com', $mail->to[0][0] );
+	}
+
 	public function test_list_views_follow_application_status(): void {
 		$pending  = $this->pending_applicant( 'p@example.com' );
 		$rejected = $this->pending_applicant( 'r@example.com' );

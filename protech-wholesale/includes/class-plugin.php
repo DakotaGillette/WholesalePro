@@ -54,6 +54,7 @@ final class Plugin {
 	private Unsubscribe $unsubscribe;
 	private NotificationsEndpoint $notifications_endpoint;
 	private MessagingTab $messaging_tab;
+	private CustomersTab $customers_tab;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -99,6 +100,7 @@ final class Plugin {
 		$this->unsubscribe            = new Unsubscribe();
 		$this->notifications_endpoint = new NotificationsEndpoint();
 		$this->messaging_tab          = new MessagingTab();
+		$this->customers_tab          = new CustomersTab();
 
 		foreach (
 			array(
@@ -129,6 +131,7 @@ final class Plugin {
 				$this->unsubscribe,
 				$this->notifications_endpoint,
 				$this->messaging_tab,
+				$this->customers_tab,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -440,11 +443,12 @@ final class Plugin {
 			return;
 		}
 
-		if ( $is_user_screen ) {
-			// The per-customer price override product picker is WooCommerce's
-			// own enhanced select (selectWoo + its product search AJAX).
-			// WooCommerce registers it on every admin screen but only
-			// enqueues it on its own screens.
+		if ( $is_user_screen || $is_wholesale_screen ) {
+			// The per-customer price override product picker (user screen)
+			// and the Customers tab's "add existing customers" search both
+			// use WooCommerce's own enhanced select (selectWoo + its
+			// customer/product search AJAX). WooCommerce registers it on
+			// every admin screen but only enqueues it on its own screens.
 			wp_enqueue_script( 'wc-enhanced-select' );
 			wp_enqueue_style( 'woocommerce_admin_styles' );
 		}

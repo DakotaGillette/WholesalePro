@@ -20,3 +20,15 @@
 .wrap th.check-column {
 	padding-top: 8px;
 }
+
+.protech-quickadd {
+	margin: 0 0 0.75em;
+	padding: 0.75em 1em;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+.protech-quickadd summary {
+	cursor: pointer;
+	font-weight: 600;
+}
