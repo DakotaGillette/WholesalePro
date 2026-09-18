@@ -99,7 +99,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] Product price HTML on a single sleeve product page: confirm the "Wholesale price" label renders visibly next to the price and isn't clipped, hidden, or stripped by Salient's price markup.
 - [ ] Quantity stepper on a single product page as a wholesale customer: confirm the +/- stepper (if Salient adds one) respects the case-size step/minimum rather than allowing single-pack increments.
 - [ ] `/wholesale` portal page in each of its four states: confirm the login form, pending message, and retail-only message inherit Salient's page/typography styling rather than looking like unstyled fallback HTML.
-- [ ] Confirm the portal login button, the sticky tier bar's black chrome, and any other plugin UI element visually match the site's real black/white/8px-corner button style (pulled from the live Salient customizer palette 2026-09-17 — see `DECISIONS.md`) rather than looking like a mismatched, differently-branded add-on.
+- [ ] **(Superseded in 1.2.0 — see §18.)** The plugin's own UI is now Protech Blue (`#42649D`) on purpose, while the theme's buttons (Add to cart, Checkout) stay black. Confirm the blue elements read as one family, their text uses the site's own font (Poppins), and corners/neutrals still match the theme (8px, `#f7f7f7`, `#e5e5e5`).
 
 ## 12. "Wholesale only" products
 
@@ -141,9 +141,9 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 
 > Added 2026-09-17, redesigned the same day to match Bambu Lab's bulk-discount bar (message+totals strip / track panel with threshold markers / CTA) and this site's own black/white palette instead of an arbitrary color — see `DECISIONS.md`, "Quick Order removal, shop-page visibility fix, and bar redesign," items 3–4. Verified end-to-end live: the bar renders correctly on an ordinary single product page, the shop grid, and the (WooCommerce Blocks) cart page, with its message/fill/stats/subtotal matching a real cart's contents. Two real bugs surfaced and were fixed during that work, both worth re-checking specifically since neither produced a visible on-page error — see the note in that DECISIONS.md section, and the "ends with `</html>`" check below.
 
-- [ ] As an approved wholesale customer, visit any ordinary single product page. Confirm a bar appears fixed to the bottom of the viewport: a black strip with a message and live cart subtotal/Display-Case count, a light grey track panel with two threshold-marker dots (labeled "16 displays"/"Free shipping" and "16 cases"/"Best price" on wider screens), and a "View cart" button — all in black/white/grey, not a color that doesn't appear anywhere else on the site.
+- [ ] **(Look updated in 1.2.0 — §18 has the visual checks.)** As an approved wholesale customer, visit any ordinary single product page. Confirm a Protech Blue bar floats at the bottom of the viewport with a tier chip and message, a track with three markers (Standard, "16 displays", "16 cases"), the live cart subtotal/Display-Case count, and a "View cart" button.
 - [ ] **View the page's source (not just the rendered page) and confirm it ends with a real `</html>` tag.** This is the specific failure mode two different bugs caused during development — a plugin PHP fatal in this bar's own template/handler can truncate the entire response silently while still returning a 200, with no visible on-page error. If a future change to this bar (or Reorder, which shares the same failure mode) ever breaks it again, this is the check that will actually catch it.
-- [ ] Resize the browser below ~680px wide (or use phone device emulation). Confirm the bar stacks into three rows (message, track, "View cart"), the marker labels and reward text ("Free shipping"/"Best price") disappear, but the marker dots, message, live subtotal/count, and "View cart" button all remain visible and usable — this is a deliberate difference from Bambu's own mobile view (see DECISIONS.md for why).
+- [ ] Resize the browser below ~680px wide (or use phone device emulation). Confirm the bar goes full width, flush to the bottom edge, in **two** rows (chip + message + a cart button showing the subtotal; then the track with the display/case count beside it), the marker captions and tick marks disappear, but the marker dots, message, count and cart button all remain visible and usable — this is a deliberate difference from Bambu's own mobile view (see DECISIONS.md for why).
 - [ ] Add a wholesale product to your cart from that product page's normal "Add to Cart" button (with the Display/Case unit selector — section 16). Confirm the page does **not** reload, a brief loading state shows on the button, and the bar updates in place to reflect the new cart subtotal, Display/Case count, and message — this specifically exercises `unit-selector.js`'s Store-API-based AJAX add (see `DECISIONS.md`, "Bar made non-dismissible, and a real live-update gap fixed," for why the more obvious approach didn't work for a variable product).
 - [ ] Cross the Volume threshold this way and confirm the message, fill percentage, active-tier marker styling, and subtotal/count all update correctly.
 - [ ] Also confirm the site's normal mini-cart (if the theme has one) updates too after that same add — it should, since the fix reuses WooCommerce's own `wc_fragment_refresh` mechanism rather than something bar-specific.
@@ -160,14 +160,14 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 
 > Added 2026-09-17, after "no way to differentiate Display/Case" feedback on the real flagship product. A small "Order by: Display / Case" + quantity control now sits above the real (JS-hidden) pack-quantity field on the single product page, wholesale-customers-only. Two real bugs were found and fixed getting here — see `DECISIONS.md`, "Display/Case unit selector on the product page, and a stepper bug": the on-page quantity stepper was incrementing by 1 instead of jumping by the case size (a WooCommerce arg-key typo, `input_step` vs `step` — validation itself was never affected), and the selector didn't render at all on first attempt (a hook-signature mismatch, fixed the same way `ProductFields::render_simple_fields()` already handles it).
 
-- [ ] As an approved wholesale customer, open the real flagship product's page. Confirm an "Order by" dropdown (Display / Case) and a "Quantity" number field appear above the Add to Cart button, and that the real WooCommerce quantity stepper is no longer visible.
+- [ ] As an approved wholesale customer, open the real flagship product's page. Confirm an "Order by" pair of cards (Display / Case) and a "How many" −/+ stepper appear above the Add to Cart button, and that **the theme's own quantity stepper is NOT visible anywhere on the page** — it never actually hid before 1.2.0 (see `DECISIONS.md`, "Storefront polish", item 3), which is the bug this check exists for.
 - [ ] With "Display" selected and quantity `1`, click the +/- on the (now hidden) native field is moot — instead confirm Add to Cart adds **10 packs** (or whatever the product's actual packs-per-display is). Set quantity to `3` Displays and confirm it adds 30 packs.
 - [ ] Switch to "Case" and set quantity `1`. Confirm it adds **80 packs** (packs-per-display × displays-per-case), not 10.
-- [ ] On the variable flagship product, switch color (variation). Confirm the "Order by" dropdown's option labels (e.g. "Display (10 packs)") stay correct for the new color, and that adding to cart still adds the right pack count — this exercises `add_unit_data_to_variation()` / the `found_variation` re-sync, even though every color on this catalog currently shares the same case size.
+- [ ] On the variable flagship product, switch color (variation). Confirm the "Order by" cards' captions (e.g. "10 packs", "8 displays · 80 packs") stay correct for the new color, and that adding to cart still adds the right pack count — this exercises `add_unit_data_to_variation()` / the `found_variation` re-sync, even though every color on this catalog currently shares the same case size.
 - [ ] Disable JavaScript (or block the plugin's scripts) and reload the product page. Confirm the "Order by" selector is still visible but inert, and the real WooCommerce quantity field is visible and usable underneath it, still correctly stepped in multiples of the case size (min/step from `CaseRules::set_quantity_step()`, unaffected by JS) — a degraded but still-correct fallback, never a silently wrong one.
 - [ ] As a retail (non-wholesale) customer/guest, confirm the "Order by" selector never appears, and the quantity field behaves with no restriction (step 1, min 1).
-- [ ] Click Add to Cart with JS enabled. Confirm the button shows a brief loading state, the page does **not** reload, and the "Order by"/Quantity fields reset back to "Display" / `1` afterward (ready for the next add).
-- [ ] Force a validation failure — e.g. edit the DOM (or a script blocker) to submit a quantity that isn't a multiple of the case size — and confirm an inline error message appears near the selector (in place of the usual "X packs total" hint) rather than the page silently doing nothing or crashing.
+- [ ] Click Add to Cart with JS enabled. Confirm the button shows a brief loading state, the page does **not** reload, a green "Added … to your cart" line appears under the stepper for a few seconds, and the quantity resets to `1` while the chosen unit (Display or Case) **stays** as it was.
+- [ ] Force a validation failure — e.g. edit the DOM (or a script blocker) to submit a quantity that isn't a multiple of the case size — and confirm an inline error message appears near the selector (in place of the usual "3 displays · 30 packs" read-back) rather than the page silently doing nothing or crashing.
 
 ## 17. Version 1.1.0 audit fixes
 
@@ -216,4 +216,103 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 **Tooling**
 - [ ] Confirm GitHub Actions is green on the latest commit (PHPUnit inside wp-env). Lint/analysis steps are advisory.
 - [ ] Run `bin/deploy.sh` and confirm `tests/`, `vendor/`, and `composer.json` are absent from the plugin directory on staging.
+
+## 18. Version 1.2.0 storefront polish
+
+> Added 2026-09-17 (evening). A visual pass over everything a wholesale customer sees — see `DECISIONS.md`, "Storefront polish, version 1.2.0". **None of this has been seen in a browser yet**: it was written against the live theme's CSS and markup, and the JavaScript passed a syntax check, but this checklist is the first real look. Hard-refresh once after deploying. Test at 1440px, ~800px and 375px unless a check says otherwise.
+
+**Product page: one quantity control**
+- [ ] Exactly one quantity control is visible — the theme's own −/+ pack stepper is gone (this was the reported "two quantity selectors" confusion).
+- [ ] The Display and Case cards each state their pack count; the selected card is blue with a check. Tab to them and switch with the arrow keys; the focus ring is visible.
+- [ ] −/+ changes the number, never below 1. Typing a number works; clearing the field and tabbing away restores `1`.
+- [ ] The line under the stepper reads e.g. "3 displays · 30 packs", and in Case mode "2 cases · 16 displays · 160 packs". The word beside the stepper follows the unit and the plural.
+- [ ] The Add to cart button reads "Add 3 displays to cart" / "Add 1 case to cart" and the cart receives exactly that many packs.
+- [ ] After adding: a green "Added 3 displays (30 packs) to your cart." line shows for a few seconds, the quantity returns to 1, the unit stays put.
+- [ ] Choose Case, open a different product: Case is preselected (remembered per browser).
+- [ ] On the variable flagship product, change colour: card captions, read-back and button text stay correct.
+
+**Sticky bar**
+- [ ] Desktop: a rounded Protech Blue dock floats ~14px above the bottom edge. **Its left and right edges line up exactly with the floating header card.** Resize the window: it follows. (If the header can't be found it falls back to a centred 1180px.)
+- [ ] **Scroll to the very bottom of several pages (home, shop, a product, My Account, the cart).** Page content can be scrolled fully clear of the dock, and the space under the footer is the **footer's own colour** — no white (or any other) band. This was the first bug found on staging: see `DECISIONS.md`, "Storefront polish", item 14. Also check a page whose last section is light: the space should be light there.
+- [ ] It slides in once on the first page of a browser session and does not re-animate on later pages.
+- [ ] Left to right: a "WHOLESALE · STANDARD" chip with the message (quantity in bold), the track, subtotal with "N displays (N cases)" under it, a white "View cart" pill.
+- [ ] Track: three markers — Standard at the start, "16 displays" at 40% with "$5.00/pack + free shipping", "16 cases" at the end with "$4.50/pack, our best price" — plus faint tick marks between them. Reached markers are white with a blue check. (Prices are the store defaults from the Pricing tab with the account's tier discount; if the catalogue ever makes that misleading, `protech_wholesale_tier_bar_show_prices` removes them.)
+- [ ] With an empty cart the message reads "Add 16 displays to unlock Volume pricing and free shipping."; with 15 displays, "Add **1** more display…" (singular).
+- [ ] **Preview:** on a product page, raise the quantity and watch a paler striped segment extend ahead of the fill. When the dialled-in quantity would cross a tier, that marker pulses.
+- [ ] **Celebration:** from under 16 displays, add enough to cross into Volume. Confirm, once: the Volume marker pops with a ring, a sheen sweeps the dock, confetti bursts upward from the marker, the chip changes to VOLUME, a gold "Saving $X" appears, and the message changes. Navigate to another page: no replay.
+- [ ] Repeat into Bulk (16 cases): chip turns white-on-blue "BULK", track is full, "You've unlocked our best price and free shipping!".
+- [ ] Cross a tier through a full page reload instead (use **Reorder** on a large past order): the celebration still fires once after the page loads.
+- [ ] Remove items to drop a tier: the bar updates quietly, no celebration.
+- [ ] The cart button gives a small bump on every cart change; changed numbers tick into place.
+- [ ] Below ~1160px wide (try 1100px and 800px): two rows; the cart pill shows the subtotal instead of "View cart"; marker captions still visible and never overlapping each other.
+- [ ] 375px: flush to the bottom, rounded top corners, dots only (no captions or ticks), message clamps to two lines, nothing overlaps. On an iPhone the home-indicator area is clear.
+- [ ] With the OS "reduce motion" setting on: no slide-in, shine, pulse or confetti; tier changes still show through colour and text.
+- [ ] Still absent on checkout; still absent for retail customers and guests.
+
+**Product page price table**
+- [ ] The active row has a blue left rule and tint with a "Your cart" badge; Volume and Bulk rows show a green "Save N%" chip that matches the prices.
+- [ ] After an AJAX add that crosses a tier, the highlight moves to the new row without a reload. (Known gap: the big price above the table only updates on the next page load.)
+
+**Header cart badge**
+- [ ] As a wholesale customer with 3 displays in the cart the navbar badge reads **3**, not 30 — desktop header and the mobile header. The Blocks mini-cart count agrees.
+- [ ] With 120+ displays the badge is a pill with the number fully inside it and legible.
+- [ ] As a retail customer the badge still counts items and looks exactly as before.
+
+**My Account**
+- [ ] Approved: a strip at the top of **every** account page (dashboard, orders, addresses, account details) shows a shield icon, the business name (billing company, else the name from the application), and a blue "WHOLESALE PARTNER" badge. It spans the full width above the navigation and doesn't break the two-column layout.
+- [ ] Pending applicant: the same strip in amber with "APPLICATION UNDER REVIEW"; the existing notice still shows beneath it.
+- [ ] Retail customer: no strip.
+- [ ] Dashboard card: blue header with the tier badge, progress rail with a tick at the Volume point, stat tiles (displays, cases, subtotal, plus green "Tier savings" once at Volume), a three-line tier checklist with blue checks on unlocked tiers, and two buttons (blue "Shop at wholesale pricing", text-style "View cart").
+
+**`/wholesale`**
+- [ ] Logged out, desktop: a wide two-panel card roughly the width of the `/my-account` login — blue pitch panel on the left (four benefits whose numbers match the Pricing tab), form on the right. Compare both pages side by side.
+- [ ] Inputs are tall with a blue focus ring; the eye button shows/hides the password; "Remember me" and "Lost your password?" share a row; the Log in button is blue and stays blue on hover (the theme forces black on submit buttons — this is the override to watch).
+- [ ] A password manager offers to fill the form.
+- [ ] Wrong password: the error appears in a red box with an icon and **no literal HTML tags**, and the username field keeps what was typed.
+- [ ] Under ~860px the form sits above the pitch panel; at 375px nothing overflows.
+- [ ] Pending: centred card with a clock icon and a three-step tracker (received ✓ → under review, pulsing → approved). Rejected and retail-only: the same card with their own icon and button.
+- [ ] Headings and paragraphs on all four states have sane spacing (the theme adds 28px under every paragraph; the plugin resets it).
+
+**Starter kit feature (not used on the Vendor Starter Kit — see §19 for that product)**
+
+> The owner decided (2026-09-17, late) that the Vendor Starter Kit stays a plain unlisted $800 product for new vendors. The kit feature stays in the plugin for a future product. To exercise it, use a **disposable** simple product and delete it afterwards.
+
+- [ ] Set up a test kit: on a disposable simple product's Wholesale tab tick **Starter kit**, choose *Protech Premium Matte Sleeves* under "Kit is built from", leave "Displays in a kit" empty (= 16), pick Black then White under "Make up the difference with", tick Wholesale only, Update.
+- [ ] As an admin (not wholesale), open that product's page: it loads (no 404) and shows the "approved wholesale accounts only" notice with no price and no button.
+- [ ] As the wholesale customer: the page shows every colour with a swatch, "×2" on Black and White, "16 displays · 160 packs", a kit total of **$800.00** with "Volume pricing ($5.00/pack) with free shipping.", a how-many stepper, and "Add starter kit to cart". The price beside the title is the same $800.00. No Display/Case control and no price table on this page.
+- [ ] The sticky bar's preview segment reaches the "16 displays" marker and that marker pulses while the page is open with an empty cart.
+- [ ] Set 2 kits: the button reads "Add 2 starter kits to cart" and the total re-quotes (32 displays, still Volume pricing). Set 8: 128 displays is 16 cases, so the quote switches to Bulk pricing ($4.50/pack).
+- [ ] Add 1 kit with an empty cart. Confirm: a green "Starter kit added: 16 displays are in your cart." line, the bar celebrates Volume, the cart holds one line per colour (Black and White at 20 packs, the rest at 10), no Vendor Starter Kit line, subtotal $800.00, free shipping at checkout.
+- [ ] Mark one colour out of stock and reload the kit page: it is listed as left out, and the fillers cover the shortfall so the kit is still 16 displays.
+- [ ] Reorder the resulting order from My Account: all 16 displays come back into the cart.
+- [ ] Disable JavaScript and click the button: the kit is added and you land on the cart with the same success notice.
+
+## 19. Version 1.3.0 admin audit, updates, and the Vendor Starter Kit
+
+> Added 2026-09-18. Written against the WordPress and WooCommerce source but not run locally; the admin screens were fetched with the saved admin session after deploy (every tab 200, no critical error) and nothing more. This is the first real look.
+
+**Vendor Starter Kit (product #1656), back to a plain product**
+- [ ] On its edit screen: Regular price 800; Catalog visibility (Publish box) **Hidden**; Wholesale tab: Wholesale only **unticked**, Wholesale price **empty**, Starter kit **unticked**, Packs per display empty. Update.
+- [ ] Logged out, open `/product/starterkit/` from the one-sheet link: an ordinary $800 product with a quantity box stepping by 1 and Add to cart. Add it: the cart holds one "Vendor Starter Kit" line at $800. It does not appear in the shop or search.
+- [ ] Logged in as a wholesale customer, open the same link: $800, quantity 1 accepted (no "multiples of 10 packs" error), no Display/Case control, no price table, no "Displays: N" on the cart line, and the sticky bar's display count and tier do not move when it is in the cart.
+- [ ] The header cart badge counts it as 1.
+
+**Wholesale screen**
+- [ ] With a pending application, the WooCommerce → Wholesale menu item shows a red count bubble; approve or reject it and the bubble updates (within five minutes at most; immediately after an approve/reject).
+- [ ] Under the "Wholesale" title: links to the wholesale login page, the application form and the log. All three open the right thing.
+- [ ] Temporarily remove Protech Wholesale Shipping from its zone: the Applicants tab shows a yellow "not fully set up" notice naming that; add it back and the notice is gone. Set the application form ID to 999: the notice names the missing form; restore it.
+- [ ] The Help pull-down (top right) has "Wholesale tabs" and "Pricing a product".
+- [ ] Tiers tab: two columns only (Tier, Discount), no minimum order anywhere; save a Silver discount and confirm a Silver customer's prices reflect it.
+- [ ] Customers tab: loads quickly; change one customer's tier in the dropdown and Save tiers; their profile shows the new tier.
+- [ ] Pricing & Shipping: three groups; the ladder rows read Standard / Volume / Bulk with no "(Tier N)"; the shipping group names the zone(s) that have the method; the "Never give wholesale orders the retail free-shipping rule" box saves and reloads correctly.
+- [ ] Settings: Catalog, Applications (with the notification email), Updates, Uninstall. Set a notification email, submit a test application, confirm it arrives there.
+- [ ] Products tab: Volume/Bulk override columns and a Flags column; the empty-state text no longer mentions a "General pricing section".
+- [ ] Products → All Products: a "Wholesale" column after Price showing the price (or range), with "Wholesale only" / "Starter kit" badges where set.
+- [ ] Flagship product → Wholesale tab: three "Apply to all variations" fields with a "Currently $5.50 on 14 of 14 variations" line. Enter 5.55 in the first, Update: every variation shows 5.55 on the Variations tab and the line updates. Put it back to 5.50.
+- [ ] User profile: the "Minimum order override" field is gone; tier and price overrides still save.
+
+**Plugins list and updates**
+- [ ] Plugins → Protech Wholesale row: "Applicants | Settings" before Deactivate; "Changelog | Check for updates" under the description. Changelog opens a modal with the release notes; Check for updates returns to the list with a notice.
+- [ ] With staging on an older version than the latest GitHub release: the row shows "There is a new version of Protech Wholesale available" with View details; Update now installs it, the plugin stays active, and the version on the row changes.
+- [ ] Settings → Updates shows installed version, latest release with date, last checked, and Check now.
 

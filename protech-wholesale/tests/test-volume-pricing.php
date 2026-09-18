@@ -92,7 +92,6 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 			Tiers::OPT_TIER_SETTINGS,
 			array(
 				Tiers::SILVER => array(
-					'min_order'        => '',
 					'discount_percent' => '20',
 				),
 			)
@@ -123,8 +122,104 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 		$this->assertSame( 0.0, $state['fill_percent'] );
 		$this->assertSame( 16, $state['volume_threshold_displays'] );
 		$this->assertSame( 16, $state['bulk_threshold_cases'] );
-		// 16 displays out of a 128-display (16 cases x 8) track.
-		$this->assertSame( 12.5, $state['volume_marker_percent'] );
+		// The track is two segments: the Volume marker sits at a fixed 40%,
+		// not at 16/128 = 12.5% of one linear scale.
+		$this->assertSame( VolumePricing::VOLUME_MARKER_PERCENT, $state['volume_marker_percent'] );
 		$this->assertStringContainsString( '16', $state['message'] );
+		$this->assertSame( 'Standard', $state['tier_label'] );
+		$this->assertSame( '', $state['savings_html'] );
+		$this->assertStringContainsString( '<strong>16</strong>', $state['message_html'] );
+		$this->assertSame( 16, $state['scale']['volume_displays'] );
+		$this->assertSame( 128, $state['scale']['bulk_displays'] );
+	}
+
+	public function test_scale_percent_is_two_straight_segments(): void {
+		$this->assertSame( 0.0, VolumePricing::scale_percent( 0.0, 16, 128 ) );
+		$this->assertSame( 20.0, VolumePricing::scale_percent( 8.0, 16, 128 ) );
+		$this->assertSame( 40.0, VolumePricing::scale_percent( 16.0, 16, 128 ) );
+		// Halfway between Volume (16) and Bulk (128) is halfway between 40% and 100%.
+		$this->assertSame( 70.0, VolumePricing::scale_percent( 72.0, 16, 128 ) );
+		$this->assertSame( 100.0, VolumePricing::scale_percent( 128.0, 16, 128 ) );
+		$this->assertSame( 100.0, VolumePricing::scale_percent( 500.0, 16, 128 ) );
+	}
+
+	public function test_scale_percent_falls_back_to_linear_when_volume_is_not_below_bulk(): void {
+		$this->assertSame( 50.0, VolumePricing::scale_percent( 8.0, 16, 16 ) );
+		$this->assertSame( 25.0, VolumePricing::scale_percent( 4.0, 32, 16 ) );
+		$this->assertSame( 0.0, VolumePricing::scale_percent( 10.0, 16, 0 ) );
+	}
+
+	public function test_tier_bar_state_at_volume_reports_savings_and_reaches_the_marker(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' );
+
+		wp_set_current_user( $customer_id );
+		WC()->cart->empty_cart();
+		WC()->cart->add_to_cart( $product->get_id(), 160 ); // 16 displays = 2 cases: Volume.
+
+		$state = VolumePricing::get_tier_bar_state( $customer_id );
+
+		$this->assertSame( VolumePricing::TIER_VOLUME, $state['tier'] );
+		$this->assertSame( 'Volume', $state['tier_label'] );
+		$this->assertSame( VolumePricing::VOLUME_MARKER_PERCENT, $state['fill_percent'] );
+		// 160 packs x ( 5.50 Standard - 5.00 Volume ).
+		$this->assertSame( 80.0, $state['savings'] );
+		$this->assertNotSame( '', $state['savings_html'] );
+		$this->assertStringContainsString( '<strong>14</strong>', $state['message_html'] );
+
+		WC()->cart->empty_cart();
+	}
+
+	public function test_tier_bar_state_at_bulk_fills_the_track(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' );
+
+		wp_set_current_user( $customer_id );
+		WC()->cart->empty_cart();
+		WC()->cart->add_to_cart( $product->get_id(), 1280 ); // 128 displays = 16 cases: Bulk.
+
+		$state = VolumePricing::get_tier_bar_state( $customer_id );
+
+		$this->assertSame( VolumePricing::TIER_BULK, $state['tier'] );
+		$this->assertSame( 100.0, $state['fill_percent'] );
+		// 1280 packs x ( 5.50 Standard - 4.50 Bulk ).
+		$this->assertSame( 1280.0, $state['savings'] );
+
+		WC()->cart->empty_cart();
+	}
+
+	public function test_savings_ignore_lines_on_a_per_customer_override(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		$product     = Protech_Test_Factory::simple_product( '5.50' );
+
+		update_user_meta( $customer_id, Approval::META_PRICE_OVERRIDES, array( $product->get_id() => 3.25 ) );
+
+		$items = Protech_Test_Factory::cart_items( array( array( $product, 160 ) ) );
+
+		$this->assertSame( 0.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_VOLUME ) );
+		$this->assertSame( 0.0, VolumePricing::get_savings_for_items( $items, $customer_id, VolumePricing::TIER_STANDARD ) );
+	}
+
+	public function test_marker_prices_carry_the_hidden_customer_tier_discount(): void {
+		$customer_id = Protech_Test_Factory::wholesale_customer();
+		WC()->cart->empty_cart();
+
+		$plain = VolumePricing::get_tier_bar_state( $customer_id );
+		$this->assertStringContainsString( '5.00', $plain['volume_price_html'] );
+		$this->assertStringContainsString( '4.50', $plain['bulk_price_html'] );
+
+		update_option(
+			Tiers::OPT_TIER_SETTINGS,
+			array(
+				Tiers::SILVER => array(
+					'discount_percent' => '20',
+				),
+			)
+		);
+		Tiers::set_user_tier( $customer_id, Tiers::SILVER );
+
+		$discounted = VolumePricing::get_tier_bar_state( $customer_id );
+		$this->assertStringContainsString( '4.00', $discounted['volume_price_html'] );
+		$this->assertStringContainsString( '3.60', $discounted['bulk_price_html'] );
 	}
 }

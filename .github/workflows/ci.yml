@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: Lint, analyse, and test
@@ -43,3 +46,83 @@ jobs:
 
       - name: PHPUnit (inside the wp-env tests container)
         run: npx --yes @wordpress/env@latest run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit
+
+  # Every push to main that passes the tests becomes a GitHub release, tagged
+  # with the version from the plugin header, with protech-wholesale.zip
+  # attached. Sites read that release through the plugin's own updater
+  # (includes/class-updater.php) and offer it in the Plugins list. A version
+  # that already has a tag is left alone, so pushing docs or CI changes to
+  # main without bumping the version publishes nothing.
+  release:
+    name: Publish release
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read the plugin version
+        id: version
+        run: |
+          version=$(sed -n 's/^ \* Version:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' protech-wholesale/protech-wholesale.php | head -n 1)
+          if [ -z "$version" ]; then
+            echo "Could not read the Version header." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$version is already released; nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build protech-wholesale.zip
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          # Same exclusions as bin/deploy.sh: nothing the plugin loads at
+          # runtime is left out, and nothing dev-only goes in. The folder
+          # name inside the zip must be protech-wholesale/ so WordPress
+          # installs it over the existing plugin directory.
+          zip -r protech-wholesale.zip protech-wholesale \
+            -x 'protech-wholesale/.git*' \
+            -x 'protech-wholesale/.DS_Store' \
+            -x 'protech-wholesale/Thumbs.db' \
+            -x 'protech-wholesale/*.log' \
+            -x 'protech-wholesale/.idea/*' \
+            -x 'protech-wholesale/.vscode/*' \
+            -x 'protech-wholesale/vendor/*' \
+            -x 'protech-wholesale/tests/*' \
+            -x 'protech-wholesale/composer.json' \
+            -x 'protech-wholesale/composer.lock' \
+            -x 'protech-wholesale/phpunit.xml.dist' \
+            -x 'protech-wholesale/phpstan.neon.dist' \
+            -x 'protech-wholesale/.phpcs.xml.dist'
+          unzip -l protech-wholesale.zip | tail -n 1
+
+      - name: Release notes from CHANGELOG.md
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          # The section for this version: from its "## <version>" heading up
+          # to the next "## " heading. Falls back to a one-liner.
+          awk -v v="${{ steps.version.outputs.version }}" '
+            /^## / { if (found) exit; if (index($0, "## " v) == 1) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Protech Wholesale ${{ steps.version.outputs.version }}" > release-notes.md
+          fi
+          cat release-notes.md
+
+      - name: Create the GitHub release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" protech-wholesale.zip \
+            --title "Protech Wholesale ${{ steps.version.outputs.version }}" \
+            --notes-file release-notes.md \
+            --target "${{ github.sha }}"

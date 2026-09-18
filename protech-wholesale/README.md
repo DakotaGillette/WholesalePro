@@ -23,18 +23,20 @@ A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com)
 
 ## Admin screens
 
-Everything lives under **WooCommerce → Wholesale**:
+Everything lives under **WooCommerce → Wholesale**. The menu item shows a count bubble while applications are waiting, the Plugins list row links straight to Applicants and Settings, and a notice at the top of the screen lists anything not set up yet (shipping method not in a zone, no priced product, no portal page, unknown form ID) until it is. The Help pull-down on the screen explains each tab.
 
 | Tab | What's there |
 |---|---|
 | Applicants | Pending / Approved / Rejected applications with Approve and Reject (with an optional reason) actions, search, pagination. |
-| Customers | Every wholesale customer: store, tier, override count, orders, last order, lifetime spend. |
-| Products | Every product with wholesale pricing or flagged wholesale-only, for reference. |
-| Pricing & Shipping | The Standard/Volume/Bulk ladder (thresholds and store-default prices), packs-per-display and displays-per-case defaults, and the wholesale shipping flat rate. |
+| Customers | Every wholesale customer: store, tier (change it here and Save), override count, orders, last order, lifetime spend. |
+| Products | Every product priced or flagged for wholesale: price, Volume and Bulk overrides, packs per display, flags. The same summary is a "Wholesale" column on Products → All Products. |
+| Pricing & Shipping | Quantity pricing (the Standard/Volume/Bulk ladder), display and case defaults, and wholesale shipping: the flat rate, which zones have the method, and the retail free-shipping exclusion. |
 | Tiers | Bronze/Silver/Gold/Platinum discount percentages (internal, never shown to customers). |
-| Settings | Empty-price behaviour, retail coupons, free-shipping exclusion, application form source/ID, uninstall purge. |
+| Settings | Catalog (empty-price behaviour, coupons), Applications (form plugin, form ID, notification email), Updates (installed and latest release, check now), Uninstall. |
 
-Per-customer settings (wholesale flag, tier, per-customer price overrides) and the customer's submitted application are on their **user profile** (Users → Edit).
+Per-customer price overrides, the wholesale flag and the customer's submitted application are on their **user profile** (Users → Edit); the tier is there too.
+
+Pricing a product happens on the product's own **Wholesale** tab. A variable product has "Apply to all variations" fields there that write one price to every colour on Update; one colour can still be priced differently on the Variations tab.
 
 ## Settings reference
 
@@ -42,7 +44,8 @@ Per-customer settings (wholesale flag, tier, per-customer price overrides) and t
 |---|---|---|---|
 | Products with no wholesale price | `protech_wholesale_empty_price_behavior` | `hide` | What a wholesale customer sees for a product with no wholesale price. `hide` removes it from the wholesale shop/search/category views entirely (at the query level, so pagination and counts stay right). `fallback` shows the retail price with a "(retail only)" note. |
 | Allow retail coupons for wholesale customers | `protech_wholesale_allow_retail_coupons` | `no` | When off, any coupon applied by a wholesale account is rejected. |
-| Exclude wholesale orders from free shipping | `protech_wholesale_exclude_free_shipping` | `yes` | Keeps the retail free-shipping rule from applying to wholesale customers in zones where the wholesale method hasn't been added. |
+| Retail free shipping (on Pricing & Shipping) | `protech_wholesale_exclude_free_shipping` | `yes` | Keeps the retail free-shipping rule from applying to wholesale customers in zones where the wholesale method hasn't been added. |
+| Send new-application emails to | `protech_wholesale_notification_email` | empty (site admin email) | Where the "new wholesale application" email goes. |
 | Application form source / form ID | `protech_wholesale_application_source` / `protech_wholesale_application_form_id` | `fluent_forms` / `4` | Which plugin and which exact form produce wholesale applications. Adapters exist for Gravity Forms, WPForms, Contact Form 7, and Fluent Forms, plus a native fallback form (`[protech_wholesale_application]`). |
 | On uninstall | `protech_wholesale_purge_on_uninstall` | `no` | If checked, deleting the plugin removes its settings, roles, the auto-created `/wholesale` page (only if unmodified), and wholesale user meta. Product pricing meta and order flags are never removed. See `uninstall.php`. |
 
@@ -65,11 +68,26 @@ Wholesale sells sleeves by two units, both built on the "pack" WooCommerce track
 - **Shipping**: a flat $19.95 below the Volume threshold, free at or above it — a real WooCommerce shipping method (`Wholesale Shipping`), only shown to wholesale customers whose cart holds wholesale-eligible items, and only once it's been added to a zone. When present it hides the zone's retail Flat rate / Free shipping methods (list filterable via `protech_wholesale_retail_shipping_methods`).
 - Wholesale quantities must be multiples of the packs-per-display: enforced at add-to-cart (classic and Store API), on the Blocks cart's own quantity controls, and again at checkout.
 - Cart/checkout lines carry a "Displays: N" annotation; it is saved on the order line item.
-- There is **no dollar-based order minimum**. The "Minimum order" fields on the Tiers tab and user profile are from an earlier design and are not enforced anywhere; they're labelled as such pending a decision to remove or re-enable them.
+- There is **no dollar-based order minimum**; the fields from an earlier design were removed in 1.3.0.
+- Display and case rules apply only to products that carry a wholesale price. A product without one (a sample pack sold at a plain price from a link, say) is bought on ordinary retail terms by everyone, one at a time, and counts toward nothing.
 
 ## The sticky tier bar
 
-A bar fixed to the bottom of the viewport on every front-end page except checkout, for logged-in wholesale customers only: a message ("Add 3 more displays to unlock better pricing + free shipping"), the live cart subtotal and Display/Case count, and a track with markers for the Volume and Bulk thresholds. It updates without a page reload after any add-to-cart anywhere on the site, and is deliberately not dismissible. See `class-global-tier-bar.php`.
+A Protech Blue dock floating at the bottom of the viewport (full width on phones) on every front-end page except checkout, for logged-in wholesale customers only: a tier chip and message ("Add 3 more displays to unlock Volume pricing and free shipping"), a track with Standard / Volume / Bulk markers, the live cart subtotal, Display/Case count and — once a tier is reached — what that tier is saving the order. It updates without a page reload after any add-to-cart anywhere on the site, previews where the quantity being dialled in on a product page would land, celebrates a newly reached tier once, and is deliberately not dismissible. All motion is disabled under `prefers-reduced-motion`. See `class-global-tier-bar.php`.
+
+- The track is two segments (Volume marker at 40%), not one linear scale — see `VolumePricing::scale_percent()`.
+- The per-pack prices on the Volume/Bulk markers are the **store defaults** from the Pricing tab with the customer's tier discount applied. If most products carry their own Volume/Bulk overrides, remove them with `add_filter( 'protech_wholesale_tier_bar_show_prices', '__return_false' );`.
+- Every new state is re-broadcast as a `protech:tier-state` DOM event (`event.detail` is the state) for theme code that wants to react to it.
+- The dock matches the width of the site header: a header that is a floating card (as on this site) is matched edge for edge, a full-width header on the content inside it. Point it at a different element with the `protech_wholesale_tier_bar_align_selector` filter (a CSS selector; return `''` for a centred 1180px dock).
+- The room it reserves at the end of each page takes the colour of whatever the page ends with, so it blends into the footer. If that guess is ever wrong, set it with the `protech_wholesale_tier_bar_spacer_color` filter (any CSS colour).
+
+## Other customer-facing pieces
+
+- **Product page order control**: Display / Case cards, a −/+ stepper and a live read-back ("3 displays · 30 packs") replace the theme's pack stepper; the Add to cart button restates what it will add. See `CaseRules::render_unit_selector()` and `assets/js/unit-selector.js`.
+- **Header cart badge** counts displays, not packs, for wholesale customers (it also drives the Blocks mini-cart count). Switch back with `add_filter( 'protech_wholesale_cart_count_in_displays', '__return_false' );`.
+- **My Account**: a "Wholesale Partner" strip with the business name on every account page (amber "Application under review" for pending applicants), and a dashboard card with the cart's tier, progress and savings.
+- **`/wholesale`**: a two-panel login page whose benefit list is built from the live thresholds (`protech_wholesale_portal_benefits` filter), and a status card for pending / rejected / retail-only visitors.
+- All of it is styled in Protech Blue (`--protech-blue` in `assets/css/wholesale.css`); the theme's own buttons keep the theme's colour.
 
 ## How to approve a customer
 
@@ -85,6 +103,30 @@ A bar fixed to the bottom of the viewport on every front-end page except checkou
 ## How to add a per-customer price
 
 On the user's profile under **Protech Wholesale → Per-customer price overrides**, click **"+ Add price override"**, pick the product or variation with the search box, and enter the **price per pack**. It beats the group price and every quantity tier for that one customer and product only.
+
+## Starter kits
+
+A starter kit is a product page that adds **one display of every colour of another product** to the cart in one click, instead of being sold itself. What lands in the cart is the real colour variations, one line each, so stock is tracked per colour, Reorder works on the order, and the price is whatever the pricing engine charges for that many displays: a 16-display kit reaches the Volume threshold, so it costs 160 packs at the Volume price with free shipping.
+
+Set one up on any simple product's **Wholesale** tab:
+
+1. Tick **Starter kit**.
+2. **Kit is built from**: search for the variable product whose colours make up the kit (the flagship sleeves).
+3. **Displays in a kit**: leave empty to use the Volume threshold (16). If there are fewer colours than this, the difference is made up with extra displays of the colours in the next field.
+4. **Make up the difference with**: the filler colours, in order, e.g. Black then White. With 14 colours that gives one of each plus a second Black and a second White; once there are 16 colours the fillers are no longer used. Nothing to edit when a colour is added.
+5. Usually also tick **Wholesale only**. The kit's own prices and pack sizes are ignored, so they can stay empty.
+
+A colour that is out of stock is left out (the page says so) and the fillers cover the shortfall. The kit's page shows what it contains for that customer today, its total at the tier the cart will reach once it is added, a "how many kits" stepper, and one button. The header price and shop-grid price for the kit are the same live total.
+
+## A plain, unlisted product for new vendors
+
+The Vendor Starter Kit is sold from a link on the one-sheet to vendors who may not have a wholesale account yet, one line at a fixed price. Set it up as an ordinary simple product: Regular price 800; Catalog visibility **Hidden** (WooCommerce's own setting, under Publish, so it is out of the shop and search but the link works); on the Wholesale tab leave **Wholesale only** unticked, **Wholesale price** empty, **Starter kit** unticked and **Packs per display** empty. A guest sees a normal $800 product and can buy it; a logged-in wholesale customer sees the same and can buy one, with no display rule and no effect on their tier.
+
+## Updating
+
+New versions are published as GitHub releases (`DakotaGillette/WholesalePro`, public). The release job in `.github/workflows/ci.yml` runs on every push to `main` that passes the tests: if the version in the plugin header has no tag yet, it builds `protech-wholesale.zip`, takes that version's section of `CHANGELOG.md` as the notes and creates release `v<version>`. WordPress on each site checks that release twice a day (the plugin's `Update URI` header routes the check to `includes/class-updater.php`) and offers it in the Plugins list like any other update, with View details and one-click Update. "Check for updates" under the plugin's row, or "Check now" on Settings → Updates, asks GitHub immediately.
+
+To ship a release: bump `Version:` in `protech-wholesale.php`, add the section to `CHANGELOG.md`, merge to `main`.
 
 ## "Wholesale only" products
 

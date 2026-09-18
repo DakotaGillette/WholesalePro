@@ -1,105 +1,579 @@
 /**
- * Protech Wholesale front-end styles: the /wholesale portal page and the
- * sticky global tier bar. Colors match the live site's actual customizer
- * palette (Salient "Accent Color" = #000000, solid black buttons with
- * 8px corners, #ffffff/#f7f7f7 backgrounds, #e5e5e5 dividers — pulled
- * from wp-content/uploads/salient/salient-dynamic-styles.css) rather
- * than an arbitrary brand color, so this plugin's own UI doesn't clash
- * with the rest of the store. See DECISIONS.md.
+ * Protech Wholesale front-end styles: the product page order control and
+ * price table, the sticky tier bar, the My Account header/card, the
+ * /wholesale portal page, and the header cart badge.
+ *
+ * Palette: Protech Blue (#42649d) is the identity of everything
+ * wholesale-specific — white text on it is 5.9:1, so it carries copy
+ * directly. It deliberately does NOT follow the theme's black accent any
+ * more (see DECISIONS.md, "Storefront polish, version 1.2.0"): blue is how
+ * a partner can tell at a glance which parts of the page are about their
+ * wholesale account. The theme's own buttons (Add to cart, Checkout)
+ * stay the theme's black. Neutrals (#fff/#f7f7f7/#e5e5e5, 8px corners)
+ * still match the live Salient customizer output.
+ *
+ * Fonts are inherited, not set: the site's body font is Poppins, and
+ * forcing a different family here made every plugin element look
+ * slightly foreign.
+ *
+ * Fighting the theme: Salient's base stylesheet gives every <p> 28px of
+ * bottom padding, every <ul>/<ol> a 30px margin with disc bullets, and
+ * forces a black background on button[type=submit]:hover with
+ * !important. The resets and the few !important declarations below exist
+ * for exactly those rules — each one is there because the theme's own
+ * rule was confirmed in its CSS, not as a habit.
  */
 
 :root {
-	--protech-accent: #000000;
-	--protech-accent-dark: #262626;
+	--protech-blue: #42649d;
+	--protech-blue-dark: #34507e;
+	--protech-blue-deep: #2a4166;
+	--protech-blue-light: #a9c2ea;
+	--protech-blue-tint: #eef3fa;
+	--protech-blue-border: #c9d6ea;
+	--protech-ink: #000000;
+	--protech-accent: var( --protech-blue );
+	--protech-accent-dark: var( --protech-blue-dark );
 	--protech-border: #e5e5e5;
 	--protech-muted: #6b7280;
 	--protech-bg: #ffffff;
 	--protech-bg-subtle: #f7f7f7;
 	--protech-danger: #b32d2e;
 	--protech-danger-bg: #fdecea;
+	--protech-success: #1e7a46;
 	--protech-success-bg: #eaf6ef;
+	--protech-warning: #8a5a00;
+	--protech-warning-bg: #fff4d6;
 	--protech-radius: 8px;
-	--protech-font: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	--protech-radius-lg: 16px;
+	--protech-ease: cubic-bezier( 0.22, 1, 0.36, 1 );
+	--protech-font: inherit;
+	/* Set by global-tier-bar.js: how much of the viewport's bottom the
+	 * sticky bar occupies, for anything else that needs to clear it. */
+	--protech-bar-h: 0px;
+	--protech-check-white: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3l2.2 2.3 4.6-5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	--protech-check-blue: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3l2.2 2.3 4.6-5' fill='none' stroke='%2342649d' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
 }
 
-/* -- Display/Case unit selector (single product page) ------------------- */
-.protech-unit-selector {
+/* An author `display` would otherwise beat the [hidden] attribute. */
+.protech-tier-bar [hidden],
+.protech-wholesale-portal [hidden],
+.protech-unit-selector [hidden] {
+	display: none !important;
+}
+
+/* -- Shared: badges ----------------------------------------------------- */
+.protech-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.4em 0.85em;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	line-height: 1.2;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+.protech-badge--partner {
+	background: var( --protech-blue );
+	color: #fff;
+}
+.protech-badge--pending {
+	background: var( --protech-warning-bg );
+	color: var( --protech-warning );
+}
+.protech-badge--on-blue {
+	border: 1px solid rgba( 255, 255, 255, 0.35 );
+	background: rgba( 255, 255, 255, 0.18 );
+	color: #fff;
+}
+
+/* -- Shared: buttons ------------------------------------------------------
+ * `body ...` + the element name puts these one step above the theme's
+ * `.container-wrap button[type=submit]` (padding/radius, !important) and
+ * `button[type=submit]:hover` (black background, !important). ---------- */
+body .protech-wholesale-portal a.protech-button,
+body .protech-wholesale-portal button.protech-button,
+body .protech-account-panel a.protech-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	padding: 0.85em 1.6em !important;
+	border: 2px solid var( --protech-blue ) !important;
+	border-radius: var( --protech-radius ) !important;
+	background-color: var( --protech-blue ) !important;
+	color: #fff !important;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+body .protech-wholesale-portal a.protech-button:hover,
+body .protech-wholesale-portal a.protech-button:focus,
+body .protech-wholesale-portal button.protech-button:hover,
+body .protech-wholesale-portal button.protech-button:focus,
+body .protech-account-panel a.protech-button:hover,
+body .protech-account-panel a.protech-button:focus {
+	border-color: var( --protech-blue-dark ) !important;
+	background-color: var( --protech-blue-dark ) !important;
+	color: #fff !important;
+}
+body .protech-wholesale-portal a.protech-button--outline,
+body .protech-account-panel a.protech-button--ghost {
+	background-color: transparent !important;
+	color: var( --protech-blue ) !important;
+}
+body .protech-account-panel a.protech-button--ghost {
+	border-color: transparent !important;
+}
+body .protech-wholesale-portal a.protech-button--outline:hover,
+body .protech-wholesale-portal a.protech-button--outline:focus,
+body .protech-account-panel a.protech-button--ghost:hover,
+body .protech-account-panel a.protech-button--ghost:focus {
+	border-color: var( --protech-blue ) !important;
+	background-color: var( --protech-blue-tint ) !important;
+	color: var( --protech-blue-dark ) !important;
+}
+body .protech-wholesale-portal .protech-button--block {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 1em;
-	margin: 0 0 1em;
+	width: 100%;
+}
+.protech-button:focus-visible,
+.protech-tier-bar-cta:focus-visible,
+.protech-stepper-btn:focus-visible,
+.protech-password-toggle:focus-visible,
+.protech-lost-password:focus-visible {
+	outline: 3px solid rgba( 66, 100, 157, 0.5 );
+	outline-offset: 2px;
+}
+
+/* -- Display/Case order control (single product page) -------------------- */
+.protech-unit-selector {
+	display: block;
+	max-width: 440px;
+	margin: 0 0 1.25em;
 	font-family: var( --protech-font );
 }
-.protech-unit-selector-field {
-	display: flex;
-	flex-direction: column;
-	gap: 0.3em;
+.protech-unit-fieldset {
+	min-width: 0;
+	margin: 0 0 14px;
+	padding: 0;
+	border: 0;
 }
-.protech-unit-selector-field label {
-	font-size: 0.8em;
-	font-weight: 600;
-	color: #222;
-}
-.protech-unit-selector select,
-.protech-unit-selector input[type="number"] {
-	padding: 0.5em 0.6em;
-	border: 1px solid var( --protech-border );
-	border-radius: var( --protech-radius );
-	background: var( --protech-bg );
-	font-family: inherit;
-}
-.protech-unit-selector-hint {
-	flex-basis: 100%;
-	margin: 0;
-	font-size: 0.8em;
+/* The theme sets `form label { font-size: 14px !important }`. */
+.protech-unit-selector .protech-unit-legend,
+.protech-kit .protech-kit-legend {
+	display: block;
+	margin: 0 0 6px;
+	padding: 0;
+	font-size: 12px !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.06em;
+	line-height: 1.3;
+	text-transform: uppercase;
 	color: var( --protech-muted );
 }
-.protech-unit-selector-hint--error {
-	color: var( --protech-danger );
+.protech-unit-toggle {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+.protech-unit-selector .protech-unit-option {
+	position: relative;
+	display: block;
+	margin: 0;
+	cursor: pointer;
+}
+.protech-unit-option input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+.protech-unit-option-body {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px 40px 12px 14px;
+	border: 2px solid var( --protech-border );
+	border-radius: var( --protech-radius );
+	background: var( --protech-bg );
+	transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.protech-unit-option-body::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 12px;
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	margin-top: -9px;
+	border: 2px solid #cfd4dc;
+	border-radius: 50%;
+	background: transparent center / 10px no-repeat;
+	transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.protech-unit-option:hover .protech-unit-option-body {
+	border-color: var( --protech-blue-border );
+}
+.protech-unit-option input:checked + .protech-unit-option-body {
+	border-color: var( --protech-blue );
+	background: var( --protech-blue-tint );
+	box-shadow: 0 4px 14px rgba( 66, 100, 157, 0.14 );
+}
+.protech-unit-option input:checked + .protech-unit-option-body::after {
+	border-color: var( --protech-blue );
+	background-color: var( --protech-blue );
+	background-image: var( --protech-check-white );
+}
+.protech-unit-option input:focus-visible + .protech-unit-option-body {
+	outline: 3px solid rgba( 66, 100, 157, 0.5 );
+	outline-offset: 2px;
+}
+.protech-unit-option-name {
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: #111;
+}
+.protech-unit-option-meta {
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.3;
+	color: var( --protech-muted );
+}
+.protech-unit-qty-row {
+	margin: 0 0 10px;
+}
+.protech-unit-qty-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.protech-stepper {
+	display: inline-flex;
+	align-items: stretch;
+	overflow: hidden;
+	border: 2px solid var( --protech-border );
+	border-radius: var( --protech-radius );
+	background: var( --protech-bg );
+	transition: border-color 0.2s ease;
+}
+.protech-stepper:focus-within {
+	border-color: var( --protech-blue );
+}
+/* The theme rounds and animates every <button>; these sit inside a group. */
+.protech-unit-selector .protech-stepper-btn,
+.protech-kit .protech-stepper-btn {
+	width: 44px;
+	min-width: 44px;
+	height: 44px;
+	margin: 0;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: var( --protech-bg ) !important;
+	box-shadow: none !important;
+	color: #111 !important;
+	font-family: inherit;
+	font-size: 20px;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+	transform: none !important;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+.protech-unit-selector .protech-stepper-btn:hover,
+.protech-unit-selector .protech-stepper-btn:focus,
+.protech-kit .protech-stepper-btn:hover,
+.protech-kit .protech-stepper-btn:focus {
+	background: var( --protech-blue-tint ) !important;
+	color: var( --protech-blue ) !important;
+}
+.protech-unit-selector .protech-stepper input[type="number"],
+.protech-kit .protech-stepper input[type="number"] {
+	width: 64px;
+	height: 44px;
+	margin: 0;
+	padding: 0 4px;
+	border: 0 !important;
+	border-right: 1px solid var( --protech-border ) !important;
+	border-left: 1px solid var( --protech-border ) !important;
+	border-radius: 0 !important;
+	background: var( --protech-bg ) !important;
+	box-shadow: none !important;
+	color: #111;
+	/* 16px keeps iOS from zooming the page on focus. */
+	font-size: 16px !important;
+	font-weight: 700;
+	text-align: center;
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+.protech-unit-selector .protech-stepper input[type="number"]::-webkit-inner-spin-button,
+.protech-unit-selector .protech-stepper input[type="number"]::-webkit-outer-spin-button,
+.protech-kit .protech-stepper input[type="number"]::-webkit-inner-spin-button,
+.protech-kit .protech-stepper input[type="number"]::-webkit-outer-spin-button {
+	margin: 0;
+	-webkit-appearance: none;
+}
+.protech-unit-word {
+	font-size: 15px;
 	font-weight: 600;
+	color: #111;
+}
+.protech-unit-selector .protech-unit-selector-hint {
+	min-height: 1.45em;
+	margin: 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --protech-muted );
+}
+.protech-unit-selector .protech-unit-selector-hint--error {
+	font-weight: 600;
+	color: var( --protech-danger );
+}
+.protech-unit-selector .protech-unit-selector-hint--success {
+	font-weight: 600;
+	color: var( --protech-success );
+}
+.protech-unit-selector-hint--success::before {
+	content: "\2713\00a0";
 }
 /* The real pack-quantity WooCommerce submits — still present and valid
  * (so a no-JS visitor gets a working, correctly-stepped fallback field),
- * just not user-facing once assets/js/unit-selector.js has taken over. */
-.protech-hidden-qty {
-	display: none;
+ * just not user-facing once assets/js/unit-selector.js has taken over.
+ * The long selectors and !important are load-bearing: Salient's dynamic
+ * stylesheet has `.cart div.quantity { display: flex }`, which outranks a
+ * single class — that is why customers used to see this stepper AND the
+ * Display/Case control, one above the other. */
+.protech-hidden-qty,
+.cart div.quantity.protech-hidden-qty,
+.woocommerce div.product form.cart div.quantity.protech-hidden-qty {
+	display: none !important;
+}
+.single_add_to_cart_button.protech-added,
+.protech-kit-add.protech-added {
+	animation: protech-added-pulse 0.8s var( --protech-ease );
+}
+
+/* -- Starter kit panel (kit product page) --------------------------------
+ * Replaces the add-to-cart form on a kit product: what the kit holds for
+ * this customer, its price at the tier it will land on, and one button.
+ * Shares the stepper with the Display/Case control above. ---------------- */
+.protech-kit {
+	display: block;
+	max-width: 520px;
+	margin: 0 0 1.5em;
+	font-family: var( --protech-font );
+}
+.protech-kit .protech-kit-lines {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 150px, 1fr ) );
+	gap: 6px 12px;
+	margin: 0 0 12px !important;
+	padding: 0;
+	list-style: none;
+}
+.protech-kit .protech-kit-line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none !important;
+	font-size: 14px;
+	line-height: 1.3;
+	color: #222;
+}
+.protech-kit-swatch {
+	flex: 0 0 14px;
+	box-sizing: border-box;
+	width: 14px;
+	height: 14px;
+	border: 1px solid rgba( 0, 0, 0, 0.18 );
+	border-radius: 50%;
+	background: var( --protech-blue-tint );
+}
+.protech-kit-line-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.protech-kit-line-count {
+	flex: 0 0 auto;
+	padding: 0 6px;
+	border-radius: 999px;
+	background: var( --protech-blue );
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 18px;
+}
+.protech-kit .protech-kit-note {
+	margin: 0 0 12px;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --protech-muted );
+}
+.protech-kit-totals {
+	margin: 0 0 16px;
+	padding: 12px 14px;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: var( --protech-radius );
+	background: var( --protech-blue-tint );
+}
+.protech-kit-total {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+.protech-kit-total-label {
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --protech-blue-dark );
+}
+.protech-kit-total-price {
+	font-size: 22px;
+	font-weight: 800;
+	line-height: 1.2;
+	color: #111;
+}
+.protech-kit .protech-kit-summary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin: 4px 0 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var( --protech-muted );
+}
+.protech-kit-tier-note {
+	font-weight: 600;
+	color: var( --protech-blue-dark );
+}
+.protech-kit-form {
+	margin: 0;
+}
+.protech-kit-qty-row {
+	margin: 0 0 14px;
+}
+.protech-kit-qty-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+/* Same look as the theme's own Add to cart button (black, 8px), which
+ * this stands in for. Not given WooCommerce's single_add_to_cart_button
+ * class on purpose: the theme's AJAX add-to-cart script would hijack it. */
+body .protech-kit button.protech-kit-add {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 52px;
+	padding: 0 30px !important;
+	border: 0 !important;
+	border-radius: var( --protech-radius ) !important;
+	background-color: var( --protech-ink ) !important;
+	color: #fff !important;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+body .protech-kit button.protech-kit-add:hover,
+body .protech-kit button.protech-kit-add:focus {
+	background-color: #262626 !important;
+	color: #fff !important;
+}
+body .protech-kit button.protech-kit-add.loading {
+	opacity: 0.6;
+	cursor: wait;
+}
+.protech-kit .protech-kit-message {
+	min-height: 1.45em;
+	margin: 10px 0 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --protech-muted );
+}
+.protech-kit .protech-kit-message--error {
+	font-weight: 600;
+	color: var( --protech-danger );
+}
+.protech-kit .protech-kit-message--success {
+	font-weight: 600;
+	color: var( --protech-success );
+}
+.protech-kit-message--success::before {
+	content: "\2713\00a0";
+}
+@media screen and ( max-width: 480px ) {
+	.protech-kit {
+		max-width: none;
+	}
+	.protech-kit .protech-kit-lines {
+		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	}
 }
 
 /* -- Quantity-tier price table (single product page) -------------------- */
 .protech-tier-ladder {
 	margin: 0 0 1.25em;
 	padding: 1em 1.1em;
-	border: 1px solid var( --protech-border );
+	border: 1px solid var( --protech-blue-border );
 	border-radius: var( --protech-radius );
-	background: var( --protech-bg-subtle );
+	background: var( --protech-bg );
 	font-family: var( --protech-font );
 }
-.protech-tier-ladder-title {
+.protech-tier-ladder .protech-tier-ladder-title {
 	margin: 0 0 0.5em;
-	font-size: 0.8em;
+	padding: 0;
+	font-size: 12px;
 	font-weight: 700;
+	letter-spacing: 0.06em;
+	line-height: 1.3;
 	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: var( --protech-muted );
+	color: var( --protech-blue );
 }
-.protech-tier-ladder-table {
+.protech-tier-ladder .protech-tier-ladder-table {
 	width: 100%;
 	margin: 0;
 	border-collapse: collapse;
-	font-size: 0.9em;
+	font-size: 14px;
+	line-height: 1.4;
 }
 .protech-tier-ladder-table th,
 .protech-tier-ladder-table td {
-	padding: 0.45em 0.5em;
+	padding: 0.6em 0.6em;
 	border: 0;
 	border-bottom: 1px solid var( --protech-border );
+	background: transparent;
 	text-align: left;
 	vertical-align: middle;
-	background: transparent;
+	transition: background-color 0.3s ease;
 }
 .protech-tier-ladder-table th {
-	font-size: 0.8em;
+	font-size: 12px;
 	font-weight: 600;
 	color: var( --protech-muted );
 }
@@ -110,241 +584,732 @@
 	font-weight: 700;
 	white-space: nowrap;
 }
-.protech-tier-ladder-row.is-active td {
-	background: var( --protech-bg );
+.protech-tier-ladder-table .protech-tier-ladder-row.is-active td {
+	background: var( --protech-blue-tint );
 }
-.protech-tier-ladder-badge {
-	display: inline-block;
-	margin-left: 0.4em;
-	padding: 0.1em 0.5em;
-	font-size: 0.7em;
+.protech-tier-ladder-table .protech-tier-ladder-row.is-active td:first-child {
+	box-shadow: inset 3px 0 0 var( --protech-blue );
 	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
+}
+.protech-tier-ladder-table .protech-tier-ladder-row.is-arriving td {
+	animation: protech-row-flash 1.4s ease-out;
+}
+/* Rendered in every row so the script can move the highlight by toggling
+ * .is-active alone; only the active row's badge shows. */
+.protech-tier-ladder-badge {
+	display: none;
+	margin-left: 0.4em;
+	padding: 0.15em 0.55em;
+	border-radius: 999px;
+	background: var( --protech-blue );
 	color: #fff;
-	background: var( --protech-accent );
-	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
 	vertical-align: middle;
+}
+.protech-tier-ladder-row.is-active .protech-tier-ladder-badge {
+	display: inline-block;
 }
 .protech-tier-ladder-note {
 	display: block;
-	font-size: 0.8em;
+	font-size: 12px;
 	font-weight: 600;
-	color: var( --protech-accent-dark );
+	color: var( --protech-blue-dark );
 }
-.protech-tier-ladder-footnote {
-	margin: 0.6em 0 0;
-	font-size: 0.78em;
+.protech-tier-ladder-saving {
+	display: inline-block;
+	margin-left: 0.4em;
+	padding: 0.1em 0.5em;
+	border-radius: 999px;
+	background: var( --protech-success-bg );
+	color: var( --protech-success );
+	font-size: 11px;
+	font-weight: 700;
+	vertical-align: middle;
+}
+.protech-tier-ladder .protech-tier-ladder-footnote {
+	margin: 0.7em 0 0;
+	padding: 0;
+	font-size: 12px;
+	line-height: 1.45;
 	color: var( --protech-muted );
 }
 
-/* -- "Your wholesale account" panel (My Account dashboard) -------------- */
-.protech-account-panel {
-	margin: 0 0 1.5em;
-	padding: 1.1em 1.25em;
-	border: 1px solid var( --protech-border );
-	border-left: 4px solid var( --protech-accent );
-	border-radius: var( --protech-radius );
-	background: var( --protech-bg-subtle );
+/* -- Wholesale status strip (every My Account page) --------------------- */
+.protech-account-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 14px;
+	clear: both;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0 0 24px;
+	padding: 14px 18px;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: 12px;
+	background: linear-gradient( 90deg, var( --protech-blue-tint ), var( --protech-bg ) );
 	font-family: var( --protech-font );
 }
-.protech-account-panel-title {
-	margin: 0 0 0.5em;
-	font-size: 1.05em;
+.protech-account-header--pending {
+	border-color: #f1dfb0;
+	background: linear-gradient( 90deg, var( --protech-warning-bg ), var( --protech-bg ) );
 }
-.protech-account-panel-status {
-	margin: 0 0 0.6em;
+.protech-account-header-icon {
+	display: inline-flex;
+	flex: 0 0 42px;
+	align-items: center;
+	justify-content: center;
+	width: 42px;
+	height: 42px;
+	border-radius: 50%;
+	background: var( --protech-blue );
+	color: #fff;
 }
-.protech-account-panel-message {
-	display: block;
-	font-weight: 600;
+.protech-account-header--pending .protech-account-header-icon {
+	background: #e0a21a;
 }
-.protech-account-panel-tiers {
-	margin: 0 0 0.9em 1.2em;
-	padding: 0;
-	font-size: 0.9em;
+.protech-account-header-text {
+	display: flex;
+	flex: 1 1 220px;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.protech-account-header-name {
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: #111;
+}
+.protech-account-header-note {
+	font-size: 13px;
+	line-height: 1.4;
 	color: var( --protech-muted );
 }
-.protech-account-panel-actions .button {
-	margin-right: 1em;
+
+/* -- "Your wholesale account" card (My Account dashboard) --------------- */
+.protech-account-panel {
+	overflow: hidden;
+	margin: 0 0 24px;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: 12px;
+	background: var( --protech-bg );
+	box-shadow: 0 6px 24px rgba( 42, 65, 102, 0.08 );
+	font-family: var( --protech-font );
+}
+.protech-account-panel-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 16px 20px;
+	background: linear-gradient( 135deg, #4a6fae 0%, var( --protech-blue ) 45%, var( --protech-blue-deep ) 100% );
+	color: #fff;
+}
+.protech-account-panel .protech-account-panel-title {
+	margin: 0 !important;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: #fff !important;
+}
+.protech-account-panel-body {
+	padding: 18px 20px 20px;
+}
+.protech-account-panel .protech-account-panel-message {
+	margin: 0 0 14px;
+	padding: 0;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.45;
+	color: #111;
+}
+.protech-account-panel-rail {
+	position: relative;
+	height: 10px;
+	margin: 0 0 18px;
+	border-radius: 999px;
+	background: var( --protech-blue-tint );
+}
+.protech-account-panel-rail-fill {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: linear-gradient( 90deg, var( --protech-blue-light ), var( --protech-blue ) );
+}
+.protech-account-panel-rail-mark {
+	position: absolute;
+	top: -3px;
+	width: 2px;
+	height: 16px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: var( --protech-blue-deep );
+	opacity: 0.45;
+}
+.protech-account-panel .protech-account-panel-stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 120px, 1fr ) );
+	gap: 10px;
+	margin: 0 0 18px;
+	padding: 0;
+}
+.protech-account-panel-stat {
+	padding: 10px 12px;
+	border-radius: var( --protech-radius );
+	background: var( --protech-bg-subtle );
+}
+.protech-account-panel-stat dt {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	line-height: 1.3;
+	text-transform: uppercase;
+	color: var( --protech-muted );
+}
+.protech-account-panel-stat dd {
+	margin: 2px 0 0;
+	padding: 0;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: #111;
+}
+.protech-account-panel-stat--savings {
+	background: var( --protech-success-bg );
+}
+.protech-account-panel-stat--savings dd {
+	color: var( --protech-success );
+}
+.protech-account-panel .protech-account-panel-tiers {
+	display: grid;
+	gap: 10px;
+	margin: 0 0 18px !important;
+	padding: 0;
+	list-style: none;
+}
+.protech-account-panel .protech-account-panel-tier {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none !important;
+	font-size: 14px;
+	line-height: 1.4;
+	color: #333;
+}
+.protech-account-panel-tier-check {
+	flex: 0 0 18px;
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	margin-top: 1px;
+	border: 2px solid #cfd4dc;
+	border-radius: 50%;
+	background: transparent center / 10px no-repeat;
+}
+.protech-account-panel-tier.is-reached .protech-account-panel-tier-check {
+	border-color: var( --protech-blue );
+	background-color: var( --protech-blue );
+	background-image: var( --protech-check-white );
+}
+.protech-account-panel-tier-detail {
+	display: block;
+	font-size: 13px;
+	color: var( --protech-muted );
+}
+.protech-account-panel .protech-account-panel-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
 }
 
 /* -- Reorder prompt (My Account dashboard) ------------------------------ */
 .protech-reorder-note {
 	margin: 0 0 1em;
 	padding: 0.85em 1em;
-	border: 1px solid var( --protech-border );
+	border: 1px solid var( --protech-blue-border );
 	border-left: 4px solid var( --protech-accent );
 	border-radius: var( --protech-radius );
-	background: var( --protech-bg-subtle );
+	background: var( --protech-blue-tint );
 }
 
-/* -- Sticky global tier bar ----------------------------------------------
- * Structure modeled on Bambu Lab's bulk-discount bar: a dark message +
- * live-totals strip, a light track panel with threshold markers, and a
- * CTA — collapsing to message + a plain slim track on narrow screens
- * (Bambu hides its marker labels below their "xl" breakpoint the same
- * way; see DECISIONS.md). Built with this site's own black/white/8px-
- * radius palette (var(--protech-*) above) rather than Bambu's brand
- * colors — a solid black fill/chrome reads as clearly as a colored one
- * against the store's existing monochrome buttons, without introducing
- * a color nothing else on the site uses. -------------------------------- */
+/* -- Header cart badge -----------------------------------------------------
+ * For a wholesale customer the count is in displays
+ * (CaseRules::count_cart_in_displays()), but a big order still reaches
+ * three digits — and Salient draws this badge as a fixed 18px (16px on
+ * mobile) circle, so they spilled out of it. Let it grow into a pill.
+ * !important because the theme's dynamic stylesheet loads after this one
+ * with selectors of the same weight; scoped to wholesale customers, so
+ * the retail header is untouched. ---------------------------------------- */
+body.protech-wholesale #header-outer a.cart-contents .cart-wrap span,
+body.protech-wholesale #header-outer #mobile-cart-link .cart-wrap span {
+	box-sizing: border-box !important;
+	width: auto !important;
+	padding: 0 5px !important;
+	border-radius: 99px !important;
+	white-space: nowrap;
+}
+body.protech-wholesale #header-outer a.cart-contents .cart-wrap span {
+	min-width: 18px !important;
+}
+body.protech-wholesale #header-outer #mobile-cart-link .cart-wrap span {
+	min-width: 16px !important;
+}
+
+/* -- Sticky global tier bar ------------------------------------------------
+ * A floating Protech Blue dock: tier chip + message, a two-segment track
+ * (Standard → Volume → Bulk markers, whole-case ticks, a ghost preview of
+ * the quantity currently dialled in on a product page), live totals, and
+ * the cart button. Centred with auto margins rather than a transform so
+ * `transform` stays free for the entrance animation. Full width and
+ * flush to the bottom edge on phones. ------------------------------------ */
 .protech-tier-bar {
 	position: fixed;
+	right: 0;
+	bottom: 14px;
 	left: 0;
+	z-index: 9999;
+	box-sizing: border-box;
+	/* Same width as the site header. global-tier-bar.js measures the header
+	 * and sets left/width inline; this is what shows before it runs. On
+	 * Salient the header card is sized from these two theme variables, so
+	 * the result is identical. On any other theme they are undefined and
+	 * this falls back to a centred 1180px (1212 - 2 x 16). */
+	width: calc( 100% - var( --container-padding, 16px ) * 2 );
+	max-width: calc( var( --container-width, 1212px ) - var( --container-padding, 16px ) * 2 );
+	margin: 0 auto;
+	border-radius: var( --protech-radius-lg );
+	background: linear-gradient( 135deg, #4a6fae 0%, var( --protech-blue ) 45%, var( --protech-blue-deep ) 100% );
+	box-shadow: 0 18px 44px rgba( 22, 36, 62, 0.38 ), 0 2px 8px rgba( 22, 36, 62, 0.2 ), inset 0 1px 0 rgba( 255, 255, 255, 0.18 );
+	color: #fff;
+	font-family: var( --protech-font );
+	font-size: 14px;
+	line-height: 1.35;
+	transition: box-shadow 0.4s ease;
+}
+.protech-tier-bar.is-entering {
+	animation: protech-bar-enter 0.7s var( --protech-ease ) both;
+}
+.protech-tier-bar.is-celebrating {
+	box-shadow: 0 18px 44px rgba( 22, 36, 62, 0.38 ), 0 0 0 3px rgba( 255, 255, 255, 0.6 ), 0 0 34px rgba( 169, 194, 234, 0.75 );
+}
+.protech-tier-bar-sheen {
+	position: absolute;
+	top: 0;
 	right: 0;
 	bottom: 0;
-	z-index: 9999;
-	display: flex;
-	align-items: stretch;
-	font-family: var( --protech-font );
-	background: var( --protech-bg );
-	box-shadow: 0 -4px 14px rgba( 0, 0, 0, 0.16 );
-	/* Clear the iPhone home indicator / gesture area. */
-	padding-bottom: env( safe-area-inset-bottom, 0 );
+	left: 0;
+	overflow: hidden;
+	border-radius: inherit;
+	pointer-events: none;
 }
-@media ( prefers-reduced-motion: reduce ) {
-	.protech-tier-bar-fill,
-	.protech-tier-bar-cta {
-		transition: none;
-	}
+.protech-tier-bar-sheen::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -40%;
+	width: 35%;
+	background: linear-gradient( 100deg, transparent, rgba( 255, 255, 255, 0.32 ), transparent );
+	opacity: 0;
+	transform: skewX( -18deg );
 }
-.protech-tier-bar-header {
+.protech-tier-bar.is-celebrating .protech-tier-bar-sheen::after {
+	animation: protech-sheen 1.15s ease-out 0.05s 1 both;
+}
+.protech-tier-bar-inner {
 	position: relative;
-	flex: 1 1 260px;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	gap: 0.3em;
-	padding: 0.6em 1.25em;
-	background: var( --protech-accent );
-	color: #fff;
-}
-.protech-tier-bar-message {
-	margin: 0;
-	font-size: 0.9em;
-	font-weight: 700;
-	line-height: 1.3;
-}
-.protech-tier-bar-totals {
-	display: flex;
-	align-items: baseline;
-	gap: 0.6em;
-	font-size: 0.78em;
-	color: rgba( 255, 255, 255, 0.7 );
-}
-.protech-tier-bar-total-price {
-	font-weight: 700;
-	color: #fff;
-}
-.protech-tier-bar-panel {
-	display: flex;
+	display: grid;
+	/* The dock is as wide as the site header, which can be very wide: the
+	 * message column stops growing at 380px and the track takes the rest.
+	 * 440px is the narrowest track whose three captions do not collide. */
+	grid-template-columns: minmax( 230px, 380px ) minmax( 440px, 1fr ) auto auto;
+	grid-template-areas: "info progress summary cta";
 	align-items: center;
-	flex: 2 1 420px;
-	padding: 0.6em 1.75em;
-	background: var( --protech-bg-subtle );
+	column-gap: 28px;
+	padding: 12px 16px 12px 22px;
+}
+.protech-tier-bar-info {
+	display: flex;
+	grid-area: info;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	min-width: 0;
+}
+.protech-tier-bar-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border: 1px solid rgba( 255, 255, 255, 0.24 );
+	border-radius: 999px;
+	background: rgba( 255, 255, 255, 0.16 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	line-height: 1.3;
+	text-transform: uppercase;
+	white-space: nowrap;
+	transition: background-color 0.4s ease, color 0.4s ease;
+}
+.protech-tier-bar-chip-prefix {
+	opacity: 0.78;
+}
+.protech-tier-bar-chip-prefix::after {
+	content: "\00b7";
+	margin-left: 6px;
+}
+.protech-tier-bar[data-active-tier="volume"] .protech-tier-bar-chip {
+	background: rgba( 255, 255, 255, 0.3 );
+}
+.protech-tier-bar[data-active-tier="bulk"] .protech-tier-bar-chip {
+	border-color: #fff;
+	background: #fff;
+	color: var( --protech-blue-deep );
+}
+.protech-tier-bar.is-celebrating .protech-tier-bar-chip {
+	animation: protech-chip 0.9s var( --protech-ease );
+}
+.protech-tier-bar .protech-tier-bar-message {
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.35;
+	color: rgba( 255, 255, 255, 0.92 );
+}
+.protech-tier-bar-message strong {
+	font-size: 1.08em;
+	font-weight: 800;
+	color: #fff;
+}
+.protech-tier-bar-progress {
+	grid-area: progress;
+	min-width: 0;
+	padding: 0 10px;
 }
 .protech-tier-bar-track {
 	position: relative;
-	width: 100%;
-	height: 8px;
+	height: 10px;
+	margin: 22px 0;
+}
+.protech-tier-bar-rail {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	overflow: hidden;
 	border-radius: 999px;
-	background: var( --protech-border );
+	background: rgba( 255, 255, 255, 0.2 );
+	box-shadow: inset 0 1px 2px rgba( 0, 0, 0, 0.18 );
+}
+.protech-tier-bar-ghost,
+.protech-tier-bar-fill {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 0;
+	border-radius: 999px;
+}
+.protech-tier-bar-ghost {
+	background: repeating-linear-gradient( 135deg, rgba( 255, 255, 255, 0.46 ) 0 6px, rgba( 255, 255, 255, 0.26 ) 6px 12px );
+	transition: width 0.45s ease;
 }
 .protech-tier-bar-fill {
-	height: 100%;
-	width: 0%;
-	border-radius: 999px;
-	background: var( --protech-accent );
-	transition: width 0.25s ease-out;
+	overflow: hidden;
+	background: linear-gradient( 90deg, #cfe0fa, #ffffff );
+	box-shadow: 0 0 12px rgba( 255, 255, 255, 0.55 );
+	transition: width 0.85s var( --protech-ease );
 }
+.protech-tier-bar-shine {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 60px;
+	background: linear-gradient( 90deg, transparent, rgba( 66, 100, 157, 0.32 ), transparent );
+	transform: translateX( -80px );
+	animation: protech-shine 5.5s ease-in-out infinite;
+}
+.protech-tier-bar-tick {
+	position: absolute;
+	top: 2px;
+	bottom: 2px;
+	width: 2px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: rgba( 42, 65, 102, 0.4 );
+}
+/* Markers are zero-size anchors on the track; the dot, the label above
+ * and the reward below are each positioned from that point, so the dot
+ * stays centred on the rail whatever the two captions measure. */
 .protech-tier-marker {
 	position: absolute;
 	top: 50%;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	transform: translate( -50%, -50% );
-	white-space: nowrap;
-}
-.protech-tier-marker-label {
-	margin-bottom: 0.3em;
-	font-size: 0.7em;
-	font-weight: 600;
-	color: var( --protech-muted );
+	width: 0;
+	height: 0;
 }
 .protech-tier-marker-dot {
-	display: block;
-	width: 14px;
-	height: 14px;
+	position: absolute;
+	top: 0;
+	left: 0;
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	margin: -9px 0 0 -9px;
+	border: 2px solid rgba( 255, 255, 255, 0.85 );
 	border-radius: 50%;
-	background: var( --protech-bg );
-	border: 3px solid #d4d4d4;
-	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.15 );
+	background: var( --protech-blue-deep ) center / 10px no-repeat;
+	box-shadow: 0 2px 6px rgba( 0, 0, 0, 0.25 );
+	transition: background-color 0.35s ease, border-color 0.35s ease;
 }
+.protech-tier-marker-label,
+.protech-tier-marker-reward {
+	position: absolute;
+	left: 0;
+	font-size: 11px;
+	line-height: 1.2;
+	white-space: nowrap;
+	transform: translateX( -50% );
+}
+.protech-tier-marker-label {
+	bottom: 14px;
+	font-weight: 700;
+	color: #fff;
+}
+.protech-tier-marker-reward {
+	top: 14px;
+	font-weight: 500;
+	color: rgba( 255, 255, 255, 0.78 );
+}
+.protech-tier-marker--standard .protech-tier-marker-label,
+.protech-tier-marker--standard .protech-tier-marker-reward {
+	left: -9px;
+	transform: none;
+}
+.protech-tier-marker--bulk .protech-tier-marker-label,
+.protech-tier-marker--bulk .protech-tier-marker-reward {
+	left: 9px;
+	transform: translateX( -100% );
+}
+.protech-tier-marker--standard .protech-tier-marker-dot,
 .protech-tier-bar[data-active-tier="volume"] .protech-tier-marker--volume .protech-tier-marker-dot,
 .protech-tier-bar[data-active-tier="bulk"] .protech-tier-marker--volume .protech-tier-marker-dot,
 .protech-tier-bar[data-active-tier="bulk"] .protech-tier-marker--bulk .protech-tier-marker-dot {
-	border-color: var( --protech-accent );
-	background: var( --protech-accent );
+	border-color: #fff;
+	background-color: #fff;
+	background-image: var( --protech-check-blue );
 }
-.protech-tier-marker-reward {
-	margin-top: 0.3em;
-	font-size: 0.7em;
+.protech-tier-bar[data-active-tier="volume"] .protech-tier-marker--volume .protech-tier-marker-reward,
+.protech-tier-bar[data-active-tier="bulk"] .protech-tier-marker--volume .protech-tier-marker-reward,
+.protech-tier-bar[data-active-tier="bulk"] .protech-tier-marker--bulk .protech-tier-marker-reward {
 	font-weight: 700;
-	color: var( --protech-accent-dark );
+	color: #fff;
 }
-.protech-tier-marker--bulk {
-	align-items: flex-end;
+.protech-tier-marker.is-within-reach .protech-tier-marker-dot {
+	animation: protech-pulse 1.2s ease-in-out infinite;
 }
-
-.protech-tier-bar-cta {
+.protech-tier-marker.is-popping .protech-tier-marker-dot {
+	animation: protech-pop 0.9s var( --protech-ease );
+}
+.protech-tier-marker.is-popping .protech-tier-marker-dot::after {
+	content: "";
+	position: absolute;
+	top: -2px;
+	right: -2px;
+	bottom: -2px;
+	left: -2px;
+	border: 2px solid #fff;
+	border-radius: 50%;
+	animation: protech-ring 1s ease-out both;
+}
+.protech-tier-bar-confetti {
+	position: absolute;
+	z-index: 2;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+.protech-tier-bar-confetti span {
+	position: absolute;
+	top: -4px;
+	left: -4px;
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	opacity: 0;
+	animation: protech-confetti 1.3s cubic-bezier( 0.15, 0.6, 0.3, 1 ) forwards;
+}
+.protech-tier-bar-summary {
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex: 0 0 auto;
-	padding: 0 1.75em;
-	background: var( --protech-bg );
-	color: var( --protech-accent);
-	font-weight: 600;
-	font-size: 0.9em;
-	text-decoration: none;
-	border-left: 1px solid var( --protech-border );
+	grid-area: summary;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 1px;
+	text-align: right;
 	white-space: nowrap;
-	transition: background-color 0.15s ease-out;
 }
-.protech-tier-bar-cta:hover {
-	background: var( --protech-bg-subtle );
-	color: var( --protech-accent );
+.protech-tier-bar-total-price {
+	font-size: 18px;
+	font-weight: 800;
+	line-height: 1.15;
+	color: #fff;
+}
+.protech-tier-bar-total-count {
+	font-size: 12px;
+	color: rgba( 255, 255, 255, 0.78 );
+}
+.protech-tier-bar-savings {
+	font-size: 12px;
+	font-weight: 700;
+	color: #ffe9a8;
+}
+.protech-tier-bar-savings span {
+	display: inline-block;
+}
+.protech-tier-bar a.protech-tier-bar-cta {
+	display: inline-flex;
+	grid-area: cta;
+	align-items: center;
+	gap: 8px;
+	padding: 11px 18px;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.18 );
+	color: var( --protech-blue-deep ) !important;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.2;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: transform 0.2s var( --protech-ease ), box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.protech-tier-bar a.protech-tier-bar-cta:hover,
+.protech-tier-bar a.protech-tier-bar-cta:focus {
+	background: #f1f6fd;
+	box-shadow: 0 8px 20px rgba( 0, 0, 0, 0.24 );
+	transform: translateY( -1px );
+}
+.protech-tier-bar a.protech-tier-bar-cta.is-bumping {
+	animation: protech-bump 0.5s var( --protech-ease );
+}
+.protech-tier-bar-cta-icon {
+	flex: 0 0 auto;
+}
+.protech-tier-bar-cta-total {
+	display: none;
+}
+.protech-tier-bar .is-ticking {
+	animation: protech-tick 0.45s var( --protech-ease );
+}
+/* Room reserved at the very end of the page so the dock never sits on top
+ * of the last content. global-tier-bar.js sets its height, and its colour
+ * to match whatever the page ends with (a black footer, here) - this used
+ * to be padding on <body>, which showed as a white band under the footer. */
+.protech-tier-bar-spacer {
+	display: block;
+	width: 100%;
+	height: 0;
+	pointer-events: none;
+	transition: background-color 0.2s ease;
+}
+@media print {
+	.protech-tier-bar,
+	.protech-tier-bar-spacer {
+		display: none !important;
+	}
 }
 
-/* Narrow screens: stack the three sections, drop the marker labels/
- * reward text (Bambu does the same below its own breakpoint) so the bar
- * stays compact — the dots alone are still enough of a "you are here"
- * cue once the message above has already explained what's at stake. */
+/* Small laptop and below: two rows, so the track gets the full width. Row one is the chip + message with the cart
+ * button (now carrying the subtotal); row two is the track with the
+ * cart's display/case count beside it. */
+@media screen and ( max-width: 1160px ) {
+	.protech-tier-bar-inner {
+		grid-template-columns: minmax( 0, 1fr ) auto;
+		grid-template-areas:
+			"info cta"
+			"progress summary";
+		column-gap: 16px;
+		row-gap: 2px;
+		padding: 12px 14px;
+	}
+	.protech-tier-bar-progress {
+		padding: 0 10px 0 9px;
+	}
+	.protech-tier-bar-total-price,
+	.protech-tier-bar-cta-label {
+		display: none;
+	}
+	.protech-tier-bar-cta-total {
+		display: inline;
+	}
+	.protech-tier-bar a.protech-tier-bar-cta {
+		padding: 10px 15px;
+	}
+}
+
+/* Phones: flush to the bottom edge, full width, and the marker captions
+ * (which genuinely don't fit) give way to the dots alone — the message
+ * above has already said what's at stake. */
 @media screen and ( max-width: 680px ) {
 	.protech-tier-bar {
-		flex-direction: column;
+		bottom: 0;
+		width: 100%;
+		max-width: none;
+		padding-bottom: env( safe-area-inset-bottom, 0 );
+		border-radius: var( --protech-radius-lg ) var( --protech-radius-lg ) 0 0;
 	}
-	.protech-tier-bar-header {
-		padding: 0.55em 1em 0.5em;
+	.protech-tier-bar-inner {
+		column-gap: 12px;
+		row-gap: 0;
+		padding: 10px 14px 8px;
 	}
-	.protech-tier-bar-panel {
-		padding: 0.65em 1em;
+	.protech-tier-bar-info {
+		gap: 4px;
+	}
+	.protech-tier-bar-chip {
+		padding: 2px 8px;
+		font-size: 10px;
+	}
+	.protech-tier-bar .protech-tier-bar-message {
+		display: -webkit-box;
+		overflow: hidden;
+		font-size: 13px;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	.protech-tier-bar-track {
+		height: 8px;
+		margin: 10px 0;
 	}
 	.protech-tier-marker-label,
-	.protech-tier-marker-reward {
+	.protech-tier-marker-reward,
+	.protech-tier-bar-tick {
 		display: none;
 	}
 	.protech-tier-marker-dot {
-		width: 10px;
-		height: 10px;
+		width: 14px;
+		height: 14px;
+		margin: -7px 0 0 -7px;
+		background-size: 8px;
 	}
-	.protech-tier-bar-cta {
-		padding: 0.6em;
-		border-left: none;
-		border-top: 1px solid var( --protech-border );
+	.protech-tier-bar-progress {
+		padding: 0 8px 0 7px;
+	}
+	.protech-tier-bar-total-count,
+	.protech-tier-bar-savings {
+		font-size: 11px;
 	}
 }
 
@@ -352,14 +1317,14 @@
 .protech-wholesale-label {
 	display: inline-block;
 	margin-left: 0.5em;
-	padding: 0.1em 0.5em;
-	font-size: 0.7em;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-	color: #fff;
+	padding: 0.15em 0.6em;
+	border-radius: 999px;
 	background: var( --protech-accent );
-	border-radius: 3px;
+	color: #fff;
+	font-size: 0.68em;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
 	vertical-align: middle;
 }
 .protech-wholesale-retail-note {
@@ -372,84 +1337,635 @@
 .protech-wholesale-only-notice {
 	display: inline-block;
 	padding: 0.6em 0.9em;
-	font-size: 0.85em;
-	color: var( --protech-muted );
-	background: var( --protech-bg-subtle );
 	border: 1px solid var( --protech-border );
 	border-radius: var( --protech-radius );
+	background: var( --protech-bg-subtle );
+	color: var( --protech-muted );
+	font-size: 0.85em;
 }
 .protech-wholesale-only-notice a {
 	font-weight: 600;
 	color: var( --protech-accent );
 }
 
-/* -- Portal page ( /wholesale ): login / pending / retail_only states -- */
+/* -- Portal page ( /wholesale ) -------------------------------------------
+ * 1080px matches the width of the theme's own My Account login (a full
+ * two-column container) — the old 420px column looked like a different,
+ * lesser page beside it. -------------------------------------------------- */
 .protech-wholesale-portal {
-	max-width: 420px;
+	box-sizing: border-box;
+	max-width: 1080px;
 	margin: 2em auto;
-	padding: 2em;
+	padding: 0 16px;
 	font-family: var( --protech-font );
-	text-align: center;
 	color: #222;
-}
-.protech-wholesale-portal h2 {
-	margin-top: 0;
-	font-size: 1.4em;
+	text-align: left;
 }
 .protech-wholesale-portal p {
-	color: var( --protech-muted );
-	line-height: 1.5;
+	padding: 0;
 }
-.protech-portal-login-form {
-	text-align: left;
-	margin-top: 1.5em;
+.protech-portal-card {
+	display: grid;
+	grid-template-columns: minmax( 0, 1.05fr ) minmax( 0, 1fr );
+	overflow: hidden;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: 20px;
+	background: var( --protech-bg );
+	box-shadow: 0 24px 70px rgba( 42, 65, 102, 0.16 ), 0 2px 10px rgba( 42, 65, 102, 0.08 );
+	animation: protech-rise 0.7s var( --protech-ease ) both;
 }
-.protech-portal-login-form p {
-	margin: 0 0 1em;
-}
-.protech-portal-login-form label {
-	display: block;
-	margin-bottom: 0.3em;
-	font-weight: 600;
-	color: #222;
-}
-.protech-portal-login-form input[type="text"],
-.protech-portal-login-form input[type="password"] {
-	width: 100%;
-	padding: 0.6em 0.75em;
-	border: 1px solid var( --protech-border );
-	border-radius: 4px;
-	box-sizing: border-box;
-}
-.protech-portal-login-form button,
-.protech-wholesale-portal .button {
-	display: inline-block;
-	padding: 0.65em 1.5em;
-	border: none;
-	border-radius: var( --protech-radius );
-	background: var( --protech-accent );
+.protech-portal-pitch {
+	position: relative;
+	overflow: hidden;
+	padding: 48px 44px;
+	background:
+		radial-gradient( 520px 320px at 110% -10%, rgba( 169, 194, 234, 0.5 ), transparent 60% ),
+		radial-gradient( 420px 300px at -10% 110%, rgba( 255, 255, 255, 0.16 ), transparent 60% ),
+		linear-gradient( 150deg, #4a6fae 0%, var( --protech-blue ) 40%, var( --protech-blue-deep ) 100% );
 	color: #fff;
-	text-decoration: none;
-	cursor: pointer;
 }
-.protech-portal-login-form button:hover,
-.protech-wholesale-portal .button:hover {
-	background: var( --protech-accent-dark );
+.protech-portal-pitch::after {
+	content: "";
+	position: absolute;
+	right: -90px;
+	bottom: -90px;
+	width: 280px;
+	height: 280px;
+	border: 40px solid rgba( 255, 255, 255, 0.06 );
+	border-radius: 50%;
+	pointer-events: none;
 }
-.protech-lost-password {
-	margin-left: 1em;
-	font-size: 0.9em;
+.protech-portal-eyebrow {
+	display: inline-block;
+	margin: 0 0 18px;
+	padding: 5px 12px;
+	border: 1px solid rgba( 255, 255, 255, 0.24 );
+	border-radius: 999px;
+	background: rgba( 255, 255, 255, 0.16 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.09em;
+	line-height: 1.3;
+	text-transform: uppercase;
 }
-.protech-portal-apply,
-.protech-portal-pending,
-.protech-portal-retail-only {
-	margin-top: 1.5em;
+.protech-wholesale-portal .protech-portal-headline {
+	margin: 0 0 12px !important;
+	font-size: 32px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	line-height: 1.18;
+	color: #fff !important;
 }
-.protech-wholesale-portal .woocommerce-error {
-	margin: 1em 0 0;
-	padding: 0.75em 1em;
+.protech-wholesale-portal .protech-portal-lede {
+	margin: 0 0 28px;
+	font-size: 15px;
+	line-height: 1.6;
+	color: rgba( 255, 255, 255, 0.88 );
+}
+.protech-wholesale-portal .protech-portal-benefits {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	gap: 16px;
+	margin: 0 !important;
+	padding: 0;
+	list-style: none;
+}
+.protech-wholesale-portal .protech-portal-benefit {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none !important;
+	animation: protech-rise 0.6s var( --protech-ease ) both;
+}
+.protech-portal-benefit:nth-child( 1 ) {
+	animation-delay: 0.15s;
+}
+.protech-portal-benefit:nth-child( 2 ) {
+	animation-delay: 0.25s;
+}
+.protech-portal-benefit:nth-child( 3 ) {
+	animation-delay: 0.35s;
+}
+.protech-portal-benefit:nth-child( 4 ) {
+	animation-delay: 0.45s;
+}
+.protech-portal-benefit-icon {
+	display: inline-flex;
+	flex: 0 0 26px;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	margin-top: 1px;
+	border-radius: 50%;
+	background: rgba( 255, 255, 255, 0.18 );
+	color: #fff;
+}
+.protech-portal-benefit-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 14px;
+	line-height: 1.45;
+	color: rgba( 255, 255, 255, 0.84 );
+}
+.protech-portal-benefit-text strong {
+	font-size: 15px;
+	font-weight: 700;
+	color: #fff;
+}
+.protech-portal-form-panel {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 48px 44px;
+}
+.protech-wholesale-portal .protech-portal-form-title {
+	margin: 0 0 6px !important;
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.2;
+	color: #111 !important;
+}
+.protech-wholesale-portal .protech-portal-form-intro {
+	margin: 0 0 22px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var( --protech-muted );
+}
+.protech-portal-error {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0 0 18px;
+	padding: 12px 14px;
+	border: 1px solid #f3c6c2;
 	border-radius: var( --protech-radius );
 	background: var( --protech-danger-bg );
 	color: var( --protech-danger );
-	text-align: left;
+	font-size: 14px;
+	line-height: 1.45;
+}
+.protech-portal-error svg {
+	flex: 0 0 18px;
+	margin-top: 1px;
+}
+.protech-portal-login-form {
+	margin: 0;
+}
+.protech-wholesale-portal .protech-portal-field {
+	margin: 0 0 16px;
+}
+.protech-wholesale-portal .protech-portal-login-form label {
+	display: block;
+	margin: 0 0 6px;
+	font-size: 13px !important;
+	font-weight: 600 !important;
+	line-height: 1.3;
+	color: #222;
+}
+.protech-wholesale-portal .protech-portal-login-form input[type="text"],
+.protech-wholesale-portal .protech-portal-login-form input[type="password"] {
+	box-sizing: border-box;
+	width: 100%;
+	height: 48px;
+	margin: 0;
+	padding: 0 14px;
+	border: 2px solid var( --protech-border );
+	border-radius: var( --protech-radius );
+	background-color: var( --protech-bg );
+	box-shadow: none;
+	color: #111;
+	font-family: inherit;
+	/* 16px keeps iOS from zooming the page on focus. */
+	font-size: 16px;
+	line-height: 1.2;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.protech-wholesale-portal .protech-portal-login-form input[type="text"]:hover,
+.protech-wholesale-portal .protech-portal-login-form input[type="password"]:hover {
+	border-color: var( --protech-blue-border );
+}
+.protech-wholesale-portal .protech-portal-login-form input[type="text"]:focus,
+.protech-wholesale-portal .protech-portal-login-form input[type="password"]:focus {
+	border-color: var( --protech-blue );
+	outline: none;
+	box-shadow: 0 0 0 4px rgba( 66, 100, 157, 0.16 );
+}
+.protech-portal-password {
+	position: relative;
+	display: block;
+}
+.protech-wholesale-portal .protech-portal-password input {
+	padding-right: 50px;
+}
+body .protech-wholesale-portal button.protech-password-toggle {
+	position: absolute;
+	top: 0;
+	right: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: var( --protech-radius ) !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var( --protech-muted ) !important;
+	cursor: pointer;
+	transform: none !important;
+}
+body .protech-wholesale-portal button.protech-password-toggle:hover,
+body .protech-wholesale-portal button.protech-password-toggle:focus {
+	background: transparent !important;
+	color: var( --protech-blue ) !important;
+}
+.protech-password-toggle-slash {
+	display: none;
+}
+.protech-password-toggle[aria-pressed="true"] .protech-password-toggle-slash {
+	display: inline;
+}
+.protech-wholesale-portal .protech-portal-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 20px;
+}
+.protech-wholesale-portal .protech-portal-login-form label.protech-portal-remember {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	font-weight: 500 !important;
+	cursor: pointer;
+}
+.protech-portal-remember input {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	accent-color: var( --protech-blue );
+}
+.protech-wholesale-portal a.protech-lost-password {
+	color: var( --protech-blue ) !important;
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+}
+.protech-wholesale-portal a.protech-lost-password:hover {
+	text-decoration: underline;
+}
+.protech-wholesale-portal .protech-portal-submit {
+	margin: 0;
+}
+.protech-portal-apply {
+	margin-top: 24px;
+}
+.protech-portal-divider {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 14px;
+	font-size: 13px;
+	color: var( --protech-muted );
+}
+.protech-portal-divider::before,
+.protech-portal-divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var( --protech-border );
+}
+
+/* Pending / rejected / retail-only: one centred status card. */
+.protech-portal-status {
+	box-sizing: border-box;
+	max-width: 620px;
+	margin: 0 auto;
+	padding: 44px 40px;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: 20px;
+	background: var( --protech-bg );
+	box-shadow: 0 24px 70px rgba( 42, 65, 102, 0.14 ), 0 2px 10px rgba( 42, 65, 102, 0.08 );
+	text-align: center;
+	animation: protech-rise 0.7s var( --protech-ease ) both;
+}
+.protech-portal-status-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 64px;
+	height: 64px;
+	margin: 0 0 16px;
+	border-radius: 50%;
+	background: var( --protech-blue-tint );
+	color: var( --protech-blue );
+}
+.protech-portal-pending .protech-portal-status-icon {
+	background: var( --protech-warning-bg );
+	color: var( --protech-warning );
+}
+.protech-wholesale-portal .protech-portal-status h2 {
+	margin: 0 0 10px !important;
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: #111;
+}
+.protech-wholesale-portal .protech-portal-status p {
+	margin: 0 0 16px;
+	font-size: 15px;
+	line-height: 1.6;
+	color: var( --protech-muted );
+}
+.protech-wholesale-portal .protech-portal-status p:last-child {
+	margin-bottom: 0;
+}
+.protech-wholesale-portal .protech-portal-status p a:not( .protech-button ) {
+	color: var( --protech-blue ) !important;
+	font-weight: 600;
+}
+.protech-wholesale-portal .protech-portal-steps {
+	display: grid;
+	grid-template-columns: repeat( 3, 1fr );
+	gap: 8px;
+	margin: 26px 0 !important;
+	padding: 0;
+	list-style: none;
+}
+.protech-wholesale-portal .protech-portal-step {
+	position: relative;
+	margin: 0;
+	padding: 28px 0 0;
+	list-style: none !important;
+	font-size: 13px;
+	line-height: 1.35;
+	color: var( --protech-muted );
+	text-align: center;
+}
+.protech-portal-step::before {
+	content: "";
+	position: absolute;
+	top: 8px;
+	left: calc( -50% - 4px );
+	width: calc( 100% + 8px );
+	height: 2px;
+	background: var( --protech-border );
+}
+.protech-portal-step:first-child::before {
+	display: none;
+}
+.protech-portal-step.is-done::before,
+.protech-portal-step.is-current::before {
+	background: var( --protech-blue );
+}
+.protech-portal-step-dot {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	z-index: 1;
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	margin-left: -9px;
+	border: 2px solid #cfd4dc;
+	border-radius: 50%;
+	background: var( --protech-bg ) center / 10px no-repeat;
+}
+.protech-portal-step.is-done {
+	color: #333;
+}
+.protech-portal-step.is-done .protech-portal-step-dot {
+	border-color: var( --protech-blue );
+	background-color: var( --protech-blue );
+	background-image: var( --protech-check-white );
+}
+.protech-portal-step.is-current {
+	font-weight: 700;
+	color: #111;
+}
+.protech-portal-step.is-current .protech-portal-step-dot {
+	border-color: var( --protech-blue );
+	animation: protech-step-pulse 1.8s ease-in-out infinite;
+}
+
+/* Below two comfortable columns: stack, returning partners' form first. */
+@media screen and ( max-width: 860px ) {
+	.protech-portal-card {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+	.protech-portal-form-panel {
+		order: -1;
+		padding: 32px 24px;
+	}
+	.protech-portal-pitch {
+		padding: 32px 24px;
+	}
+	.protech-wholesale-portal .protech-portal-headline {
+		font-size: 26px;
+	}
+	.protech-portal-status {
+		padding: 32px 22px;
+	}
+}
+@media screen and ( max-width: 480px ) {
+	.protech-unit-selector {
+		max-width: none;
+	}
+	.protech-wholesale-portal .protech-portal-steps {
+		grid-template-columns: minmax( 0, 1fr );
+		gap: 14px;
+	}
+	.protech-wholesale-portal .protech-portal-step {
+		padding: 0 0 0 28px;
+		text-align: left;
+	}
+	.protech-portal-step::before {
+		display: none;
+	}
+	.protech-portal-step-dot {
+		left: 0;
+		margin-left: 0;
+	}
+}
+
+/* -- Motion --------------------------------------------------------------- */
+@keyframes protech-bar-enter {
+	from {
+		opacity: 0;
+		transform: translateY( calc( 100% + 24px ) );
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes protech-rise {
+	from {
+		opacity: 0;
+		transform: translateY( 14px );
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes protech-tick {
+	from {
+		opacity: 0.15;
+		transform: translateY( 7px );
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes protech-bump {
+	0% {
+		transform: scale( 1 );
+	}
+	40% {
+		transform: scale( 1.09 );
+	}
+	100% {
+		transform: scale( 1 );
+	}
+}
+@keyframes protech-shine {
+	0%,
+	70% {
+		transform: translateX( -80px );
+	}
+	100% {
+		transform: translateX( 1200px );
+	}
+}
+@keyframes protech-sheen {
+	0% {
+		opacity: 0;
+		transform: translateX( 0 ) skewX( -18deg );
+	}
+	12%,
+	85% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translateX( 480% ) skewX( -18deg );
+	}
+}
+@keyframes protech-chip {
+	0% {
+		transform: scale( 1 ) rotateX( 0deg );
+	}
+	35% {
+		transform: scale( 1.14 ) rotateX( 90deg );
+	}
+	70% {
+		transform: scale( 1.14 ) rotateX( 0deg );
+	}
+	100% {
+		transform: scale( 1 ) rotateX( 0deg );
+	}
+}
+@keyframes protech-pop {
+	0% {
+		transform: scale( 1 );
+	}
+	35% {
+		transform: scale( 1.75 );
+	}
+	60% {
+		transform: scale( 0.92 );
+	}
+	100% {
+		transform: scale( 1 );
+	}
+}
+@keyframes protech-ring {
+	from {
+		opacity: 0.9;
+		transform: scale( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 3.4 );
+	}
+}
+@keyframes protech-pulse {
+	0%,
+	100% {
+		box-shadow: 0 2px 6px rgba( 0, 0, 0, 0.25 ), 0 0 0 0 rgba( 255, 255, 255, 0.7 );
+	}
+	50% {
+		box-shadow: 0 2px 6px rgba( 0, 0, 0, 0.25 ), 0 0 0 7px rgba( 255, 255, 255, 0 );
+	}
+}
+@keyframes protech-step-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 rgba( 66, 100, 157, 0.4 );
+	}
+	50% {
+		box-shadow: 0 0 0 7px rgba( 66, 100, 157, 0 );
+	}
+}
+@keyframes protech-confetti {
+	0% {
+		opacity: 1;
+		transform: translate( 0, 0 ) rotate( 0deg ) scale( 0.6 );
+	}
+	70% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translate( var( --protech-dx, 0px ), calc( var( --protech-dy, 0px ) + 42px ) ) rotate( var( --protech-rot, 0deg ) ) scale( 1 );
+	}
+}
+@keyframes protech-row-flash {
+	0% {
+		background-color: var( --protech-blue-light );
+	}
+	100% {
+		background-color: var( --protech-blue-tint );
+	}
+}
+@keyframes protech-added-pulse {
+	from {
+		box-shadow: 0 0 0 0 rgba( 66, 100, 157, 0.55 );
+	}
+	to {
+		box-shadow: 0 0 0 16px rgba( 66, 100, 157, 0 );
+	}
+}
+
+/* Nothing above is essential motion: state still changes through colour
+ * and text. global-tier-bar.js also skips its entrance, confetti and
+ * replayed animations when this matches. */
+@media ( prefers-reduced-motion: reduce ) {
+	.protech-tier-bar,
+	.protech-tier-bar *,
+	.protech-tier-bar *::before,
+	.protech-tier-bar *::after,
+	.protech-unit-selector *,
+	.protech-unit-selector *::after,
+	.protech-tier-ladder *,
+	.protech-account-panel *,
+	.protech-wholesale-portal *,
+	.protech-wholesale-portal *::before,
+	.protech-wholesale-portal *::after,
+	.single_add_to_cart_button.protech-added,
+	.protech-kit *,
+	.protech-kit-add.protech-added {
+		animation: none !important;
+		transition: none !important;
+	}
 }

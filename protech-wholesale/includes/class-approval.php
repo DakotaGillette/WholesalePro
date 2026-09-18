@@ -21,7 +21,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Approval {
 
 	public const META_PRICE_OVERRIDES = '_protech_price_overrides';
-	public const META_MIN_ORDER       = '_protech_wholesale_min_order_override';
 
 	/**
 	 * Application lifecycle, stored on the user. The Applicants screen's
@@ -36,10 +35,20 @@ class Approval {
 	public const STATUS_APPROVED        = 'approved';
 	public const STATUS_REJECTED        = 'rejected';
 
+	public const PENDING_COUNT_TRANSIENT = 'protech_wholesale_pending_count';
+
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		add_action( 'load-woocommerce_page_protech-wholesale', array( $this, 'add_help_tab' ) );
 		add_action( 'admin_post_protech_approve_applicant', array( $this, 'handle_approve' ) );
 		add_action( 'admin_post_protech_reject_applicant', array( $this, 'handle_reject' ) );
+
+		// The pending count on the menu is cached; any change to an
+		// application's status starts it over.
+		add_action( 'updated_user_meta', array( __CLASS__, 'flush_pending_count_on_meta' ), 10, 3 );
+		add_action( 'added_user_meta', array( __CLASS__, 'flush_pending_count_on_meta' ), 10, 3 );
+		add_action( 'deleted_user_meta', array( __CLASS__, 'flush_pending_count_on_meta' ), 10, 3 );
+		add_action( 'deleted_user', array( __CLASS__, 'flush_pending_count' ) );
 
 		add_action( 'show_user_profile', array( $this, 'render_profile_fields' ) );
 		add_action( 'edit_user_profile', array( $this, 'render_profile_fields' ) );
@@ -48,13 +57,101 @@ class Approval {
 	}
 
 	public function register_menu(): void {
+		$pending = self::get_pending_count();
+		$label   = __( 'Wholesale', 'protech-wholesale' );
+
+		// The same bubble WordPress puts on Comments and Plugins: the queue
+		// is visible from anywhere in wp-admin, not just once you click in.
+		if ( $pending > 0 ) {
+			$label .= sprintf(
+				' <span class="awaiting-mod count-%1$d"><span class="pending-count" aria-hidden="true">%1$d</span><span class="screen-reader-text">%2$s</span></span>',
+				$pending,
+				esc_html( sprintf( /* translators: %d: number of pending applications. */ _n( '%d application awaiting review', '%d applications awaiting review', $pending, 'protech-wholesale' ), $pending ) )
+			);
+		}
+
 		add_submenu_page(
 			'woocommerce',
 			__( 'Wholesale', 'protech-wholesale' ),
-			__( 'Wholesale', 'protech-wholesale' ),
+			$label,
 			'manage_woocommerce',
 			'protech-wholesale',
 			array( $this, 'render_page' )
+		);
+	}
+
+	/** Applications awaiting review, cached for five minutes. */
+	public static function get_pending_count(): int {
+		$cached = get_transient( self::PENDING_COUNT_TRANSIENT );
+
+		if ( false !== $cached ) {
+			return (int) $cached;
+		}
+
+		$query = new \WP_User_Query(
+			array(
+				'meta_key'    => self::META_APP_STATUS, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_value'  => self::STATUS_PENDING, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+				'count_total' => true,
+				'number'      => 1,
+				'fields'      => 'ID',
+			)
+		);
+
+		$count = (int) $query->get_total();
+		set_transient( self::PENDING_COUNT_TRANSIENT, $count, 5 * MINUTE_IN_SECONDS );
+
+		return $count;
+	}
+
+	public static function flush_pending_count(): void {
+		delete_transient( self::PENDING_COUNT_TRANSIENT );
+	}
+
+	/**
+	 * @param int|string $meta_id
+	 * @param int|string $object_id
+	 * @param string     $meta_key
+	 */
+	public static function flush_pending_count_on_meta( $meta_id, $object_id, $meta_key ): void {
+		if ( self::META_APP_STATUS === (string) $meta_key ) {
+			self::flush_pending_count();
+		}
+	}
+
+	/**
+	 * The WordPress "Help" pull-down on the Wholesale screen: what each tab
+	 * is for, and where the settings that are NOT on this screen live.
+	 */
+	public function add_help_tab(): void {
+		$screen = get_current_screen();
+
+		if ( ! $screen ) {
+			return;
+		}
+
+		$screen->add_help_tab(
+			array(
+				'id'      => 'protech-wholesale-overview',
+				'title'   => __( 'Wholesale tabs', 'protech-wholesale' ),
+				'content' =>
+					'<p><strong>' . esc_html__( 'Applicants', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'the review queue. Approve gives the account the Wholesale Customer role and emails them a password link; Reject records a reason and emails that.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Customers', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'every approved account, with orders and spend. Change a customer\'s tier here; price overrides are on their profile.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Products', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'everything priced or flagged for wholesale, for reference. Prices themselves are set on each product\'s Wholesale tab.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Pricing & Shipping', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'the Standard / Volume / Bulk ladder, the display and case defaults, and the wholesale shipping rate.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Tiers', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'hidden per-customer discount levels (Bronze to Platinum), on top of the ladder.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Settings', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'what wholesale customers see for unpriced products, coupons, which form takes applications, notifications, updates and uninstall.', 'protech-wholesale' ) . '</p>',
+			)
+		);
+
+		$screen->add_help_tab(
+			array(
+				'id'      => 'protech-wholesale-products',
+				'title'   => __( 'Pricing a product', 'protech-wholesale' ),
+				'content' =>
+					'<p>' . esc_html__( 'Open the product and choose its Wholesale tab. A simple product has its wholesale price there. A variable product is priced per colour: enter a price in "Apply to all variations" and Update, or expand a variation on the Variations tab to price one colour differently.', 'protech-wholesale' ) . '</p>' .
+					'<p>' . esc_html__( 'Products with no wholesale price are not sold at wholesale: they are hidden from wholesale customers (or shown at retail, per Settings), and the display and case rules do not apply to them. That is how a one-off like a starter pack is sold to anyone at a plain price.', 'protech-wholesale' ) . '</p>',
+			)
 		);
 	}
 
@@ -83,9 +180,23 @@ class Approval {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
-		$tab = sanitize_key( $_GET['tab'] ?? 'applicants' );
+		$tab = sanitize_key( $_GET['tab'] ?? 'applicants' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab switch.
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Wholesale', 'protech-wholesale' ) . '</h1>';
+
+		// The pages this plugin runs that live outside wp-admin, one click away.
+		$portal_id = SetupChecks::portal_page_id();
+		$links     = array();
+
+		if ( $portal_id > 0 ) {
+			$links[] = '<a href="' . esc_url( (string) get_permalink( $portal_id ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Wholesale login page', 'protech-wholesale' ) . '</a>';
+		}
+
+		$links[] = '<a href="' . esc_url( home_url( '/wholesale-application' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Application form', 'protech-wholesale' ) . '</a>';
+		$links[] = '<a href="' . esc_url( admin_url( 'admin.php?page=wc-status&tab=logs&source=protech-wholesale' ) ) . '">' . esc_html__( 'Log', 'protech-wholesale' ) . '</a>';
+
+		echo '<p class="description" style="margin:-6px 0 12px;">' . wp_kses_post( implode( ' &middot; ', $links ) ) . '</p>';
+
 		echo '<nav class="nav-tab-wrapper">';
 
 		foreach ( self::get_tabs() as $slug => $label ) {
@@ -117,6 +228,9 @@ class Approval {
 	}
 
 	private function render_applicants_tab(): void {
+		// Only while something is missing; otherwise nothing is printed.
+		SetupChecks::render_notice();
+
 		$table = new ApplicantsListTable();
 		$table->views();
 		$table->prepare_items();
@@ -204,7 +318,6 @@ class Approval {
 
 		$is_wholesale   = Roles::is_wholesale_customer( $user->ID );
 		$current_tier   = Tiers::get_user_tier( $user->ID );
-		$min_override   = get_user_meta( $user->ID, self::META_MIN_ORDER, true );
 		$overrides      = get_user_meta( $user->ID, self::META_PRICE_OVERRIDES, true );
 		$overrides      = is_array( $overrides ) ? $overrides : array();
 
@@ -231,13 +344,6 @@ class Approval {
 						<?php endforeach; ?>
 					</select>
 					<p class="description"><?php esc_html_e( 'Internal only — the customer never sees their tier. Sets their wholesale price discount unless overridden below. Manage tier-wide settings under WooCommerce → Wholesale → Tiers.', 'protech-wholesale' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="protech_min_order_override"><?php esc_html_e( 'Minimum order override', 'protech-wholesale' ); ?></label></th>
-				<td>
-					<input type="number" step="0.01" min="0" name="protech_min_order_override" id="protech_min_order_override" value="<?php echo esc_attr( $min_override ); ?>" class="regular-text" placeholder="<?php echo esc_attr( (string) Settings::get_min_order() ); ?>" />
-					<p class="description"><?php esc_html_e( 'Not currently enforced anywhere (kept from an earlier design — see the Tiers tab). Leave blank.', 'protech-wholesale' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -413,14 +519,6 @@ class Approval {
 
 		if ( isset( $_POST['protech_wholesale_tier'] ) ) {
 			Tiers::set_user_tier( $user_id, sanitize_key( wp_unslash( $_POST['protech_wholesale_tier'] ) ) );
-		}
-
-		$min_override = sanitize_text_field( wp_unslash( $_POST['protech_min_order_override'] ?? '' ) );
-
-		if ( '' === $min_override ) {
-			delete_user_meta( $user_id, self::META_MIN_ORDER );
-		} else {
-			update_user_meta( $user_id, self::META_MIN_ORDER, (float) $min_override );
 		}
 
 		$ids    = array_map( 'absint', (array) ( $_POST['protech_price_override_ids'] ?? array() ) );

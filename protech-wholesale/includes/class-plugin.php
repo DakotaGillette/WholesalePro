@@ -44,6 +44,8 @@ final class Plugin {
 	private Emails $emails;
 	private GlobalTierBar $global_tier_bar;
 	private TierLadder $tier_ladder;
+	private StarterKit $starter_kit;
+	private Updater $updater;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -79,6 +81,8 @@ final class Plugin {
 		$this->emails            = new Emails();
 		$this->global_tier_bar   = new GlobalTierBar();
 		$this->tier_ladder       = new TierLadder();
+		$this->starter_kit       = new StarterKit();
+		$this->updater           = new Updater();
 
 		foreach (
 			array(
@@ -99,6 +103,8 @@ final class Plugin {
 				$this->emails,
 				$this->global_tier_bar,
 				$this->tier_ladder,
+				$this->starter_kit,
+				$this->updater,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -107,6 +113,45 @@ final class Plugin {
 		add_action( 'init', array( $this, 'maybe_upgrade' ), 20 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+		add_filter( 'body_class', array( $this, 'add_body_class' ) );
+		add_filter( 'plugin_action_links_' . PROTECH_WHOLESALE_BASENAME, array( $this, 'plugin_action_links' ) );
+	}
+
+	/**
+	 * "Applicants" and "Settings" on the plugin's row in the Plugins list,
+	 * so the screen is one click away from where plugins get looked at.
+	 *
+	 * @param string[] $links
+	 * @return string[]
+	 */
+	public function plugin_action_links( array $links ): array {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return $links;
+		}
+
+		array_unshift(
+			$links,
+			'<a href="' . esc_url( Approval::tab_url( 'applicants' ) ) . '">' . esc_html__( 'Applicants', 'protech-wholesale' ) . '</a>',
+			'<a href="' . esc_url( Approval::tab_url( 'settings' ) ) . '">' . esc_html__( 'Settings', 'protech-wholesale' ) . '</a>'
+		);
+
+		return $links;
+	}
+
+	/**
+	 * `protech-wholesale` on <body> for an approved wholesale customer:
+	 * wholesale.css scopes its overrides of the THEME's own elements (the
+	 * header cart badge) to it, so nothing changes for a retail visitor.
+	 *
+	 * @param string[] $classes
+	 * @return string[]
+	 */
+	public function add_body_class( array $classes ): array {
+		if ( Roles::is_wholesale_customer() ) {
+			$classes[] = 'protech-wholesale';
+		}
+
+		return $classes;
 	}
 
 	public function settings(): Settings {
@@ -179,8 +224,12 @@ final class Plugin {
 		// notices need the stylesheet on that specific page regardless of
 		// wholesale status; a wholesale customer needs it EVERYWHERE (the
 		// "Wholesale price" label and the sticky global tier bar both
-		// render on ordinary shop/product pages, not just the portal).
-		if ( ! $has_portal_shortcode && ! $is_wholesale ) {
+		// render on ordinary shop/product pages, not just the portal). A
+		// pending applicant gets it on My Account only, for the "under
+		// review" strip MyAccount::render_account_header() shows there.
+		$is_pending_on_account = Roles::is_wholesale_pending() && function_exists( 'is_account_page' ) && is_account_page();
+
+		if ( ! $has_portal_shortcode && ! $is_wholesale && ! $is_pending_on_account ) {
 			return;
 		}
 
@@ -190,6 +239,17 @@ final class Plugin {
 			array(),
 			$this->asset_version( 'assets/css/wholesale.css' )
 		);
+
+		// The portal's login form (show/hide password) — logged-out only.
+		if ( $has_portal_shortcode && ! is_user_logged_in() ) {
+			wp_enqueue_script(
+				'protech-wholesale-portal',
+				PROTECH_WHOLESALE_URL . 'assets/js/portal.js',
+				array(),
+				$this->asset_version( 'assets/js/portal.js' ),
+				true
+			);
+		}
 
 		if ( GlobalTierBar::should_render() ) {
 			wp_enqueue_script(
@@ -204,13 +264,62 @@ final class Plugin {
 				'protech-wholesale-global-tier-bar',
 				'ProtechGlobalTierBar',
 				array(
-					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-					'nonce'   => wp_create_nonce( GlobalTierBar::AJAX_NONCE_ACTION ),
+					'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+					'nonce'       => wp_create_nonce( GlobalTierBar::AJAX_NONCE_ACTION ),
+					/**
+					 * CSS selector for the site header the sticky bar matches its
+					 * width to. A header that is itself a card narrower than the
+					 * viewport (Salient's #header-outer here) is matched edge for
+					 * edge; a full-bleed header is matched on the content box of
+					 * the .container inside it. Return '' to keep the stylesheet's
+					 * own width. Keep in step with DEFAULT_ALIGN_TO in
+					 * assets/js/global-tier-bar.js.
+					 *
+					 * @param string $selector
+					 */
+					'alignTo'     => (string) apply_filters( 'protech_wholesale_tier_bar_align_selector', '#header-outer, .site-header, #masthead, header[role="banner"], body > header' ),
+					/**
+					 * Background colour of the space reserved for the sticky bar
+					 * at the very end of the page. '' (the default) samples it
+					 * from the page itself, so it matches the footer above it;
+					 * set a CSS colour only if that guess is ever wrong.
+					 *
+					 * @param string $color
+					 */
+					'spacerColor' => (string) apply_filters( 'protech_wholesale_tier_bar_spacer_color', '' ),
 				)
 			);
 		}
 
-		if ( $is_wholesale && is_product() ) {
+		if ( StarterKit::is_kit_page() ) {
+			wp_enqueue_script(
+				'protech-wholesale-starter-kit',
+				PROTECH_WHOLESALE_URL . 'assets/js/starter-kit.js',
+				array( 'jquery' ),
+				$this->asset_version( 'assets/js/starter-kit.js' ),
+				true
+			);
+
+			wp_localize_script(
+				'protech-wholesale-starter-kit',
+				'ProtechStarterKit',
+				array(
+					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+					'nonce'   => wp_create_nonce( StarterKit::NONCE_ACTION ),
+					'i18n'    => array(
+						'kitOne'    => __( 'kit', 'protech-wholesale' ),
+						'kitMany'   => __( 'kits', 'protech-wholesale' ),
+						'addOne'    => __( 'Add starter kit to cart', 'protech-wholesale' ),
+						/* translators: %d: number of starter kits. */
+						'addMany'   => __( 'Add %d starter kits to cart', 'protech-wholesale' ),
+						'addFailed' => __( 'Could not add the starter kit to your cart.', 'protech-wholesale' ),
+					),
+				)
+			);
+		}
+
+		// A kit page has no add-to-cart form for the unit selector to drive.
+		if ( $is_wholesale && is_product() && ! StarterKit::is_kit_page() ) {
 			$product      = wc_get_product( get_the_ID() );
 			$dependencies = array( 'jquery' );
 
@@ -237,16 +346,37 @@ final class Plugin {
 					// extra round trip and no hardcoded /wp-json/ path.
 					'restRoot' => esc_url_raw( rest_url( 'wc/store/v1/' ) ),
 					'nonce'    => wp_create_nonce( 'wc_store_api' ),
+					// Singular and plural are separate strings on purpose: the
+					// script picks between them itself, per quantity, with no
+					// wp.i18n dependency.
 					'i18n'     => array(
 						/* translators: %d: packs per display. */
-						'display'    => __( 'Display (%d packs)', 'protech-wholesale' ),
+						'display'         => __( 'Display (%d packs)', 'protech-wholesale' ),
 						/* translators: %d: packs per case. */
-						'case'       => __( 'Case (%d packs)', 'protech-wholesale' ),
+						'case'            => __( 'Case (%d packs)', 'protech-wholesale' ),
+						/* translators: 1: displays per case, 2: packs per case. */
+						'caseMeta'        => __( '%1$d displays · %2$d packs', 'protech-wholesale' ),
+						/* translators: %d: number of displays, always 1. */
+						'displayOne'      => __( '%d display', 'protech-wholesale' ),
+						/* translators: %d: number of displays. */
+						'displayMany'     => __( '%d displays', 'protech-wholesale' ),
+						/* translators: %d: number of cases, always 1. */
+						'caseOne'         => __( '%d case', 'protech-wholesale' ),
+						/* translators: %d: number of cases. */
+						'caseMany'        => __( '%d cases', 'protech-wholesale' ),
+						/* translators: %d: number of packs, always 1. */
+						'packOne'         => __( '%d pack', 'protech-wholesale' ),
 						/* translators: %d: number of packs. */
-						'packTotal'  => __( '%d pack total', 'protech-wholesale' ),
-						/* translators: %d: number of packs. */
-						'packsTotal' => __( '%d packs total', 'protech-wholesale' ),
-						'addFailed'  => __( 'Could not add this to your cart.', 'protech-wholesale' ),
+						'packMany'        => __( '%d packs', 'protech-wholesale' ),
+						'wordDisplayOne'  => __( 'display', 'protech-wholesale' ),
+						'wordDisplayMany' => __( 'displays', 'protech-wholesale' ),
+						'wordCaseOne'     => __( 'case', 'protech-wholesale' ),
+						'wordCaseMany'    => __( 'cases', 'protech-wholesale' ),
+						/* translators: %s: what is being added, e.g. "3 displays". */
+						'addButton'       => __( 'Add %s to cart', 'protech-wholesale' ),
+						/* translators: 1: what was added, e.g. "3 displays"; 2: the same in packs, e.g. "30 packs". */
+						'added'           => __( 'Added %1$s (%2$s) to your cart.', 'protech-wholesale' ),
+						'addFailed'       => __( 'Could not add this to your cart.', 'protech-wholesale' ),
 					),
 				)
 			);

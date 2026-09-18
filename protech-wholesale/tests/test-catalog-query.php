@@ -50,6 +50,35 @@ class Test_Catalog_Query extends WP_UnitTestCase {
 		$this->assertContains( $wholesale_only->get_id(), $this->visible_product_ids() );
 	}
 
+	public function test_a_single_product_page_is_never_filtered(): void {
+		$wholesale_only = Protech_Test_Factory::simple_product( '5.50' );
+		update_post_meta( $wholesale_only->get_id(), ProductFields::META_WHOLESALE_ONLY, 'yes' );
+
+		wp_set_current_user( Protech_Test_Factory::retail_customer() );
+
+		// The query behind /product/<slug>/: it must still find the product,
+		// so the page can show the "approved accounts only" notice rather
+		// than a 404 (which is what staging did for the Vendor Starter Kit).
+		$single = new WP_Query(
+			array(
+				'post_type' => 'product',
+				'p'         => $wholesale_only->get_id(),
+			)
+		);
+		$this->assertTrue( $single->is_singular() );
+		$this->assertSame( 1, $single->found_posts );
+
+		// A listing that happens to contain only that product is still filtered.
+		$listing = new WP_Query(
+			array(
+				'post_type' => 'product',
+				'post__in'  => array( $wholesale_only->get_id() ),
+			)
+		);
+		$this->assertFalse( $listing->is_singular() );
+		$this->assertSame( 0, $listing->found_posts );
+	}
+
 	public function test_products_without_a_wholesale_price_are_hidden_from_wholesale_customers_under_hide(): void {
 		$priced   = Protech_Test_Factory::simple_product( '5.50' );
 		$unpriced = Protech_Test_Factory::simple_product();

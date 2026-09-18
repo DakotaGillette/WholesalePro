@@ -50,9 +50,9 @@ class VolumePricing {
 	 */
 	public static function get_tier_labels(): array {
 		return array(
-			self::TIER_STANDARD => __( 'Standard (Tier 1)', 'protech-wholesale' ),
-			self::TIER_VOLUME   => __( 'Volume (Tier 2)', 'protech-wholesale' ),
-			self::TIER_BULK     => __( 'Bulk (Tier 3)', 'protech-wholesale' ),
+			self::TIER_STANDARD => __( 'Standard', 'protech-wholesale' ),
+			self::TIER_VOLUME   => __( 'Volume', 'protech-wholesale' ),
+			self::TIER_BULK     => __( 'Bulk', 'protech-wholesale' ),
 		);
 	}
 
@@ -134,12 +134,89 @@ class VolumePricing {
 	}
 
 	/**
+	 * Where the Volume marker sits on the sticky bar's track. The track is
+	 * two straight segments rather than one: with the store defaults
+	 * (Volume at 16 displays, Bulk at 16 cases = 128 displays) a single
+	 * linear scale parks the Volume marker at 12.5%, cramming the whole
+	 * first tier into the left eighth of the bar and leaving the first few
+	 * displays a customer adds with no visible progress at all.
+	 */
+	public const VOLUME_MARKER_PERCENT = 40.0;
+
+	/** Short, customer-facing tier name ("Volume"), as opposed to the admin labels above. */
+	public static function get_tier_short_label( string $tier ): string {
+		$labels = array(
+			self::TIER_STANDARD => __( 'Standard', 'protech-wholesale' ),
+			self::TIER_VOLUME   => __( 'Volume', 'protech-wholesale' ),
+			self::TIER_BULK     => __( 'Bulk', 'protech-wholesale' ),
+		);
+
+		return $labels[ $tier ] ?? $labels[ self::TIER_STANDARD ];
+	}
+
+	/**
+	 * Track position (0–100) for a combined display count: zero up to the
+	 * Volume threshold spans 0 → VOLUME_MARKER_PERCENT, Volume up to Bulk
+	 * spans the rest. Falls back to one linear segment if the thresholds
+	 * are configured so that Volume isn't below Bulk.
+	 * assets/js/global-tier-bar.js mirrors this for its add-to-cart preview
+	 * only — what the bar actually shows always comes from here.
+	 */
+	public static function scale_percent( float $displays, int $volume_displays, int $bulk_displays ): float {
+		if ( $bulk_displays <= 0 || $displays <= 0 ) {
+			return 0.0;
+		}
+
+		if ( $volume_displays <= 0 || $volume_displays >= $bulk_displays ) {
+			return round( min( 100.0, ( $displays / $bulk_displays ) * 100 ), 2 );
+		}
+
+		if ( $displays <= $volume_displays ) {
+			return round( ( $displays / $volume_displays ) * self::VOLUME_MARKER_PERCENT, 2 );
+		}
+
+		$progress = ( $displays - $volume_displays ) / ( $bulk_displays - $volume_displays );
+
+		return round( min( 100.0, self::VOLUME_MARKER_PERCENT + $progress * ( 100 - self::VOLUME_MARKER_PERCENT ) ), 2 );
+	}
+
+	/**
+	 * What the current tier is saving this cart against Standard pricing:
+	 * per eligible line, quantity x (Standard price - the price actually
+	 * being paid). Zero at Standard, and for any line on a per-customer
+	 * override (which ignores the ladder, so both prices are the same).
+	 *
+	 * @param array<int|string, array<string, mixed>> $items
+	 */
+	public static function get_savings_for_items( array $items, int $user_id, string $tier ): float {
+		if ( self::TIER_STANDARD === $tier ) {
+			return 0.0;
+		}
+
+		$savings = 0.0;
+
+		foreach ( $items as $item ) {
+			$product_id = (int) ( $item['variation_id'] ?: $item['product_id'] );
+			$standard   = Pricing::get_wholesale_price( $product_id, $user_id, self::TIER_STANDARD );
+			$current    = Pricing::get_wholesale_price( $product_id, $user_id, $tier );
+
+			if ( null === $standard || null === $current || $current >= $standard ) {
+				continue;
+			}
+
+			$savings += ( $standard - $current ) * (int) ( $item['quantity'] ?? 0 );
+		}
+
+		return round( $savings, 2 );
+	}
+
+	/**
 	 * Everything the sticky global tier bar (class-global-tier-bar.php)
 	 * needs to render, computed from a user's actual current cart. Shared
 	 * by that class's initial render and its AJAX refresh so there's
 	 * exactly one place that builds this copy/math.
 	 *
-	 * @return array{tier: string, displays: float, cases: float, fill_percent: float, message: string, stats: string, subtotal_html: string, volume_threshold_displays: int, bulk_threshold_cases: int, volume_marker_percent: float}
+	 * @return array{tier: string, tier_label: string, displays: float, cases: float, fill_percent: float, message: string, message_html: string, stats: string, subtotal: float, subtotal_html: string, savings: float, savings_html: string, volume_price_html: string, bulk_price_html: string, volume_threshold_displays: int, bulk_threshold_cases: int, volume_marker_percent: float, scale: array{volume_displays: int, bulk_displays: int, marker_percent: float}, ticks: array<int, array{percent: float, cases: int}>}
 	 */
 	public static function get_tier_bar_state( int $user_id ): array {
 		$cart  = function_exists( 'WC' ) ? WC()->cart : null;
@@ -153,39 +230,57 @@ class VolumePricing {
 		$default_displays_per_case  = max( 1, Settings::get_default_displays_per_case() );
 		$max_scale_displays         = $bulk_threshold_cases * $default_displays_per_case;
 
-		$fill_percent = $max_scale_displays > 0
-			? min( 100, ( $totals['displays'] / $max_scale_displays ) * 100 )
-			: 0.0;
+		// The Bulk marker is always the end of the track (100%); the Volume
+		// marker is a fixed visual reference point (see VOLUME_MARKER_PERCENT).
+		$volume_marker_percent = self::scale_percent( (float) $volume_threshold_displays, $volume_threshold_displays, $max_scale_displays );
+		$fill_percent          = self::scale_percent( $totals['displays'], $volume_threshold_displays, $max_scale_displays );
 
-		// Where the Volume marker sits along the track — a static layout
-		// based on the store's default case composition (not live cart
-		// state, since it's a fixed visual reference point). The Bulk
-		// marker is always the end of the track (100%).
-		$volume_marker_percent = $max_scale_displays > 0
-			? min( 100, ( $volume_threshold_displays / $max_scale_displays ) * 100 )
-			: 0.0;
-
+		// The tier itself is decided per product (each line's own displays-
+		// per-case), while the track is drawn from the store DEFAULT case
+		// composition — so pin the fill to whichever marker the tier says
+		// has really been reached, and keep it short of one that hasn't.
 		if ( self::TIER_BULK === $tier ) {
-			$message = __( "You've unlocked our best price and free shipping!", 'protech-wholesale' );
+			$fill_percent = 100.0;
 		} elseif ( self::TIER_VOLUME === $tier ) {
-			$cases_remaining = max( 0, $bulk_threshold_cases - $totals['cases'] );
-
-			$message = $cases_remaining > 0
-				? sprintf(
-					/* translators: %s: number of cases (e.g. "2" or "2.5"). */
-					__( 'Free shipping unlocked! Add %s more case worth to unlock our best price.', 'protech-wholesale' ),
-					self::format_quantity( $cases_remaining )
-				)
-				: __( "You've unlocked our best price and free shipping!", 'protech-wholesale' );
+			$fill_percent = min( 97.0, max( $fill_percent, $volume_marker_percent ) );
 		} else {
-			$displays_remaining = max( 0, $volume_threshold_displays - $totals['displays'] );
-
-			$message = sprintf(
-				/* translators: %s: number of displays (e.g. "3" or "3.5"). */
-				__( 'Add %s more display worth to unlock better pricing and free shipping.', 'protech-wholesale' ),
-				self::format_quantity( $displays_remaining )
-			);
+			$fill_percent = min( $fill_percent, max( 0.0, $volume_marker_percent - 1.5 ) );
 		}
+
+		$unlocked_everything = __( "You've unlocked our best price and free shipping!", 'protech-wholesale' );
+		$cases_remaining     = max( 0.0, $bulk_threshold_cases - $totals['cases'] );
+		$displays_remaining  = max( 0.0, $volume_threshold_displays - $totals['displays'] );
+		$remaining           = '';
+
+		if ( self::TIER_BULK === $tier || ( self::TIER_VOLUME === $tier && $cases_remaining <= 0 ) ) {
+			$template = $unlocked_everything;
+		} elseif ( self::TIER_VOLUME === $tier ) {
+			$remaining = self::format_quantity( $cases_remaining );
+			$template  = 1.0 === round( $cases_remaining, 2 )
+				/* translators: %s: number of cases, always "1" here. */
+				? __( 'Free shipping unlocked! Add %s more case to unlock our best price.', 'protech-wholesale' )
+				/* translators: %s: number of cases (e.g. "2" or "2.5"). */
+				: __( 'Free shipping unlocked! Add %s more cases to unlock our best price.', 'protech-wholesale' );
+		} else {
+			$remaining = self::format_quantity( $displays_remaining );
+
+			if ( $totals['displays'] <= 0 ) {
+				/* translators: %s: number of displays. */
+				$template = __( 'Add %s displays to unlock Volume pricing and free shipping.', 'protech-wholesale' );
+			} elseif ( 1.0 === round( $displays_remaining, 2 ) ) {
+				/* translators: %s: number of displays, always "1" here. */
+				$template = __( 'Add %s more display to unlock Volume pricing and free shipping.', 'protech-wholesale' );
+			} else {
+				/* translators: %s: number of displays (e.g. "3"). */
+				$template = __( 'Add %s more displays to unlock Volume pricing and free shipping.', 'protech-wholesale' );
+			}
+		}
+
+		// Same sentence twice: plain (aria-live, the My Account panel) and
+		// with the quantity emphasised for the bar itself. esc_html() leaves
+		// the %s placeholder intact, so only our own <strong> is unescaped.
+		$message      = sprintf( $template, $remaining );
+		$message_html = sprintf( esc_html( $template ), '<strong>' . esc_html( $remaining ) . '</strong>' );
 
 		$stats = sprintf(
 			/* translators: 1: number of displays, 2: number of cases. */
@@ -194,22 +289,97 @@ class VolumePricing {
 			self::format_quantity( $totals['cases'] )
 		);
 
+		$savings  = self::get_savings_for_items( $items, $user_id, $tier );
+		$subtotal = $cart instanceof \WC_Cart ? (float) $cart->get_subtotal() : 0.0;
+
+		// Marker prices are the STORE DEFAULT Volume/Bulk prices with this
+		// customer's hidden tier discount applied — a product with its own
+		// Volume/Bulk override can differ, and the price table on each
+		// product page stays the exact figure. See DECISIONS.md.
+		$volume_price_html = '';
+		$bulk_price_html   = '';
+
+		/**
+		 * Whether the sticky bar's Volume/Bulk markers show a per-pack price.
+		 * Turn off for a catalogue where most products override the defaults.
+		 *
+		 * @param bool $show
+		 */
+		if ( apply_filters( 'protech_wholesale_tier_bar_show_prices', true ) ) {
+			$discount          = max( 0.0, min( 100.0, (float) Tiers::get_tier_discount_percent( Tiers::get_user_tier( $user_id ) ) ) );
+			$volume_price_html = self::plain_price( round( Settings::get_volume_price() * ( 1 - $discount / 100 ), 2 ) );
+			$bulk_price_html   = self::plain_price( round( Settings::get_bulk_price() * ( 1 - $discount / 100 ), 2 ) );
+		}
+
 		return array(
 			'tier'                       => $tier,
+			'tier_label'                 => self::get_tier_short_label( $tier ),
 			'displays'                   => $totals['displays'],
 			'cases'                      => $totals['cases'],
 			'fill_percent'               => $fill_percent,
 			'message'                    => $message,
+			'message_html'               => $message_html,
 			'stats'                      => $stats,
-			'subtotal_html'              => wp_strip_all_tags( wc_price( $cart instanceof \WC_Cart ? (float) $cart->get_subtotal() : 0.0 ) ),
+			'subtotal'                   => $subtotal,
+			'subtotal_html'              => self::plain_price( $subtotal ),
+			'savings'                    => $savings,
+			'savings_html'               => $savings > 0 ? self::plain_price( $savings ) : '',
+			'volume_price_html'          => $volume_price_html,
+			'bulk_price_html'            => $bulk_price_html,
 			'volume_threshold_displays'  => $volume_threshold_displays,
 			'bulk_threshold_cases'       => $bulk_threshold_cases,
 			'volume_marker_percent'      => $volume_marker_percent,
+			'scale'                      => array(
+				'volume_displays' => $volume_threshold_displays,
+				'bulk_displays'   => $max_scale_displays,
+				'marker_percent'  => $volume_marker_percent,
+			),
+			'ticks'                      => self::get_track_ticks( $bulk_threshold_cases, $default_displays_per_case, $volume_threshold_displays, $volume_marker_percent ),
 		);
 	}
 
+	/**
+	 * Minor tick marks along the track at whole-case intervals, so the long
+	 * Volume → Bulk stretch reads as a scale instead of an empty rail. At
+	 * most eight, and none on top of the Volume marker or either end.
+	 *
+	 * @return array<int, array{percent: float, cases: int}>
+	 */
+	private static function get_track_ticks( int $bulk_cases, int $displays_per_case, int $volume_displays, float $volume_marker_percent ): array {
+		if ( $bulk_cases < 2 ) {
+			return array();
+		}
+
+		$step  = (int) max( 1, ceil( ( $bulk_cases - 1 ) / 8 ) );
+		$ticks = array();
+
+		for ( $cases = $step; $cases < $bulk_cases; $cases += $step ) {
+			$percent = self::scale_percent( (float) ( $cases * $displays_per_case ), $volume_displays, $bulk_cases * $displays_per_case );
+
+			if ( $percent < 4 || $percent > 96 || abs( $percent - $volume_marker_percent ) < 4 ) {
+				continue;
+			}
+
+			$ticks[] = array(
+				'percent' => $percent,
+				'cases'   => $cases,
+			);
+		}
+
+		return $ticks;
+	}
+
+	/**
+	 * wc_price() without its markup — the store's own currency symbol,
+	 * position and decimals, as text (entities intact) the bar's JS can
+	 * drop straight into place.
+	 */
+	private static function plain_price( float $amount ): string {
+		return wp_strip_all_tags( wc_price( $amount ) );
+	}
+
 	/** "3" for a whole number, "3.5" for a fraction. */
-	private static function format_quantity( float $value ): string {
+	public static function format_quantity( float $value ): string {
 		$rounded = round( $value, 2 );
 
 		return ( 0.0 === fmod( $rounded, 1.0 ) ) ? (string) (int) round( $rounded ) : number_format( $rounded, 1 );
@@ -263,47 +433,80 @@ class VolumePricing {
 			echo '<div class="updated notice"><p>' . esc_html__( 'Pricing settings saved.', 'protech-wholesale' ) . '</p></div>';
 		}
 
-		echo '<p>' . esc_html__( 'The quantity ladder every wholesale customer sees, based on the combined Display/Case quantity across their whole cart. A product can override the Volume/Bulk price on its own edit screen; Standard is always that product\'s own wholesale price.', 'protech-wholesale' ) . '</p>';
+		$currency = get_woocommerce_currency_symbol();
 
 		echo '<form method="post">';
 		wp_nonce_field( self::OPT_TIER_LABELS_NONCE_ACTION, 'protech_wholesale_pricing_nonce' );
 
-		echo '<table class="widefat striped"><thead><tr>';
+		// -- 1. Quantity pricing --------------------------------------------
+		echo '<h2>' . esc_html__( 'Quantity pricing', 'protech-wholesale' ) . '</h2>';
+		echo '<p>' . esc_html__( 'The price ladder every wholesale customer sees. It is based on the combined display and case quantity across their whole cart, every product and colour together. Standard is always a product\'s own wholesale price; a product can override its Volume or Bulk price on its own edit screen.', 'protech-wholesale' ) . '</p>';
+
+		echo '<table class="widefat striped" style="max-width:760px;"><thead><tr>';
 		foreach (
 			array(
-				__( 'Tier', 'protech-wholesale' ),
+				__( 'Price level', 'protech-wholesale' ),
 				__( 'Unlocks at', 'protech-wholesale' ),
-				__( 'Price per pack', 'protech-wholesale' ),
+				/* translators: %s: currency symbol. */
+				sprintf( __( 'Price per pack (%s)', 'protech-wholesale' ), $currency ),
 			) as $heading
 		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
 
-		echo '<tr><td><strong>' . esc_html__( 'Standard (Tier 1)', 'protech-wholesale' ) . '</strong></td>';
+		echo '<tr><td><strong>' . esc_html__( 'Standard', 'protech-wholesale' ) . '</strong></td>';
 		echo '<td>' . esc_html__( 'Every wholesale order', 'protech-wholesale' ) . '</td>';
 		echo '<td>' . esc_html__( "Each product's own wholesale price", 'protech-wholesale' ) . '</td></tr>';
 
-		echo '<tr><td><strong>' . esc_html__( 'Volume (Tier 2)', 'protech-wholesale' ) . '</strong></td>';
-		echo '<td><input type="number" step="1" min="1" name="protech_volume_threshold_displays" value="' . esc_attr( (string) Settings::get_volume_threshold_displays() ) . '" style="width:80px;" /> ' . esc_html__( 'combined displays (also the free-shipping threshold below)', 'protech-wholesale' ) . '</td>';
+		echo '<tr><td><strong>' . esc_html__( 'Volume', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Also unlocks free shipping', 'protech-wholesale' ) . '</span></td>';
+		echo '<td><input type="number" step="1" min="1" name="protech_volume_threshold_displays" value="' . esc_attr( (string) Settings::get_volume_threshold_displays() ) . '" style="width:80px;" /> ' . esc_html__( 'combined displays', 'protech-wholesale' ) . '</td>';
 		echo '<td><input type="number" step="0.01" min="0" name="protech_volume_price" value="' . esc_attr( (string) Settings::get_volume_price() ) . '" style="width:100px;" /></td></tr>';
 
-		echo '<tr><td><strong>' . esc_html__( 'Bulk (Tier 3)', 'protech-wholesale' ) . '</strong></td>';
+		echo '<tr><td><strong>' . esc_html__( 'Bulk', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Best price', 'protech-wholesale' ) . '</span></td>';
 		echo '<td><input type="number" step="1" min="1" name="protech_bulk_threshold_cases" value="' . esc_attr( (string) Settings::get_bulk_threshold_cases() ) . '" style="width:80px;" /> ' . esc_html__( 'combined cases', 'protech-wholesale' ) . '</td>';
 		echo '<td><input type="number" step="0.01" min="0" name="protech_bulk_price" value="' . esc_attr( (string) Settings::get_bulk_price() ) . '" style="width:100px;" /></td></tr>';
 
 		echo '</tbody></table>';
 
-		echo '<h2>' . esc_html__( 'Case composition defaults', 'protech-wholesale' ) . '</h2>';
+		// -- 2. Displays and cases -------------------------------------------
+		echo '<h2>' . esc_html__( 'Displays and cases', 'protech-wholesale' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Wholesale quantities are whole displays. These are the store defaults; a product (or a single colour) can set its own on its Wholesale tab.', 'protech-wholesale' ) . '</p>';
 		echo '<table class="form-table" role="presentation"><tbody>';
 		echo '<tr><th><label for="protech_default_case_size">' . esc_html__( 'Packs per display', 'protech-wholesale' ) . '</label></th><td><input type="number" step="1" min="1" id="protech_default_case_size" name="protech_default_case_size" value="' . esc_attr( (string) Settings::get_default_case_size() ) . '" style="width:100px;" /></td></tr>';
 		echo '<tr><th><label for="protech_default_displays_per_case">' . esc_html__( 'Displays per case', 'protech-wholesale' ) . '</label></th><td><input type="number" step="1" min="1" id="protech_default_displays_per_case" name="protech_default_displays_per_case" value="' . esc_attr( (string) Settings::get_default_displays_per_case() ) . '" style="width:100px;" /></td></tr>';
 		echo '</tbody></table>';
 
+		// -- 3. Shipping -------------------------------------------------------
 		echo '<h2>' . esc_html__( 'Wholesale shipping', 'protech-wholesale' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Add "Protech Wholesale Shipping" as a shipping method to each zone under WooCommerce → Settings → Shipping — it\'s invisible to retail customers.', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'Wholesale orders ship on their own rate: a flat fee below the Volume threshold, free at or above it. Retail customers never see it.', 'protech-wholesale' ) . '</p>';
+
+		$zones_with_method = SetupChecks::zones_with_wholesale_shipping();
+		$shipping_url      = admin_url( 'admin.php?page=wc-settings&tab=shipping' );
+
+		if ( empty( $zones_with_method ) ) {
+			echo '<div class="notice notice-warning inline"><p>' . wp_kses_post(
+				sprintf(
+					/* translators: %s: link to WooCommerce shipping settings. */
+					__( '"Protech Wholesale Shipping" has not been added to any shipping zone yet, so wholesale customers are still seeing the retail shipping options. <a href="%s">Add it to a zone</a>.', 'protech-wholesale' ),
+					esc_url( $shipping_url )
+				)
+			) . '</p></div>';
+		} else {
+			echo '<p class="description">' . wp_kses_post(
+				sprintf(
+					/* translators: 1: comma-separated zone names, 2: link to WooCommerce shipping settings. */
+					__( 'Active in: %1$s. <a href="%2$s">Manage zones</a>.', 'protech-wholesale' ),
+					esc_html( implode( ', ', $zones_with_method ) ),
+					esc_url( $shipping_url )
+				)
+			) . '</p>';
+		}
+
 		echo '<table class="form-table" role="presentation"><tbody>';
-		echo '<tr><th><label for="protech_shipping_flat_rate">' . esc_html__( 'Flat rate below the Volume threshold', 'protech-wholesale' ) . '</label></th><td><input type="number" step="0.01" min="0" id="protech_shipping_flat_rate" name="protech_shipping_flat_rate" value="' . esc_attr( (string) Settings::get_shipping_flat_rate() ) . '" style="width:100px;" /> <p class="description">' . esc_html__( 'Free shipping at/above the Volume threshold set above.', 'protech-wholesale' ) . '</p></td></tr>';
+		/* translators: %s: currency symbol. */
+		echo '<tr><th><label for="protech_shipping_flat_rate">' . esc_html( sprintf( __( 'Flat rate below the Volume threshold (%s)', 'protech-wholesale' ), $currency ) ) . '</label></th><td><input type="number" step="0.01" min="0" id="protech_shipping_flat_rate" name="protech_shipping_flat_rate" value="' . esc_attr( (string) Settings::get_shipping_flat_rate() ) . '" style="width:100px;" /> <p class="description">' . esc_html( sprintf( /* translators: %d: number of displays. */ __( 'Free from %d combined displays (the Volume threshold above).', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ) ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Retail free shipping', 'protech-wholesale' ) . '</th><td><label><input type="checkbox" name="protech_exclude_free_shipping" value="yes" ' . checked( Settings::exclude_free_shipping(), true, false ) . ' /> ' . esc_html__( 'Never give wholesale orders the retail free-shipping rule', 'protech-wholesale' ) . '</label><p class="description">' . esc_html__( 'Applies in zones where the wholesale method has not been added. Wholesale orders pay their own rate or earn free shipping at the Volume threshold, never through the retail "free over $30" rule.', 'protech-wholesale' ) . '</p></td></tr>';
 		echo '</tbody></table>';
 
 		submit_button();
@@ -311,6 +514,7 @@ class VolumePricing {
 	}
 
 	private static function save_pricing_tab(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified by render_pricing_tab() before calling this.
 		$fields = array(
 			'protech_volume_threshold_displays' => Settings::OPT_VOLUME_THRESHOLD_DISPLAYS,
 			'protech_volume_price'              => Settings::OPT_VOLUME_PRICE,
@@ -332,6 +536,10 @@ class VolumePricing {
 				update_option( $option_key, (string) $value );
 			}
 		}
+
+		// A checkbox: absent when unticked, so it is always written.
+		update_option( Settings::OPT_EXCLUDE_FREE_SHIPPING, ! empty( $_POST['protech_exclude_free_shipping'] ) ? 'yes' : 'no' );
+		// phpcs:enable
 
 		Logger::info( 'Wholesale pricing settings updated by user #' . get_current_user_id() );
 	}

@@ -35,6 +35,12 @@ class TierLadder {
 			return;
 		}
 
+		// A starter kit's page prices the kit as a whole (class-starter-kit.php);
+		// a per-pack ladder for the kit product itself would be meaningless.
+		if ( StarterKit::is_kit( $product->get_id() ) ) {
+			return;
+		}
+
 		$user_id = get_current_user_id();
 
 		if ( ! Pricing::is_available_at_wholesale_including_variations( $product->get_id(), $user_id ) ) {

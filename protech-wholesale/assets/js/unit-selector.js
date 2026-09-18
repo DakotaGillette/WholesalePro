@@ -1,12 +1,23 @@
 /**
- * Single product page: the "Order by: Display / Case" convenience
- * control (class-case-rules.php's render_unit_selector()) always drives
- * the REAL pack-quantity input WooCommerce actually submits — it never
- * introduces a second data field of its own. Hides that real input once
- * this takes over, keeps it in sync as the friendly unit/quantity fields
- * change, and re-syncs on WooCommerce's own `found_variation` event so
- * switching color on a variable product still converts correctly even
- * if that color's case size ever differs from another's.
+ * Single product page: the "Order by: Display / Case" control
+ * (class-case-rules.php's render_unit_selector()) always drives the REAL
+ * pack-quantity input WooCommerce actually submits — it never introduces
+ * a second data field of its own. Hides that real input once this takes
+ * over (so the page shows ONE quantity control, not two), keeps it in
+ * sync as the unit/quantity change, and re-syncs on WooCommerce's own
+ * `found_variation` event so switching color on a variable product still
+ * converts correctly even if that color's case size ever differs from
+ * another's.
+ *
+ * What the customer sees: two radio cards (Display / Case), a −/+ stepper
+ * with the unit word beside it, a live "3 displays · 30 packs" read-back,
+ * and an Add to Cart button that says what it's about to add. The chosen
+ * unit is remembered between visits (localStorage), so a buyer who always
+ * orders by the case lands on Case.
+ *
+ * Every change also dispatches a `protech:qty-preview` DOM event carrying
+ * the quantity currently dialled in ({ displays, cases }), which
+ * global-tier-bar.js draws as a preview segment on the sticky bar.
  *
  * Also AJAXifies this form's Add to Cart submission, via the WooCommerce
  * Store API (`cart/add-item`) rather than the classic `?wc-ajax=add_to_cart`
@@ -17,8 +28,9 @@
  * hardcoded /wp-json/ path and no extra round trip per add; a stale nonce
  * (cached page) is refreshed once from the cart endpoint and retried.
  *
- * After a successful add it (a) asks WooCommerce's cart-fragments script
- * to refresh the mini-cart, if that script is loaded, and (b) dispatches a
+ * After a successful add it (a) confirms it in place ("Added 3 displays
+ * (30 packs) to your cart"), (b) asks WooCommerce's cart-fragments script
+ * to refresh the mini-cart, if that script is loaded, and (c) dispatches a
  * `protech:cart-changed` DOM event that global-tier-bar.js listens for —
  * so the sticky tier bar updates even on sites where cart-fragments isn't
  * loaded on product pages (WooCommerce stopped loading it there by
@@ -33,6 +45,8 @@
 ( function () {
 	'use strict';
 
+	var UNIT_STORAGE_KEY = 'protechOrderUnit';
+
 	document.addEventListener( 'DOMContentLoaded', init );
 
 	function init() {
@@ -45,12 +59,16 @@
 		var settings = window.ProtechUnitSelector || {};
 		var i18n = settings.i18n || {};
 
+		// Radio cards in the shipped template; a <select> is still honoured
+		// so a theme's older override of that markup keeps working.
+		var unitRadios = Array.prototype.slice.call( selector.querySelectorAll( 'input[name="protech_unit"]' ) );
 		var unitSelect = document.getElementById( 'protech-unit-select' );
 		var friendlyQty = document.getElementById( 'protech-unit-qty' );
 		var nativeQty = document.querySelector( '.protech-native-qty' );
 		var hint = document.getElementById( 'protech-unit-selector-hint' );
+		var unitWord = document.getElementById( 'protech-unit-word' );
 
-		if ( ! unitSelect || ! friendlyQty || ! nativeQty ) {
+		if ( ( ! unitRadios.length && ! unitSelect ) || ! friendlyQty || ! nativeQty ) {
 			return;
 		}
 
@@ -60,21 +78,135 @@
 			nativeWrapper.classList.add( 'protech-hidden-qty' );
 		}
 
+		selector.classList.add( 'is-active' );
+
+		var form = nativeQty.closest( 'form' );
+		var submitButton = form ? form.querySelector( '.single_add_to_cart_button' ) : null;
+		// Only ever rewrite a plain-text button: if a theme has put its
+		// own markup inside it, leave that alone.
+		var originalButtonText = submitButton && 0 === submitButton.children.length ? submitButton.textContent : null;
+
 		var caseSize = parseInt( selector.getAttribute( 'data-case-size' ), 10 ) || 1;
 		var displaysPerCase = parseInt( selector.getAttribute( 'data-displays-per-case' ), 10 ) || 1;
+		var messageTimer = null;
 
-		function format( template, n ) {
-			return String( template || '%d' ).replace( '%d', String( n ) );
+		// Replaces %d / %s, or numbered %1$d / %2$s placeholders, in order.
+		function format( template, values ) {
+			var list = Array.isArray( values ) ? values : [ values ];
+			var next = 0;
+
+			return String( template || '' ).replace( /%(?:(\d+)\$)?[ds]/g, function ( match, position ) {
+				var index = position ? parseInt( position, 10 ) - 1 : next++;
+
+				return undefined === list[ index ] ? match : String( list[ index ] );
+			} );
+		}
+
+		function plural( count, one, many ) {
+			return format( 1 === count ? one : many, count );
+		}
+
+		function getUnit() {
+			var checked = unitRadios.filter( function ( radio ) {
+				return radio.checked;
+			} )[ 0 ];
+
+			if ( checked ) {
+				return checked.value;
+			}
+
+			return unitSelect ? unitSelect.value : 'display';
+		}
+
+		function setUnit( unit ) {
+			unitRadios.forEach( function ( radio ) {
+				radio.checked = radio.value === unit;
+			} );
+
+			if ( unitSelect ) {
+				unitSelect.value = unit;
+			}
 		}
 
 		function packsPerUnit() {
-			return 'case' === unitSelect.value ? caseSize * displaysPerCase : caseSize;
+			return 'case' === getUnit() ? caseSize * displaysPerCase : caseSize;
+		}
+
+		function getCount() {
+			var count = parseInt( friendlyQty.value, 10 );
+
+			return count && count > 0 ? count : 0;
+		}
+
+		// "3 displays" / "1 case" — the quantity in the unit it was entered in.
+		function describeUnits( count ) {
+			return 'case' === getUnit()
+				? plural( count, i18n.caseOne || '%d case', i18n.caseMany || '%d cases' )
+				: plural( count, i18n.displayOne || '%d display', i18n.displayMany || '%d displays' );
+		}
+
+		function describePacks( packs ) {
+			return plural( packs, i18n.packOne || '%d pack', i18n.packMany || '%d packs' );
+		}
+
+		function showMessage( text, state ) {
+			if ( ! hint ) {
+				return;
+			}
+
+			hint.textContent = text;
+			hint.classList.toggle( 'protech-unit-selector-hint--error', 'error' === state );
+			hint.classList.toggle( 'protech-unit-selector-hint--success', 'success' === state );
+		}
+
+		// The read-back line, the unit word beside the stepper, and the
+		// button label — everything that restates the current quantity.
+		function renderSummary() {
+			var count = getCount() || 1;
+			var packs = count * packsPerUnit();
+			var parts = [ describeUnits( count ) ];
+
+			if ( 'case' === getUnit() ) {
+				parts.push( plural( count * displaysPerCase, i18n.displayOne || '%d display', i18n.displayMany || '%d displays' ) );
+			}
+
+			parts.push( describePacks( packs ) );
+
+			if ( messageTimer ) {
+				clearTimeout( messageTimer );
+				messageTimer = null;
+			}
+
+			showMessage( parts.join( ' · ' ), null );
+
+			if ( unitWord ) {
+				unitWord.textContent = 'case' === getUnit()
+					? ( 1 === count ? i18n.wordCaseOne || 'case' : i18n.wordCaseMany || 'cases' )
+					: ( 1 === count ? i18n.wordDisplayOne || 'display' : i18n.wordDisplayMany || 'displays' );
+			}
+
+			if ( submitButton && null !== originalButtonText ) {
+				submitButton.textContent = format( i18n.addButton || 'Add %s to cart', describeUnits( count ) );
+			}
+		}
+
+		function announcePreview() {
+			var packs = ( getCount() || 1 ) * packsPerUnit();
+
+			document.dispatchEvent(
+				new CustomEvent( 'protech:qty-preview', {
+					detail: {
+						displays: packs / caseSize,
+						cases: packs / ( caseSize * displaysPerCase ),
+					},
+				} )
+			);
 		}
 
 		function sync() {
-			var count = parseInt( friendlyQty.value, 10 );
+			var count = getCount();
 
-			if ( ! count || count < 1 ) {
+			if ( ! count ) {
 				count = 1;
 				friendlyQty.value = '1';
 			}
@@ -90,33 +222,92 @@
 			// theme adds one) still notices the new value.
 			nativeQty.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 
-			showMessage( format( 1 === packs ? i18n.packTotal : i18n.packsTotal, packs ), false );
+			renderSummary();
+			announcePreview();
 		}
 
 		function refreshUnitLabels() {
-			var displayOption = unitSelect.querySelector( 'option[value="display"]' );
-			var caseOption = unitSelect.querySelector( 'option[value="case"]' );
+			var displayMeta = selector.querySelector( '[data-protech-unit-meta="display"]' );
+			var caseMeta = selector.querySelector( '[data-protech-unit-meta="case"]' );
 
-			if ( displayOption ) {
-				displayOption.textContent = format( i18n.display, caseSize );
+			if ( displayMeta ) {
+				displayMeta.textContent = describePacks( caseSize );
 			}
 
-			if ( caseOption ) {
-				caseOption.textContent = format( i18n.case, caseSize * displaysPerCase );
+			if ( caseMeta ) {
+				caseMeta.textContent = format( i18n.caseMeta || '%1$d displays · %2$d packs', [ displaysPerCase, caseSize * displaysPerCase ] );
+			}
+
+			if ( unitSelect ) {
+				var displayOption = unitSelect.querySelector( 'option[value="display"]' );
+				var caseOption = unitSelect.querySelector( 'option[value="case"]' );
+
+				if ( displayOption ) {
+					displayOption.textContent = format( i18n.display || 'Display (%d packs)', caseSize );
+				}
+
+				if ( caseOption ) {
+					caseOption.textContent = format( i18n.case || 'Case (%d packs)', caseSize * displaysPerCase );
+				}
 			}
 		}
 
-		function showMessage( text, isError ) {
-			if ( ! hint ) {
+		function rememberUnit() {
+			try {
+				window.localStorage.setItem( UNIT_STORAGE_KEY, getUnit() );
+			} catch ( e ) {
+				// Storage blocked: the choice simply isn't remembered.
+			}
+		}
+
+		function restoreUnit() {
+			try {
+				var stored = window.localStorage.getItem( UNIT_STORAGE_KEY );
+
+				if ( 'case' === stored || 'display' === stored ) {
+					setUnit( stored );
+				}
+			} catch ( e ) {
+				// As above.
+			}
+		}
+
+		function onUnitChange() {
+			rememberUnit();
+			sync();
+		}
+
+		unitRadios.forEach( function ( radio ) {
+			radio.addEventListener( 'change', onUnitChange );
+		} );
+
+		if ( unitSelect ) {
+			unitSelect.addEventListener( 'change', onUnitChange );
+		}
+
+		friendlyQty.addEventListener( 'input', function () {
+			// Let someone clear the field to retype without it snapping
+			// back to 1 mid-keystroke; blur (below) tidies an empty value.
+			if ( '' === friendlyQty.value ) {
 				return;
 			}
 
-			hint.textContent = text;
-			hint.classList.toggle( 'protech-unit-selector-hint--error', !! isError );
-		}
+			sync();
+		} );
 
-		unitSelect.addEventListener( 'change', sync );
-		friendlyQty.addEventListener( 'input', sync );
+		friendlyQty.addEventListener( 'blur', sync );
+
+		Array.prototype.forEach.call( selector.querySelectorAll( '[data-protech-step]' ), function ( button ) {
+			button.addEventListener( 'click', function () {
+				var step = parseInt( button.getAttribute( 'data-protech-step' ), 10 ) || 0;
+
+				friendlyQty.value = String( Math.max( 1, ( getCount() || 1 ) + step ) );
+				sync();
+			} );
+		} );
+
+		// global-tier-bar.js may start listening after our first sync().
+		document.addEventListener( 'protech:qty-preview-request', announcePreview );
 
 		// Variable products: WooCommerce's own add-to-cart-variation.js
 		// fires this jQuery event on the surrounding .variations_form
@@ -136,8 +327,6 @@
 				}
 			} );
 		}
-
-		var form = nativeQty.closest( 'form' );
 
 		if ( form && window.fetch ) {
 			form.addEventListener( 'submit', handleSubmit );
@@ -184,13 +373,24 @@
 				} );
 		}
 
+		function flashButton() {
+			if ( ! submitButton ) {
+				return;
+			}
+
+			submitButton.classList.add( 'protech-added' );
+
+			window.setTimeout( function () {
+				submitButton.classList.remove( 'protech-added' );
+			}, 1600 );
+		}
+
 		function handleSubmit( event ) {
 			// Defensive re-sync right before submission — belt-and-braces
 			// in case some other script's change handler ran after ours
 			// and touched the native field in between.
 			sync();
 
-			var submitButton = form.querySelector( '.single_add_to_cart_button' );
 			var variationField = form.querySelector( 'input[name="variation_id"]' );
 			var productField = form.querySelector( '[name="add-to-cart"], [name="product_id"]' );
 			var itemId = variationField && parseInt( variationField.value, 10 )
@@ -204,6 +404,10 @@
 
 			event.preventDefault();
 
+			// Captured now: the control resets to 1 as soon as the add lands.
+			var addedUnits = describeUnits( getCount() || 1 );
+			var addedPacks = describePacks( packs );
+
 			if ( submitButton ) {
 				submitButton.classList.add( 'loading' );
 				submitButton.disabled = true;
@@ -212,7 +416,7 @@
 			addItem( itemId, packs, false )
 				.then( function ( result ) {
 					if ( ! result.ok ) {
-						showMessage( ( result.body && result.body.message ) || i18n.addFailed || 'Could not add this to your cart.', true );
+						showMessage( ( result.body && result.body.message ) || i18n.addFailed || 'Could not add this to your cart.', 'error' );
 						return;
 					}
 
@@ -225,11 +429,16 @@
 					// ... and a direct signal to the sticky tier bar either way.
 					document.dispatchEvent( new CustomEvent( 'protech:cart-changed' ) );
 
-					// Reset back to a fresh 1-Display default, matching what
-					// a new page load would have started at.
-					unitSelect.value = 'display';
+					// Back to a quantity of 1, but in the unit they were
+					// ordering in — then say what just happened, and fall
+					// back to the normal read-back line a few seconds later.
 					friendlyQty.value = '1';
 					sync();
+
+					showMessage( format( i18n.added || 'Added %1$s (%2$s) to your cart.', [ addedUnits, addedPacks ] ), 'success' );
+					flashButton();
+
+					messageTimer = window.setTimeout( renderSummary, 4500 );
 				} )
 				.catch( function () {
 					// Network/parsing failure — fall back to an ordinary
@@ -246,6 +455,8 @@
 				} );
 		}
 
+		restoreUnit();
+		refreshUnitLabels();
 		sync();
 	}
 } )();

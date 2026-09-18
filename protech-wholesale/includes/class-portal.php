@@ -24,6 +24,9 @@ class Portal {
 
 	private static ?\WP_Error $login_error = null;
 
+	/** What was typed into a login that just failed, so the form can keep it. */
+	private static string $attempted_username = '';
+
 	public function register_hooks(): void {
 		add_shortcode( 'protech_wholesale_portal', array( $this, 'render' ) );
 		add_action( 'template_redirect', array( $this, 'handle_login_submission' ), 5 );
@@ -55,7 +58,8 @@ class Portal {
 		$user = wp_signon( $creds, is_ssl() );
 
 		if ( is_wp_error( $user ) ) {
-			self::$login_error = $user;
+			self::$login_error        = $user;
+			self::$attempted_username = $creds['user_login'];
 			return;
 		}
 
@@ -119,6 +123,8 @@ class Portal {
 			array(
 				'state'       => $state,
 				'login_error' => self::$login_error,
+				'username'    => self::$attempted_username,
+				'benefits'    => self::get_benefits(),
 				'apply_url'   => home_url( '/wholesale-application' ),
 				'contact_url' => apply_filters( 'protech_wholesale_contact_url', home_url( '/contact-us' ) ),
 			),
@@ -127,6 +133,43 @@ class Portal {
 		);
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The login page's pitch, built from the store's real settings — it
+	 * only ever promises what the Pricing tab currently delivers, and
+	 * follows along when those thresholds change.
+	 *
+	 * @return array<int, array{title: string, detail: string}>
+	 */
+	public static function get_benefits(): array {
+		$benefits = array(
+			array(
+				'title'  => __( 'Your pricing, right in the shop', 'protech-wholesale' ),
+				'detail' => __( 'Log in and the shop shows your wholesale prices. No separate order form.', 'protech-wholesale' ),
+			),
+			array(
+				/* translators: %d: number of displays. */
+				'title'  => sprintf( __( 'Free shipping from %d displays', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ),
+				/* translators: %d: number of cases. */
+				'detail' => sprintf( __( 'Better pricing kicks in at the same point, and our best price from %d cases. Mix any products and colours.', 'protech-wholesale' ), Settings::get_bulk_threshold_cases() ),
+			),
+			array(
+				'title'  => __( 'Order by the display or the case', 'protech-wholesale' ),
+				'detail' => __( 'Pick the unit you stock in. We do the pack maths.', 'protech-wholesale' ),
+			),
+			array(
+				'title'  => __( 'Reorder in one click', 'protech-wholesale' ),
+				'detail' => __( 'Any past order goes straight back into your cart.', 'protech-wholesale' ),
+			),
+		);
+
+		/**
+		 * The benefit list on the /wholesale login page.
+		 *
+		 * @param array<int, array{title: string, detail: string}> $benefits
+		 */
+		return (array) apply_filters( 'protech_wholesale_portal_benefits', $benefits );
 	}
 
 	/**

@@ -41,7 +41,7 @@ if ( 'yes' !== $protech_purge_on_uninstall ) {
 // 1. Plugin settings (mirrors Settings::get_defaults() keys).
 // -----------------------------------------------------------------
 $protech_option_keys = array(
-	'protech_wholesale_min_order',
+	'protech_wholesale_min_order', // Removed in 1.3.0; still cleaned up.
 	'protech_wholesale_default_case_size',
 	'protech_wholesale_default_displays_per_case',
 	'protech_wholesale_empty_price_behavior',
@@ -55,6 +55,7 @@ $protech_option_keys = array(
 	'protech_wholesale_application_source',
 	'protech_wholesale_application_form_id',
 	'protech_wholesale_purge_on_uninstall',
+	'protech_wholesale_notification_email',
 	'protech_wholesale_tier_settings', // Tiers::OPT_TIER_SETTINGS.
 	'protech_wholesale_db_version',    // Plugin::OPT_DB_VERSION.
 );
@@ -91,15 +92,15 @@ if ( $protech_portal_page instanceof WP_Post
 
 // -----------------------------------------------------------------
 // 4. Per-user meta this plugin created.
-//    (mirrors Approval::META_PRICE_OVERRIDES, Approval::META_MIN_ORDER,
-//    and the '_protech_wholesale_app_*' keys written by
+//    (mirrors Approval::META_PRICE_OVERRIDES and the
+//    '_protech_wholesale_app_*' keys written by
 //    ApplicationForm::create_pending_applicant() / Approval::handle_reject()).
 //    delete_metadata()'s $delete_all = true form removes a meta key for
 //    every user at once, since we have no list of affected user IDs here.
 // -----------------------------------------------------------------
 $protech_user_meta_keys = array(
 	'_protech_price_overrides',
-	'_protech_wholesale_min_order_override',
+	'_protech_wholesale_min_order_override', // Removed in 1.3.0; still cleaned up.
 	'_protech_wholesale_tier', // Tiers::META_USER_TIER.
 	'_protech_wholesale_app_status',
 	'_protech_wholesale_app_submitted_at',

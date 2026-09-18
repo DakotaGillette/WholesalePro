@@ -26,6 +26,9 @@ protech-wholesale/
     class-case-rules.php              Packs-per-display rules, unit selector, Store API quantity limits, shipping-rate hiding
     class-wholesale-shipping-method.php  WC_Shipping_Method: flat rate below Volume threshold, free at/above
     class-tier-ladder.php             Product-page Standard/Volume/Bulk price table
+    class-starter-kit.php             Starter kits: one display of every colour of a source product, admin fields, quote + add endpoints
+    class-setup-checks.php            Shipping zone / priced product / portal page / form ID checks behind the setup notice
+    class-updater.php                 Updates from GitHub releases (Update URI header, plugins_api details, check-now)
     class-global-tier-bar.php         Sticky site-wide progress bar + AJAX state endpoint
     class-reorder.php                 "Reorder" links + admin-post handler that adds a past order to the cart
     class-my-account.php              Login redirects, pending notice, dashboard wholesale panel
@@ -35,10 +38,12 @@ protech-wholesale/
     class-logger.php                  wc_get_logger() wrapper, source "protech-wholesale"
     functions-helpers.php             Free functions for theme code
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
-                                      tier-ladder, account-wholesale-panel
-  assets/css/wholesale.css            Site palette (black/white/#f7f7f7/8px) — portal, bar, ladder, selector, panel
-  assets/js/unit-selector.js          Display/Case → packs, Store API add-to-cart, protech:cart-changed event
-  assets/js/global-tier-bar.js        Bar refresh on cart events (classic, Blocks store, custom event)
+                                      tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit
+  assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI — portal, bar, ladder, selector, account, cart badge
+  assets/js/unit-selector.js          Display/Case → packs, Store API add-to-cart, protech:cart-changed + protech:qty-preview events
+  assets/js/global-tier-bar.js        Bar refresh on cart events, tier celebration, add preview, live price-table row
+  assets/js/portal.js                 /wholesale login form: show/hide password
+  assets/js/starter-kit.js            Kit page: quantity, live quote, AJAX add, protech:qty-preview
   assets/js/admin.js                  Override rows (product picker), variations bulk actions, approve/reject prompts
   tests/                              PHPUnit (WP_UnitTestCase) + helpers; run inside wp-env
   composer.json, phpunit.xml.dist, .phpcs.xml.dist, phpstan.neon.dist   Dev tooling (never deployed)
@@ -83,6 +88,7 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `woocommerce_quantity_input_args` | Classic quantity input step/min; marks the input for the unit selector |
 | `woocommerce_before_add_to_cart_quantity` | Render the Display/Case selector |
 | `woocommerce_available_variation` | Per-variation case data for the selector |
+| `woocommerce_cart_contents_count` | Header cart badge / Blocks mini-cart count in displays, wholesale customers only |
 | `woocommerce_get_item_data`, `woocommerce_checkout_create_order_line_item` | "Displays: N" on cart lines and order items |
 | `woocommerce_check_cart_items`, `woocommerce_checkout_process`, `woocommerce_store_api_cart_errors` | Cart-level re-check (classic + Blocks) |
 | `woocommerce_shipping_methods`, `woocommerce_package_rates` | Register the wholesale method; hide retail methods when it's present |
@@ -92,11 +98,15 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | Hook | Purpose |
 |---|---|
 | `woocommerce_single_product_summary` (25, TierLadder) | Price table above the add-to-cart form |
+| `update_plugins_github.com`, `plugins_api`, `plugin_row_meta`, `admin_post_protech_check_updates`, `plugin_action_links_<basename>` (Plugin) | Updates from GitHub releases; Plugins-list links |
+| `load-woocommerce_page_protech-wholesale`, `manage_product_posts_columns` / `_custom_column` | Help tab; Wholesale column on the products list |
+| `woocommerce_single_product_summary` (30, StarterKit), `woocommerce_is_purchasable`, `woocommerce_get_price_html` (20), `wp_ajax_protech_kit_quote`, `wp_ajax_protech_add_kit`, `admin_post_protech_add_kit`, `protech_wholesale_product_data_panel` | Starter kit page in place of the add-to-cart form; kit never purchasable itself; live kit price; quote/add endpoints; admin fields |
 | `wp_footer` (GlobalTierBar) + `wp_ajax_protech_global_tier_bar_state` | Sticky bar (not on checkout) + refresh endpoint |
 | `woocommerce_account_dashboard` (5 MyAccount, 10 Reorder) | Wholesale panel; "reorder last order" prompt |
 | `woocommerce_my_account_my_orders_actions`, `woocommerce_order_details_after_order_table`, `admin_post_protech_reorder` | Reorder |
 | `login_redirect`, `woocommerce_login_redirect`, `template_redirect` (Portal) | Redirects; portal login form |
-| `woocommerce_before_account_navigation` | Pending notice |
+| `woocommerce_before_account_navigation` (5 header, 10 notice) | "Wholesale Partner" / "under review" strip on every account page; pending notice |
+| `body_class` (Plugin) | `protech-wholesale` on <body> for wholesale customers (scopes theme overrides) |
 
 ### Orders / admin
 | Hook | Purpose |

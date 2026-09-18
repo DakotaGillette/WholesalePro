@@ -8,6 +8,9 @@
  *    (via the parent-level flag ProductFields keeps in sync, since a
  *    variable product's prices live on its variations).
  *
+ * Listings only: a query for one specific product's page is left alone,
+ * so a direct link still resolves (see filter_product_query()).
+ *
  * Applied on pre_get_posts, so it covers the shop/category/search
  * archives, [products] shortcodes, wc_get_products(), and the Store API's
  * /products endpoint behind the Blocks product grids — unlike the
@@ -67,6 +70,18 @@ class CatalogQuery {
 		// Authenticated REST (wc/v3 for staff and connected apps) is a
 		// management context, not a storefront.
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST && current_user_can( 'edit_products' ) ) {
+			return;
+		}
+
+		// A single product's own page is not a catalog listing. Filtering it
+		// turned every wholesale-only product into a 404 for anyone who isn't
+		// a wholesale customer — including staff previewing it — instead of
+		// the page Pricing::filter_price_html() is written for (the product,
+		// with an "approved wholesale accounts only" notice in place of the
+		// price and no way to buy it). Likewise a wholesale customer opening
+		// a product with no wholesale price by its URL gets the retail-only
+		// note, not a 404. Found on staging with the Vendor Starter Kit.
+		if ( $query->is_singular() ) {
 			return;
 		}
 

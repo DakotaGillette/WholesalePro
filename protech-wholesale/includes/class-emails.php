@@ -227,6 +227,6 @@ class Emails {
 	}
 
 	private static function get_admin_email(): string {
-		return (string) apply_filters( 'protech_wholesale_admin_notification_email', get_option( 'admin_email' ) );
+		return (string) apply_filters( 'protech_wholesale_admin_notification_email', Settings::notification_email() );
 	}
 }

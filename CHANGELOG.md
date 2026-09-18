@@ -3,6 +3,137 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.3.0 — 2026-09-18
+
+Admin-side audit, and updates from GitHub.
+
+### Added
+- **Updates.** New versions are published as GitHub releases by CI on every
+  push to `main` (tag from the plugin header, `protech-wholesale.zip` attached,
+  notes from this file). The plugin's `Update URI` routes WordPress's update
+  check to that release, so it shows in the Plugins list with View details
+  and one-click Update. "Check for updates" under the plugin row, and an
+  Updates block on Settings.
+- Plugins list row links: Applicants, Settings, Changelog, Check for updates.
+- A count bubble on the WooCommerce → Wholesale menu item while applications
+  are waiting; quick links (login page, application form, log) under the
+  title; a Help pull-down explaining the tabs.
+- A setup notice on the Wholesale screen while something is missing: the
+  shipping method not in any zone, no priced product, no portal page, or an
+  application form ID Fluent Forms does not have. Each with a link to fix it.
+- "Apply to all variations" price fields on a variable product's Wholesale
+  tab, with a line saying what the variations currently hold.
+- A "Wholesale" column on Products → All Products.
+- Tier changes from the Customers tab.
+- "Send new-application emails to" setting.
+
+### Changed
+- Pricing & Shipping is three titled groups (quantity pricing, displays and
+  cases, wholesale shipping) with one Save button; the retail free-shipping
+  exclusion moved here from Settings, next to the rest of shipping; the tab
+  says which zones have the wholesale method.
+- Settings is grouped: Catalog, Applications, Updates, Uninstall.
+- "Standard (Tier 1)" / "Volume (Tier 2)" / "Bulk (Tier 3)" are now just
+  Standard, Volume, Bulk. "Tier" means only the Bronze to Platinum customer
+  levels.
+- **Display and case rules apply only to products that carry a wholesale
+  price.** A product without one is bought on retail terms by everyone,
+  quantity 1 allowed, and does not count toward tiers or the cart badge.
+  This is what lets the Vendor Starter Kit be a plain, unlisted $800 product
+  sold from a link to new vendors.
+- Customers tab reads order count and spend from WooCommerce's cached
+  per-customer figures instead of loading every order of every row.
+
+### Removed
+- The unenforced dollar "Minimum order" fields (Tiers tab, per-tier
+  overrides, user profile) and the code behind them. Old saved values are
+  ignored and still deleted on purge.
+
+## 1.2.0 — 2026-09-17
+
+Storefront polish: everything a wholesale customer sees.
+
+### Changed
+- **Protech Blue (`#42649D`) is now the colour of all wholesale UI**: the
+  sticky bar, the "Wholesale price" label, the price table, the account
+  card and the `/wholesale` page. Theme buttons (Add to cart, Checkout) stay
+  black. Plugin text now inherits the site font (Poppins) instead of forcing
+  Open Sans.
+- **Product page quantity is one control.** Display/Case are two radio
+  cards, with a −/+ stepper, a live "3 displays · 30 packs" read-back, and an
+  Add to cart button that says what it will add ("Add 3 displays to cart").
+  A successful add is confirmed in place, and the chosen unit is remembered.
+- **Sticky tier bar rebuilt** as a floating blue dock (full width on
+  phones, two rows instead of three): tier chip, a Standard marker and
+  per-pack prices on the Volume/Bulk markers, whole-case tick marks, a
+  "Saving $X" figure once a tier is reached, and a preview segment showing
+  where the quantity being dialled in on a product page would land.
+  Reaching a tier is celebrated once (marker pop, sheen, confetti), including
+  when it happened through a full page reload. All motion is off under
+  `prefers-reduced-motion`.
+- The bar's track is now two segments, with the Volume marker at 40%
+  rather than 12.5% — the first tier is no longer crammed into the left edge.
+- **Header cart badge counts displays** for wholesale customers (it also
+  drives the Blocks mini-cart count), and grows into a pill instead of
+  overflowing at three digits. Retail is unchanged. Filter:
+  `protech_wholesale_cart_count_in_displays`.
+- **My Account** shows a "Wholesale Partner" strip with the business name on
+  every account page (an "Application under review" one for pending
+  applicants), and the dashboard panel is now a card with a progress rail,
+  cart stats, tier savings and a checklist of unlocked tiers.
+- **`/wholesale` login page** is a full-width two-panel card: a blue pitch
+  panel whose benefits come from the store's real thresholds, beside a
+  larger form with a show/hide password button. Pending, rejected and
+  retail-only share one status card; pending gets a three-step tracker.
+- The product page price table highlights the active row in blue, shows a
+  "Save N%" chip per tier, and moves its highlight live when the cart
+  crosses a tier.
+
+### Fixed
+- The theme's own pack-quantity stepper was never actually hidden on the
+  product page (Salient's `.cart div.quantity { display: flex }` outranked
+  the plugin's hiding rule), so customers saw two quantity controls.
+- Bar messages read "Add 12 more display worth…"; they now use real
+  singular/plural wording and name the tier being unlocked.
+- The login form had no `autocomplete` attributes, lost the username after a
+  failed attempt, and printed the login error's HTML tags as literal text.
+- The price table's "Your cart" row stayed stale after an AJAX add to cart.
+- The bar's fill could drift from the real tier for products with a
+  non-default case composition; it is now pinned to the tier reached.
+- (1.1.0 regression) A wholesale-only product's own page returned a 404 to
+  anyone who isn't a wholesale customer, staff included, because the
+  query-level catalog filter also ran on the single-product query. It now
+  leaves single-product pages alone, so the "approved accounts only" notice
+  shows as documented.
+- A white band showed under the footer at the very end of every page: the
+  room reserved for the floating bar was `<body>` padding, which paints the
+  body's background. It is now a spacer that takes the colour of whatever
+  the page ends with (found on staging, first look).
+- The sticky bar is now the same width as the site header instead of a
+  fixed 1180px: it matches the floating header card edge for edge (measured
+  in the script, with a stylesheet fallback built on the theme's own
+  container variables). The two-row layout starts at 1160px so the track's
+  captions never collide. Verified by rendering the real staging page in
+  headless Chrome at six widths.
+
+### Added
+- **Starter kits.** A simple product can be marked as a kit on its Wholesale
+  tab: its page adds one display of every colour of a chosen variable
+  product to the cart, topped up to a target (default: the Volume threshold)
+  with chosen filler colours. Real variations go in the cart, so stock,
+  pricing and Reorder all just work; a 16-display kit costs 160 packs at the
+  Volume price with free shipping. The page lists the kit's contents, quotes
+  it live for any number of kits, and adds it in place (the sticky bar
+  previews the jump to Volume). Set up: README, "Starter kits".
+- Filters: `protech_wholesale_tier_bar_show_prices`,
+  `protech_wholesale_cart_count_in_displays`,
+  `protech_wholesale_portal_benefits`,
+  `protech_wholesale_tier_bar_align_selector`,
+  `protech_wholesale_tier_bar_spacer_color`.
+- DOM events: `protech:tier-state` (every new bar state) and
+  `protech:qty-preview` (the quantity dialled into the product page control).
+- Template `account-wholesale-header.php`; script `assets/js/portal.js`.
+
 ## 1.1.0 — 2026-09-17
 
 ### Security

@@ -869,3 +869,383 @@ was approved from; what follows is the decisions it produced.
     and each change was reviewed against the WooCommerce source it
     touches, but the first CI run may still surface something — treat a
     red run as the next thing to fix, not as noise.
+
+## Storefront polish, version 1.2.0 (2026-09-17, evening)
+
+Owner review of the customer-facing UI on staging: the product page
+quantity area was confusing, the sticky bar was "meh", the navbar cart
+badge counted packs and overflowed, nothing in My Account said "you are a
+wholesale account", and the `/wholesale` login page was narrow and
+lifeless. Everything here was checked against the live theme's CSS and
+markup (protechsleeves.com, Salient 18.2.1) and WooCommerce trunk before
+being written — but, as with 1.1.0, **none of it has been seen in a
+browser or run through PHP locally**. QA.md §18 is the list of what to
+look at.
+
+1. **Protech Blue (`#42649D`) replaces black as the plugin's accent — a
+   deliberate reversal of "New site-matching color palette" above.** That
+   decision matched the theme's black accent so the plugin wouldn't look
+   like a differently-branded add-on. The owner's call now is the
+   opposite, and better: blue is the brand colour, and using it for
+   everything wholesale-specific (bar, "Wholesale price" label, price
+   table, account card, portal) lets a partner see at a glance which parts
+   of a page are about their wholesale account. Theme buttons — Add to
+   cart, Checkout — stay the theme's black; only the plugin's own UI
+   changed. White on `#42649D` is 5.9:1, so it carries body copy directly;
+   darker/lighter shades of the same hue (`--protech-blue-deep`,
+   `--protech-blue-tint`, …) cover gradients and light surfaces. The
+   neutrals and 8px corners from the earlier decision are unchanged.
+
+2. **Fonts are inherited.** The stylesheet forced `"Open Sans"`; the site's
+   body font is Poppins (`salient-dynamic-styles.css`). `--protech-font` is
+   now `inherit`.
+
+3. **Root cause of the "two quantity selectors".** The unit selector was
+   always meant to hide the theme's pack stepper (`.protech-hidden-qty {
+   display: none }`), but Salient's dynamic stylesheet has `.cart
+   div.quantity { display: flex }` — two classes-worth of specificity
+   against one — so the stepper never disappeared, and customers saw
+   "Order by / Quantity" with a second, pack-denominated quantity under it.
+   The hiding rule now uses the theme's own selector shape plus
+   `!important`. With that fixed, the control itself was rebuilt as one
+   top-to-bottom flow: two radio cards (Display / Case, each stating its
+   pack count), a −/+ stepper with the unit word beside it, a live
+   read-back ("2 cases · 16 displays · 160 packs"), and the Add to cart
+   button restating the action ("Add 2 cases to cart"). The button text is
+   only ever rewritten when the button contains plain text (true on the
+   live theme) — a theme that puts markup inside it is left alone.
+   Progressive enhancement is unchanged: the real pack input is still what
+   submits, and still what a no-JS visitor uses.
+   After an add, the control now says so ("Added 3 displays (30 packs) to
+   your cart") instead of silently resetting, keeps the chosen unit, and
+   remembers it in `localStorage` — a buyer who orders by the case
+   shouldn't have to re-pick Case on every product.
+
+4. **The bar's track is two segments, not one linear scale.** Defaults are
+   Volume at 16 displays and Bulk at 16 cases (128 displays): linearly, the
+   Volume marker sat at 12.5% and the first tier — the one most customers
+   are working towards — had an eighth of the bar. Zero→Volume now spans
+   0–40% and Volume→Bulk the rest (`VolumePricing::scale_percent()`,
+   `VOLUME_MARKER_PERCENT`), falling back to linear if the thresholds are
+   ever configured with Volume at or above Bulk. The fill is also pinned
+   to the tier actually reached: the tier is decided per product (each
+   line's own displays-per-case) while the track is drawn from the store
+   default composition, so the two could disagree.
+
+5. **Marker prices are store defaults — an assumption, stated.** The Volume
+   and Bulk markers show a per-pack price: `Settings::get_volume_price()` /
+   `get_bulk_price()` with the customer's hidden tier discount applied. A
+   product with its own Volume/Bulk override, or a customer on per-product
+   price overrides, can pay something different; the price table on each
+   product page remains the exact figure. For this catalogue (one flagship
+   line on the default ladder) the defaults are the truth. If that stops
+   being so, `protech_wholesale_tier_bar_show_prices` turns the prices off
+   and the markers fall back to "Better price + free shipping" / "Our best
+   price". The Standard marker never shows a price — Standard is each
+   product's own wholesale price, there is no single number.
+
+6. **"Saving $X" is measured against Standard pricing, per line**
+   (`get_savings_for_items()`): quantity × (Standard − price being paid),
+   through the same memoized `Pricing::get_wholesale_price()`. It is empty
+   at Standard and ignores lines on a per-customer override (both prices
+   are the override).
+
+7. **The celebration fires once per tier reached, never on a page load
+   alone.** `global-tier-bar.js` compares the tier before and after each
+   refresh and celebrates only on an increase. A tier reached through a
+   full page reload (Reorder, a non-AJAX add) is caught by remembering the
+   last tier seen in `sessionStorage` and comparing on the next load; the
+   first page of a session never celebrates, because a returning customer's
+   saved cart may already be at Volume. Confetti is eighteen CSS-animated
+   spans, fanned upward so none fire into the bottom of the viewport — no
+   canvas, no library. The bar stays non-dismissible (unchanged decision).
+
+8. **The ghost preview is the one piece of bar math mirrored in JS.**
+   Earlier sections insist the bar's math lives only in
+   `get_tier_bar_state()`. That still holds for everything the bar
+   *reports*. The preview of "where would this quantity land" has to
+   respond to every stepper click, so `scalePercent()` in
+   `global-tier-bar.js` mirrors `scale_percent()` using the thresholds the
+   server sends in `state.scale`. It is visual only, and both sides carry a
+   comment pointing at the other.
+
+9. **Cart badge counts displays** via the `woocommerce_cart_contents_count`
+   filter — confirmed in WooCommerce trunk to feed Salient's header badge
+   (through `WC_Cart`'s legacy `cart_contents_count` property) and the
+   Store API's `items_count` (the Blocks mini-cart). Displays rather than
+   cases or line items because every wholesale line is a whole number of
+   displays and it is the figure the sticky bar already shows. Nothing in
+   WooCommerce core reads this count for totals, stock or validation. The
+   badge also becomes a pill (the theme draws a fixed 18px/16px circle) —
+   scoped to a new `protech-wholesale` body class so the retail header is
+   untouched.
+
+10. **`!important` is used where, and only where, the theme forced it.**
+    Confirmed in Salient's CSS: `p { padding-bottom: 28px }`, `ul, ol {
+    margin: 0 0 30px 30px }` with disc bullets, `form label { font-size:
+    14px !important }`, `button[type=submit]:hover { background-color:
+    #000 !important }`, `.container-wrap button[type=submit] { padding:
+    16px !important; border-radius: 0 !important }`. The old bar's message
+    `<p>` was silently carrying that 28px of padding, which was a real part
+    of why it looked slack.
+
+11. **No approval date on the account strip.** It would be a nice touch
+    ("Partner since…"), but the plugin has never stored when an account was
+    approved, and `user_registered` is a different fact. Not invented.
+
+12. **Portal benefits come from settings**, not copy: the free-shipping and
+    best-price lines read the live thresholds (`Portal::get_benefits()`,
+    filterable), so the login page can't promise something the Pricing tab
+    no longer delivers. No discount percentages are advertised. On narrow
+    screens the form is ordered above the pitch — returning partners are
+    the page's main audience.
+
+13. **Salient's scroll-to-top button**: the plan was to lift it clear of the
+    floating dock, but the live site doesn't render one (`#to-top` is
+    absent from the page), so nothing was overridden. The bar does publish
+    its reserved height as `--protech-bar-h` on `<html>` for whenever
+    something fixed to the bottom needs to clear it.
+
+14. **First look on staging (owner screenshot, same evening): a white band
+    under the black footer.** The bar reserved its room with
+    `padding-bottom` on `<body>` — inherited from the original full-width
+    bar, where it was invisible because the bar covered it edge to edge.
+    Under a *floating* dock the padding shows, and it shows the body's
+    background (white) beneath a black footer. Padding the footer instead
+    isn't possible in any clean way on this site: the theme's own
+    `#footer-outer` is **empty**, and the visible footer is a Salient
+    "global section" (`.nectar-global-section.
+    nectar_hook_global_section_parallax_footer`) — a page-builder row
+    whose black comes from an absolutely-positioned `.row-bg` layer, not
+    from any wrapper. So the reserved room is now its own element
+    (`.protech-tier-bar-spacer`, last in `<body>`) whose colour is
+    **sampled from the live page**: `document.elementsFromPoint()` just
+    above the spacer, first fully opaque background in the stack (skipping
+    the bar itself, see-through overlays and hidden layers). It samples
+    early — from the viewport's bottom edge once the page end is within
+    300px — so the colour is in place before the spacer scrolls into view,
+    and re-samples while the page end is near, since this footer has a
+    parallax effect that settles as it arrives. Works for any page or
+    theme without naming a footer element; `protech_wholesale_tier_bar_
+    spacer_color` overrides it if the guess is ever wrong. A background
+    *image* or gradient can't be matched this way — the nearest solid
+    colour under it is used.
+
+15. **The dock is the same width as the site header (owner request).** On
+    this site the header is a floating card: Salient sizes `#header-outer`
+    itself as `calc(100% - var(--container-padding) * 2)`, capped at
+    `var(--container-width) - 2 x padding` (1700px here). The dock matches
+    that card edge for edge. `global-tier-bar.js` measures it, so it
+    follows the theme at every breakpoint: a header narrower than the
+    viewport is matched on its outer edges; a full-bleed header is matched
+    on the content box of the `.container` inside it; phones keep the
+    edge-to-edge bar; no header found leaves the stylesheet's width alone.
+    The stylesheet's own width uses the same two theme variables (falling
+    back to a centred 1180px on any other theme), so the width is already
+    right before the script runs. Filter:
+    `protech_wholesale_tier_bar_align_selector` (`''` turns it off).
+    Because the dock can now be 1700px wide, the message column stops
+    growing at 380px and the track takes the rest; the track's minimum is
+    440px (the narrowest at which its three captions don't collide), and
+    the two-row layout starts at 1160px instead of 980px.
+
+16. **Two wrong first attempts at 14 and 15, and what fixed the process.**
+    The first deploy of item 15 measured the header's *inner* container,
+    and took its selector only from the localized settings, silently doing
+    nothing when that key was absent — the owner's second screenshot showed
+    the dock unchanged. The first deploy of item 14 sampled the footer
+    colour on the last scroll event, but this footer is a parallax section
+    that is still gliding into place after scrolling stops, so it sampled
+    the light strip above it. Neither was findable by reading code. Both
+    were found in minutes once the page was actually rendered: Chrome is
+    installed on this machine, and a small Node script can drive it
+    headless over the DevTools protocol (no puppeteer needed) against the
+    real staging page with the bar's markup, CSS and JS injected — scroll,
+    measure, screenshot. The sampler now keeps re-sampling for ~2s after
+    the last scroll event; the default selector lives in the script as
+    well as in PHP. Verified in that harness at 2045, 1440, 1200, 1100, 800
+    and 390px: dock edges equal the header's, no overflow, no colliding
+    captions, spacer `rgb(0, 0, 0)` under the black footer. **Lesson for
+    this project: render it before shipping it.** "No browser available"
+    (said throughout this file) was never true on this machine.
+
+Known gaps, not addressed in this pass:
+
+- The main product price above the price table is rendered server-side, so
+  after an AJAX add that crosses a tier it stays at the old figure until
+  the next page load. The price table beside it (which now updates live)
+  and the bar are both correct in the meantime.
+- Cart and order lines still read "Displays: 8" without the case
+  equivalent.
+
+## Starter kits, and a 404 they uncovered (2026-09-17, late evening)
+
+The owner has a "Vendor Starter Kit" product (#1656 on staging): one
+display of every colour of the flagship sleeves — today all 14 plus a
+second Black and a second White, and "all 16" once two more colours land.
+It was set up as a simple product with a wholesale price of 800 and
+"packs per display" 160, which the plugin would have read as $800 *per
+pack* in multiples of 160. Asked to give it "the functionality" so it
+"just adds one of everything".
+
+1. **The kit is a landing page, not a thing that gets bought.** Its page
+   adds the source product's REAL variations to the cart, one display
+   each. Everything then follows from machinery that already exists:
+   stock is per colour, Reorder works on the order, the order's lines are
+   the colours, and the price is what the pricing engine says — 16
+   displays *is* the Volume threshold, so 160 packs at $5.00 with free
+   shipping is exactly the $800 the owner had typed on the product. No
+   number on the kit product is ever charged: `woocommerce_is_purchasable`
+   is false for a kit, and its price HTML (title and shop grid) is a live
+   quote. The alternative — a single $800 line for the kit — would have
+   needed its own stock, its own tier handling and its own reorder path,
+   and would have double-counted against the tier bar.
+
+2. **Composition is a rule with fillers, not a stored list.** One display
+   of every variation this customer can buy at wholesale and that is in
+   stock; if that is short of the kit's target (default: the Volume
+   threshold), extra displays of the configured filler colours, in order,
+   round-robin. 14 colours + Black + White = 16 today; add two colours and
+   it is one of each with nothing to edit, which is the owner's stated
+   plan. An out-of-stock colour is left out (said so on the page) and the
+   fillers cover for it, so the kit still reaches Volume. Target and
+   fillers are per-kit settings on the Wholesale tab (`StarterKit::META_*`),
+   using WooCommerce's own product-search selects.
+
+3. **The quote is computed, per request, for the cart as it stands.**
+   Adding 8 kits (128 displays = 16 cases) reaches Bulk, so the same kit
+   is $720 each at that quantity; adding a kit to a cart already at
+   Volume prices differently again. `get_quote()` prices the kit at the
+   tier the cart *would* reach with it added, using the same
+   `Pricing::get_wholesale_price()` the cart will use. The page re-quotes
+   from the server on every quantity change (debounced) and after every
+   cart change; nothing is priced in JavaScript.
+
+4. **`WC_Cart::add_to_cart()`'s own error notices are lifted into the
+   kit's report** and removed from the session, so "we have 20 in stock"
+   appears once beside the button rather than on whatever page loads next.
+
+5. **The 404.** `/product/starterkit/` was a 404 for the admin session,
+   which is how this started. `CatalogQuery::filter_product_query()`
+   (1.1.0) applied its wholesale-only exclusion to *every* product query,
+   including the single-product main query — so any wholesale-only
+   product's own page was a 404 for anyone who isn't a wholesale
+   customer, staff included, instead of the "approved wholesale accounts
+   only" page `Pricing::filter_price_html()` exists for, and a wholesale
+   customer opening a product with no wholesale price got a 404 rather
+   than the retail-only note. Singular queries are now exempt; a test
+   covers both the single page and a listing of the same product.
+
+6. **Still not rendered as a wholesale customer.** The kit panel was
+   checked in the headless harness by injecting its markup into a guest
+   product page (layout only); the live add and quote round-trips run
+   for the first time when the owner tests. The owner sets the kit up
+   themselves (README, "Starter kits"): the product's settings are theirs
+   to change, and editing a product through wp-admin from here would have
+   meant re-posting its whole edit form.
+
+7. **Reversed for this product the same evening.** The Vendor Starter Kit
+   is linked from the owner's one-sheet as an unlisted special that gets a
+   *new* vendor — one who may not have a wholesale account yet — buying
+   quickly: one line, $800, no login. The kit behaviour (sixteen colour
+   lines, wholesale customers only) was the wrong shape for that. The
+   feature stays in the plugin for a future product; this product goes
+   back to a plain simple product. What actually stood in the way of a
+   plain sale to a *wholesale* customer was not the kit code at all but
+   the display rules — see the 1.3.0 section, item 6.
+
+## Admin audit, updates from GitHub, version 1.3.0 (2026-09-18)
+
+The owner asked for a deep audit of the admin side and two specific
+things: updates that show up in the Plugins list when a release is pushed
+to `main`, and a settings link on the plugin's row. Three decisions were
+theirs, taken up front: make the GitHub repo public (so no token is needed
+for updates), remove the unenforced dollar minimum order outright, and
+keep the Tiers tab as its own tab while dropping the "(Tier 1/2/3)"
+suffixes from Standard/Volume/Bulk.
+
+1. **Updates ride WordPress core's own mechanism, not a library.** The
+   header's `Update URI: https://github.com/DakotaGillette/WholesalePro`
+   makes `wp_update_plugins()` call `update_plugins_github.com` for this
+   plugin instead of asking wordpress.org (confirmed against
+   wp-includes/update.php: core requires `version`, fills `new_version`,
+   `id` and `plugin`, and files the answer under `response` when newer).
+   `Updater::check()` answers from the repository's latest release: tag =
+   version, the `protech-wholesale.zip` asset = package. `plugins_api`
+   supplies the View details modal from the release notes. Nothing else
+   is needed for the Plugins-list row, one-click update or auto-updates.
+   The lookup is cached twelve hours, a failure one hour, so an outage at
+   GitHub never means one API call per admin page load. No
+   `upgrader_source_selection` rename: CI builds the zip with
+   `protech-wholesale/` at its root, exactly what wp-admin uploads had.
+
+2. **Releases are cut by CI, from the version header, only when the tag
+   is new.** A `release` job in ci.yml (`needs: test`, `main` only) reads
+   `Version:` from the plugin file, stops if `v<version>` is already
+   tagged, builds the zip with the same exclusions as `bin/deploy.sh`,
+   takes the matching `CHANGELOG.md` section as notes and runs `gh
+   release create`. So a push to `main` that changes docs or CI without
+   bumping the version publishes nothing, and a bump can never be
+   published twice. Making the repo public was the owner's call over a
+   read-only token stored on the site; nothing secret is committed
+   (`.env` is ignored, credentials never were).
+
+3. **`main` did not exist.** The repository's only branch (and default)
+   was `claude/new-session-ummf3i`, the branch every session had worked
+   on. `main` was created from it and made the default as part of this
+   work, since "pushed to main" was the owner's own phrasing of the
+   trigger.
+
+4. **What the audit found, and the shape of the fixes.** Nothing said an
+   application was waiting (a `awaiting-mod` bubble on the menu item now
+   does, from a five-minute-cached count that approve/reject/apply
+   invalidate). Nothing checked the silent-failure setup steps (the
+   shipping method in a zone, a priced product, the portal page, a real
+   form ID): `SetupChecks` does, as one notice on the landing tab that
+   disappears when everything is in place. Shipping settings were split
+   between two tabs (now all on Pricing & Shipping, which also names the
+   zones that have the method). The Products tab's empty-state text
+   pointed at a panel that no longer existed. The Customers tab loaded
+   every order of every listed customer to count and sum them; it now
+   uses WooCommerce's cached per-customer count and spend.
+
+5. **Pricing a variable product no longer needs the Variations tab.**
+   Three "Apply to all variations" fields on the parent's Wholesale tab
+   write to every child on Update and then come back empty, with a line
+   saying what the children currently hold ("Currently $5.50 on 14 of 14
+   variations."). They are deliberately not stored on the parent: the
+   variations remain the single source of truth, and the fields are a
+   verb, not a value. The Variations-tab bulk actions stay for pricing a
+   subset.
+
+6. **Display and case rules now apply only to products sold at
+   wholesale.** `CaseRules::sold_by_the_display()` gates every rule on
+   `Pricing::is_available_at_wholesale()` for the current user. Before,
+   a wholesale customer could not buy *any* product in a quantity that
+   wasn't a multiple of its packs-per-display — including a product with
+   no wholesale price, which the plugin otherwise treats as "not sold at
+   wholesale". That is what made the Vendor Starter Kit unbuyable for a
+   logged-in wholesale customer: a plain $800 product with no wholesale
+   price, sold in ones. Such a product is now bought on ordinary retail
+   terms by everyone, counts toward no tier (it never did) and counts as
+   one item on the cart badge. A wholesale-priced product is exactly as
+   strict as before; tests cover both.
+
+7. **Minimum order removed, not enforced.** The owner chose removal over
+   turning the fields into a real checkout floor. Gone: the Tiers-tab
+   column and Bronze input, per-tier `min_order` storage (an old saved
+   value is ignored), `Settings::OPT_MIN_ORDER`, the profile override
+   field and `Approval::META_MIN_ORDER`, `CaseRules::get_minimum_order()`,
+   the template helper. `uninstall.php` still deletes the old option and
+   user meta on purge. This closes the last item under "Simplest-to-
+   reverse defaults chosen" that was still waiting on a decision.
+
+8. **Tier naming.** "Standard (Tier 1)" and friends are now plain
+   Standard/Volume/Bulk everywhere in admin; "tier" is reserved for the
+   Bronze-to-Platinum customer levels, which keep their own tab.
+
+9. **Not seen running.** Admin screens cannot be rendered in the headless
+   harness (they need a login), so after deploy each tab was fetched
+   with the saved admin session and checked for a 200 and no critical
+   error, nothing more. The update path is proven end to end by the
+   release job publishing v1.3.0 and staging, on 1.2.0, offering it.

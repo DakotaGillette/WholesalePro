@@ -3,18 +3,20 @@
  * Internal wholesale tiers (Bronze/Silver/Gold/Platinum) — a hidden
  * classification layered on top of the wholesale_customer role. Tiers
  * are never shown to the customer anywhere (shop, portal, emails); they
- * exist purely so the store owner can set a minimum order
- * and a price discount per tier without touching every customer
- * individually. A per-customer override (Approval::META_PRICE_OVERRIDES
- * / META_MIN_ORDER) still always wins over the customer's tier — tiers
- * sit between the global default and that per-customer layer, not above
- * it.
+ * exist purely so the store owner can give a group of customers a price
+ * discount without touching every customer individually. A per-customer
+ * price override (Approval::META_PRICE_OVERRIDES) still always wins over
+ * the customer's tier — tiers sit between the global default and that
+ * per-customer layer, not above it.
  *
  * Bronze is deliberately not a row in the tier settings table: it IS
- * the existing global default (Settings::get_min_order(), the group
- * wholesale price with no discount), so "assign everyone to Bronze by
- * default" falls out for free rather than needing its own duplicate
- * set of fields.
+ * the default (each product's wholesale price, no discount), so "assign
+ * everyone to Bronze by default" falls out for free.
+ *
+ * The dollar "minimum order" this class once carried per tier was
+ * removed in 1.3.0: nothing had enforced it since the Display/Case
+ * quantity ladder replaced it, and the fields only misled. An old
+ * saved option may still hold a `min_order` key per tier; it is ignored.
  *
  * @package ProtechWholesale
  */
@@ -80,25 +82,12 @@ class Tiers {
 	}
 
 	/**
-	 * @return array<string, array{min_order: string, discount_percent: string}>
+	 * @return array<string, array{discount_percent: string}>
 	 */
 	private static function get_all_tier_settings(): array {
 		$settings = get_option( self::OPT_TIER_SETTINGS, array() );
 
 		return is_array( $settings ) ? $settings : array();
-	}
-
-	/**
-	 * Null means "no tier override — fall through to the global minimum."
-	 */
-	public static function get_tier_min_order( string $tier ): ?float {
-		if ( self::BRONZE === $tier ) {
-			return null;
-		}
-
-		$value = self::get_all_tier_settings()[ $tier ]['min_order'] ?? '';
-
-		return ( '' !== $value && is_numeric( $value ) ) ? (float) $value : null;
 	}
 
 	public static function get_tier_discount_percent( string $tier ): float {
@@ -132,45 +121,33 @@ class Tiers {
 		$settings = self::get_all_tier_settings();
 		$labels   = self::get_tier_labels();
 
-		echo '<p>' . esc_html__( 'Tiers are an internal classification only — wholesale customers never see their tier, or that tiers exist at all. Assign a customer\'s tier from their user profile (under the "Protech Wholesale" section). The discount is a percentage off whichever quantity-tier price (Standard/Volume/Bulk) the cart has reached.', 'protech-wholesale' ) . '</p>';
-
-		// The dollar minimum predates the Display/Case quantity ladder and
-		// nothing enforces it any more — say so here rather than let it
-		// look like a live setting. See DECISIONS.md for the options.
-		echo '<div class="notice notice-info inline"><p>' . esc_html__( 'The "Minimum order" column is not currently enforced anywhere: checkout has no dollar floor since the quantity-tier pricing was introduced (free shipping unlocks at the Volume threshold instead). The values are kept for now in case a genuine order floor is wanted later.', 'protech-wholesale' ) . '</p></div>';
+		echo '<p>' . esc_html__( 'Customer tiers are internal only: a wholesale customer never sees their tier, or that tiers exist. Every approved customer starts on Bronze. Move a customer to another tier from the Customers tab or their user profile. The discount comes off whichever quantity price (Standard, Volume or Bulk) their cart has reached.', 'protech-wholesale' ) . '</p>';
 
 		echo '<form method="post">';
 		wp_nonce_field( 'protech_wholesale_save_tiers', 'protech_wholesale_tiers_nonce' );
 
-		echo '<table class="widefat striped"><thead><tr>';
+		echo '<table class="widefat striped" style="max-width:640px;"><thead><tr>';
 		foreach (
 			array(
 				__( 'Tier', 'protech-wholesale' ),
-				__( 'Minimum order', 'protech-wholesale' ),
-				__( 'Discount off wholesale price', 'protech-wholesale' ),
+				__( 'Discount off the wholesale price', 'protech-wholesale' ),
 			) as $heading
 		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
 
-		// Bronze IS the global default — edited here directly rather than
-		// as a separate per-tier override, since every other tier falls
-		// back to this same value.
 		echo '<tr>';
 		echo '<td><strong>' . esc_html( $labels[ self::BRONZE ] ) . '</strong></td>';
-		echo '<td><input type="number" step="0.01" min="0" name="protech_min_order" value="' . esc_attr( (string) Settings::get_min_order() ) . '" /></td>';
-		echo '<td>' . esc_html__( 'No discount — each product\'s wholesale price as set.', 'protech-wholesale' ) . '</td>';
+		echo '<td>' . esc_html__( 'None. Each product\'s wholesale price as set.', 'protech-wholesale' ) . '</td>';
 		echo '</tr>';
 
 		foreach ( self::OVERRIDABLE_TIERS as $tier ) {
-			$min_order = $settings[ $tier ]['min_order'] ?? '';
-			$discount  = $settings[ $tier ]['discount_percent'] ?? '';
+			$discount = $settings[ $tier ]['discount_percent'] ?? '';
 
 			echo '<tr>';
 			echo '<td><strong>' . esc_html( $labels[ $tier ] ) . '</strong></td>';
-			echo '<td><input type="number" step="0.01" min="0" name="protech_tier[' . esc_attr( $tier ) . '][min_order]" value="' . esc_attr( (string) $min_order ) . '" placeholder="' . esc_attr( (string) Settings::get_min_order() ) . '" /></td>';
-			echo '<td><input type="number" step="0.01" min="0" max="100" name="protech_tier[' . esc_attr( $tier ) . '][discount_percent]" value="' . esc_attr( (string) $discount ) . '" placeholder="0" />%</td>';
+			echo '<td><input type="number" step="0.01" min="0" max="100" style="width:90px;" name="protech_tier[' . esc_attr( $tier ) . '][discount_percent]" value="' . esc_attr( (string) $discount ) . '" placeholder="0" /> %</td>';
 			echo '</tr>';
 		}
 
@@ -180,21 +157,14 @@ class Tiers {
 	}
 
 	private static function save_tiers_tab(): void {
-		$min_order = isset( $_POST['protech_min_order'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['protech_min_order'] ) ) : '';
-
-		if ( is_numeric( $min_order ) ) {
-			update_option( Settings::OPT_MIN_ORDER, (string) round( (float) $min_order, 2 ) );
-		}
-
-		$posted = $_POST['protech_tier'] ?? array();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by render_tiers_tab() before calling this.
+		$posted = isset( $_POST['protech_tier'] ) && is_array( $_POST['protech_tier'] ) ? wp_unslash( $_POST['protech_tier'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
 		$clean  = array();
 
 		foreach ( self::OVERRIDABLE_TIERS as $tier ) {
-			$min      = isset( $posted[ $tier ]['min_order'] ) ? sanitize_text_field( wp_unslash( (string) $posted[ $tier ]['min_order'] ) ) : '';
-			$discount = isset( $posted[ $tier ]['discount_percent'] ) ? sanitize_text_field( wp_unslash( (string) $posted[ $tier ]['discount_percent'] ) ) : '';
+			$discount = isset( $posted[ $tier ]['discount_percent'] ) ? sanitize_text_field( (string) $posted[ $tier ]['discount_percent'] ) : '';
 
 			$clean[ $tier ] = array(
-				'min_order'        => is_numeric( $min ) ? (string) round( (float) $min, 2 ) : '',
 				'discount_percent' => is_numeric( $discount ) ? (string) min( 100, max( 0, round( (float) $discount, 2 ) ) ) : '',
 			);
 		}

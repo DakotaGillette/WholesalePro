@@ -21,7 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Settings {
 
-	public const OPT_MIN_ORDER             = 'protech_wholesale_min_order';
+	// 'protech_wholesale_min_order' (a dollar order floor) was removed in
+	// 1.3.0; uninstall.php still deletes it on purge.
 	public const OPT_DEFAULT_CASE_SIZE      = 'protech_wholesale_default_case_size'; // Packs per DISPLAY — name kept for backwards compatibility, see class-case-rules.php.
 	public const OPT_DEFAULT_DISPLAYS_PER_CASE = 'protech_wholesale_default_displays_per_case'; // Displays per (big) CASE.
 	public const OPT_EMPTY_PRICE_BEHAVIOR   = 'protech_wholesale_empty_price_behavior'; // 'hide' | 'fallback'.
@@ -35,6 +36,7 @@ class Settings {
 	public const OPT_APPLICATION_SOURCE     = 'protech_wholesale_application_source';
 	public const OPT_APPLICATION_FORM_ID    = 'protech_wholesale_application_form_id'; // '' = accept any form from that plugin.
 	public const OPT_PURGE_ON_UNINSTALL     = 'protech_wholesale_purge_on_uninstall'; // 'no' | 'yes'.
+	public const OPT_NOTIFICATION_EMAIL     = 'protech_wholesale_notification_email'; // '' = site admin email.
 
 	public const SETTINGS_UPDATED_QUERY_ARG = 'protech-wholesale-settings-updated';
 
@@ -43,7 +45,6 @@ class Settings {
 	 */
 	public static function get_defaults(): array {
 		return array(
-			self::OPT_MIN_ORDER             => '800',
 			self::OPT_DEFAULT_CASE_SIZE      => (string) ProductFields::DEFAULT_CASE_SIZE,
 			self::OPT_DEFAULT_DISPLAYS_PER_CASE => (string) ProductFields::DEFAULT_DISPLAYS_PER_CASE,
 			self::OPT_EMPTY_PRICE_BEHAVIOR   => 'hide',
@@ -59,6 +60,7 @@ class Settings {
 			self::OPT_APPLICATION_SOURCE     => ApplicationForm::SOURCE_FLUENT_FORMS,
 			self::OPT_APPLICATION_FORM_ID    => '4',
 			self::OPT_PURGE_ON_UNINSTALL     => 'no',
+			self::OPT_NOTIFICATION_EMAIL     => '',
 		);
 	}
 
@@ -72,15 +74,16 @@ class Settings {
 	 */
 	public function get_fields(): array {
 		return array(
+			// -- Catalog ---------------------------------------------------
 			array(
-				'title' => __( 'Wholesale Settings', 'protech-wholesale' ),
-				'desc'  => __( 'Catalog, coupon, and application-intake behaviour. Prices, thresholds, case composition, and the shipping rate are on the Pricing & Shipping tab; customer tiers on the Tiers tab.', 'protech-wholesale' ),
+				'title' => __( 'Catalog', 'protech-wholesale' ),
+				'desc'  => __( 'Prices, thresholds and shipping are on the Pricing & Shipping tab; customer discount levels on the Tiers tab.', 'protech-wholesale' ),
 				'type'  => 'title',
-				'id'    => 'protech_wholesale_settings_title',
+				'id'    => 'protech_wholesale_settings_catalog',
 			),
 			array(
 				'title'   => __( 'Products with no wholesale price', 'protech-wholesale' ),
-				'desc'    => __( 'What a wholesale customer sees for a product/variation that has no group or per-customer wholesale price set.', 'protech-wholesale' ),
+				'desc'    => __( 'What a wholesale customer sees for a product or colour that has no wholesale price. Either way it is bought on retail terms, with no display or case rules.', 'protech-wholesale' ),
 				'id'      => self::OPT_EMPTY_PRICE_BEHAVIOR,
 				'type'    => 'select',
 				'default' => 'hide',
@@ -90,21 +93,27 @@ class Settings {
 				),
 			),
 			array(
-				'title'   => __( 'Allow retail coupons for wholesale customers', 'protech-wholesale' ),
+				'title'   => __( 'Coupons', 'protech-wholesale' ),
+				'desc'    => __( 'Let wholesale customers use retail coupons', 'protech-wholesale' ),
 				'id'      => self::OPT_ALLOW_RETAIL_COUPONS,
 				'type'    => 'checkbox',
 				'default' => 'no',
 			),
 			array(
-				'title'   => __( 'Exclude wholesale orders from free shipping', 'protech-wholesale' ),
-				'desc'    => __( 'Keeps the retail free-shipping-over-$30 rule from applying to wholesale orders in zones that don\'t have "Protech Wholesale Shipping" added — see WooCommerce → Wholesale → Pricing for the wholesale shipping rate and free-shipping threshold.', 'protech-wholesale' ),
-				'id'      => self::OPT_EXCLUDE_FREE_SHIPPING,
-				'type'    => 'checkbox',
-				'default' => 'yes',
+				'type' => 'sectionend',
+				'id'   => 'protech_wholesale_settings_catalog_end',
+			),
+
+			// -- Applications ----------------------------------------------
+			array(
+				'title' => __( 'Applications', 'protech-wholesale' ),
+				'desc'  => __( 'Which form on the site creates wholesale applications, and who hears about them.', 'protech-wholesale' ),
+				'type'  => 'title',
+				'id'    => 'protech_wholesale_settings_applications',
 			),
 			array(
-				'title'   => __( 'Application form source', 'protech-wholesale' ),
-				'desc'    => __( 'Which plugin renders /wholesale-application. See DECISIONS.md.', 'protech-wholesale' ),
+				'title'   => __( 'Application form plugin', 'protech-wholesale' ),
+				'desc'    => __( 'The plugin that renders /wholesale-application.', 'protech-wholesale' ),
 				'id'      => self::OPT_APPLICATION_SOURCE,
 				'type'    => 'select',
 				'default' => ApplicationForm::SOURCE_FLUENT_FORMS,
@@ -112,12 +121,36 @@ class Settings {
 			),
 			array(
 				'title'    => __( 'Application form ID', 'protech-wholesale' ),
-				'desc'     => __( "The specific form's ID within the plugin selected above (e.g. Fluent Forms' own numeric form ID — check its Forms list). Leave empty to accept submissions from any form built with that plugin, which isn't recommended if the site has other forms (a contact form, newsletter signup, etc.) built with the same plugin.", 'protech-wholesale' ),
+				'desc'     => __( "That plugin's own numeric ID for the application form (check its Forms list). Leave empty to accept submissions from any form built with that plugin, which is not recommended if the site has other forms (a contact form, a newsletter signup) built with the same plugin.", 'protech-wholesale' ),
 				'id'       => self::OPT_APPLICATION_FORM_ID,
 				'type'     => 'text',
 				'default'  => '4',
 				'desc_tip' => true,
 				'css'      => 'width:100px;',
+			),
+			array(
+				'title'       => __( 'Send new-application emails to', 'protech-wholesale' ),
+				'desc'        => sprintf(
+					/* translators: %s: the site admin email address. */
+					__( 'Leave empty to use the site admin address (%s).', 'protech-wholesale' ),
+					(string) get_option( 'admin_email' )
+				),
+				'id'          => self::OPT_NOTIFICATION_EMAIL,
+				'type'        => 'email',
+				'default'     => '',
+				'placeholder' => (string) get_option( 'admin_email' ),
+				'css'         => 'width:280px;',
+			),
+			array(
+				'type' => 'sectionend',
+				'id'   => 'protech_wholesale_settings_applications_end',
+			),
+
+			// -- Uninstall -------------------------------------------------
+			array(
+				'title' => __( 'Uninstall', 'protech-wholesale' ),
+				'type'  => 'title',
+				'id'    => 'protech_wholesale_settings_uninstall',
 			),
 			array(
 				'title'   => __( 'On uninstall', 'protech-wholesale' ),
@@ -128,7 +161,7 @@ class Settings {
 			),
 			array(
 				'type' => 'sectionend',
-				'id'   => 'protech_wholesale_settings_end',
+				'id'   => 'protech_wholesale_settings_uninstall_end',
 			),
 		);
 	}
@@ -159,14 +192,20 @@ class Settings {
 		woocommerce_admin_fields( $this->get_fields() );
 		submit_button();
 		echo '</form>';
+
+		// Not a saved setting: version, latest release and a "check now"
+		// button, rendered by the updater itself.
+		Updater::render_settings_section();
 	}
 
-	/** Editable under WooCommerce → Wholesale → Tiers, as the Bronze row — not this Settings tab. */
-	public static function get_min_order(): float {
-		return (float) get_option( self::OPT_MIN_ORDER, 800 );
+	/** Where new-application emails go: the setting if set, else the site admin. */
+	public static function notification_email(): string {
+		$email = sanitize_email( (string) get_option( self::OPT_NOTIFICATION_EMAIL, '' ) );
+
+		return '' !== $email ? $email : (string) get_option( 'admin_email' );
 	}
 
-	/** Editable under WooCommerce → Wholesale → Tiers, as the Bronze row — not this Settings tab. */
+	/** Editable under WooCommerce → Wholesale → Pricing & Shipping, not this Settings tab. */
 	public static function get_default_case_size(): int {
 		$value = (int) get_option( self::OPT_DEFAULT_CASE_SIZE, ProductFields::DEFAULT_CASE_SIZE );
 

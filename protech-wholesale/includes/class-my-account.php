@@ -29,10 +29,49 @@ class MyAccount {
 		// ... and WooCommerce's own My Account login form, which doesn't go
 		// through login_redirect at all.
 		add_filter( 'woocommerce_login_redirect', array( $this, 'woocommerce_login_redirect' ), 10, 2 );
+		// The "Wholesale Partner" strip, above the pending notice — on EVERY
+		// account page (orders, addresses, ...), not just the dashboard.
+		add_action( 'woocommerce_before_account_navigation', array( $this, 'render_account_header' ), 5 );
 		add_action( 'woocommerce_before_account_navigation', array( $this, 'maybe_show_pending_notice' ) );
 
 		// Before Reorder's "your last order" prompt on the same hook (10).
 		add_action( 'woocommerce_account_dashboard', array( $this, 'render_wholesale_dashboard_panel' ), 5 );
+	}
+
+	/**
+	 * Makes the account's wholesale status unmissable anywhere in My
+	 * Account: a "Wholesale Partner" badge with the business name for an
+	 * approved customer, an "Application under review" one for a pending
+	 * applicant. Retail accounts see nothing.
+	 */
+	public function render_account_header(): void {
+		$is_wholesale = Roles::is_wholesale_customer();
+
+		if ( ! $is_wholesale && ! Roles::is_wholesale_pending() ) {
+			return;
+		}
+
+		$user    = wp_get_current_user();
+		$user_id = (int) $user->ID;
+
+		// The name they trade under: WooCommerce's billing company if they've
+		// set one, else what they put on the application form.
+		$company = trim( (string) get_user_meta( $user_id, 'billing_company', true ) );
+
+		if ( '' === $company ) {
+			$company = trim( (string) get_user_meta( $user_id, '_protech_wholesale_app_store_name', true ) );
+		}
+
+		wc_get_template(
+			'account-wholesale-header.php',
+			array(
+				'status'       => $is_wholesale ? 'approved' : 'pending',
+				'display_name' => (string) $user->display_name,
+				'company'      => $company,
+			),
+			'',
+			PROTECH_WHOLESALE_DIR . 'templates/'
+		);
 	}
 
 	/**
@@ -56,10 +95,12 @@ class MyAccount {
 		wc_get_template(
 			'account-wholesale-panel.php',
 			array(
-				'state'      => $state,
-				'tier_label' => $labels[ $state['tier'] ] ?? '',
-				'shop_url'   => wc_get_page_permalink( 'shop' ),
-				'cart_url'   => wc_get_cart_url(),
+				'state'          => $state,
+				'tier_label'     => $labels[ $state['tier'] ] ?? '',
+				'displays_label' => VolumePricing::format_quantity( (float) $state['displays'] ),
+				'cases_label'    => VolumePricing::format_quantity( (float) $state['cases'] ),
+				'shop_url'       => wc_get_page_permalink( 'shop' ),
+				'cart_url'       => wc_get_cart_url(),
 			),
 			'',
 			PROTECH_WHOLESALE_DIR . 'templates/'
