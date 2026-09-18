@@ -15,9 +15,11 @@
  * nested shortcode in there, e.g. a Salient icon shortcode, still runs
  * the same as it would have without this wrapper). An approved wholesale
  * customer sees the wholesale line instead: by default, built from
- * Settings::get_volume_threshold_displays() so it can never drift from
- * the real free-shipping threshold if that setting ever changes; pass a
- * `wholesale` attribute to use fixed text instead.
+ * Settings::get_volume_threshold_displays() converted to cases (rounded
+ * up, so "N+ cases" never overstates the real display threshold) — so it
+ * can never drift from the real free-shipping threshold if that setting
+ * or the store's default case size ever changes; pass a `wholesale`
+ * attribute to use fixed text instead.
  *
  * If this plugin is ever deactivated, the field then shows the shortcode
  * tags literally, like any other shortcode-dependent header text would —
@@ -58,12 +60,14 @@ class HeaderNotice {
 			return do_shortcode( (string) $content );
 		}
 
+		$cases = (int) ceil( Settings::get_volume_threshold_displays() / max( 1, Settings::get_default_displays_per_case() ) );
+
 		$message = '' !== $atts['wholesale']
 			? $atts['wholesale']
 			: sprintf(
-				/* translators: %d: number of displays. */
-				__( 'FREE SHIPPING ON WHOLESALE ORDERS OF %d+ DISPLAYS', 'protech-wholesale' ),
-				Settings::get_volume_threshold_displays()
+				/* translators: %d: number of cases. */
+				__( 'FREE SHIPPING ON WHOLESALE ORDERS OF %d+ CASES', 'protech-wholesale' ),
+				$cases
 			);
 
 		/**
