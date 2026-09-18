@@ -169,10 +169,8 @@ class Portal {
 				'detail' => __( 'Log in and the shop shows your wholesale prices. No separate order form.', 'protech-wholesale' ),
 			),
 			array(
-				/* translators: %d: number of displays. */
-				'title'  => sprintf( __( 'Free shipping from %d displays', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ),
-				/* translators: %d: number of cases. */
-				'detail' => sprintf( __( 'Better pricing kicks in at the same point, and our best price from %d cases. Mix any products and colours.', 'protech-wholesale' ), Settings::get_bulk_threshold_cases() ),
+				'title'  => __( 'Tiered pricing and free shipping', 'protech-wholesale' ),
+				'detail' => __( 'The more you order, the better your price — with free shipping unlocked at higher tiers. Mix any products and colours toward your total.', 'protech-wholesale' ),
 			),
 			array(
 				'title'  => __( 'Order by the display or the case', 'protech-wholesale' ),
