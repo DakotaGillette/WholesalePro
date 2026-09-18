@@ -34,6 +34,24 @@ class Test_Shipping_And_Orders extends WP_UnitTestCase {
 		$this->assertFalse( ( new WholesaleShippingMethod() )->is_available( array( 'contents' => array() ) ) );
 	}
 
+	/**
+	 * The destination WC_Shipping_Method::is_available() reads from a
+	 * package; a real package always carries one.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function destination(): array {
+		return array(
+			'country'   => 'US',
+			'state'     => 'CA',
+			'postcode'  => '90210',
+			'city'      => 'Beverly Hills',
+			'address'   => '',
+			'address_1' => '',
+			'address_2' => '',
+		);
+	}
+
 	public function test_method_is_unavailable_when_the_cart_holds_nothing_wholesale_eligible(): void {
 		wp_set_current_user( Protech_Test_Factory::wholesale_customer() );
 		$retail_only = Protech_Test_Factory::simple_product(); // No wholesale price.
@@ -41,8 +59,8 @@ class Test_Shipping_And_Orders extends WP_UnitTestCase {
 
 		$method = new WholesaleShippingMethod();
 
-		$this->assertFalse( $method->is_available( array( 'contents' => Protech_Test_Factory::cart_items( array( array( $retail_only, 10 ) ) ) ) ) );
-		$this->assertTrue( $method->is_available( array( 'contents' => Protech_Test_Factory::cart_items( array( array( $priced, 10 ) ) ) ) ) );
+		$this->assertFalse( $method->is_available( array( 'destination' => self::destination(), 'contents' => Protech_Test_Factory::cart_items( array( array( $retail_only, 10 ) ) ) ) ) );
+		$this->assertTrue( $method->is_available( array( 'destination' => self::destination(), 'contents' => Protech_Test_Factory::cart_items( array( array( $priced, 10 ) ) ) ) ) );
 	}
 
 	public function test_flat_rate_below_threshold_and_free_at_threshold(): void {
@@ -51,12 +69,12 @@ class Test_Shipping_And_Orders extends WP_UnitTestCase {
 		wp_set_current_user( $customer_id );
 
 		$method = new WholesaleShippingMethod();
-		$method->calculate_shipping( array( 'contents' => Protech_Test_Factory::cart_items( array( array( $product, 150 ) ) ) ) ); // 15 displays.
+		$method->calculate_shipping( array( 'destination' => self::destination(), 'contents' => Protech_Test_Factory::cart_items( array( array( $product, 150 ) ) ) ) ); // 15 displays.
 		$this->assertCount( 1, $method->rates );
 		$this->assertSame( 19.95, (float) reset( $method->rates )->get_cost() );
 
 		$method = new WholesaleShippingMethod();
-		$method->calculate_shipping( array( 'contents' => Protech_Test_Factory::cart_items( array( array( $product, 160 ) ) ) ) ); // 16 displays.
+		$method->calculate_shipping( array( 'destination' => self::destination(), 'contents' => Protech_Test_Factory::cart_items( array( array( $product, 160 ) ) ) ) ); // 16 displays.
 		$this->assertSame( 0.0, (float) reset( $method->rates )->get_cost() );
 	}
 
