@@ -42,13 +42,13 @@ class AutomationRunner {
 	private const SELF_HEAL_TRANSIENT = 'protech_wholesale_as_selfheal';
 
 	public function register_hooks(): void {
-		add_action( self::HOOK_DAILY, array( $this, 'run_daily' ) );
-		add_action( self::HOOK_DELIVER, array( $this, 'run_deliver' ) );
-		add_action( self::HOOK_ORDER_EVENT, array( $this, 'run_order_event' ), 10, 3 );
-		add_action( self::HOOK_SYNC_CONTACT, array( $this, 'run_sync_contact' ) );
-		add_action( self::HOOK_PURGE, array( $this, 'run_purge' ) );
+		add_action( self::HOOK_DAILY, array( __CLASS__, 'run_daily' ) );
+		add_action( self::HOOK_DELIVER, array( __CLASS__, 'run_deliver' ) );
+		add_action( self::HOOK_ORDER_EVENT, array( __CLASS__, 'run_order_event' ), 10, 3 );
+		add_action( self::HOOK_SYNC_CONTACT, array( __CLASS__, 'run_sync_contact' ) );
+		add_action( self::HOOK_PURGE, array( __CLASS__, 'run_purge' ) );
 
-		add_action( 'init', array( $this, 'self_heal' ), 30 );
+		add_action( 'init', array( __CLASS__, 'self_heal' ), 30 );
 
 		add_action( 'update_option_' . MessagingSettings::OPT_ENABLED, array( __CLASS__, 'on_enabled_changed' ), 10, 2 );
 		add_action( 'update_option_' . MessagingSettings::OPT_DAILY_HOUR, array( __CLASS__, 'reschedule_daily' ) );
@@ -123,7 +123,7 @@ class AutomationRunner {
 	 * the activation hook) and someone deleting the scheduled action by
 	 * hand. Throttled so this check runs at most once an hour.
 	 */
-	public function self_heal(): void {
+	public static function self_heal(): void {
 		if ( ! MessagingSettings::enabled() || ! self::as_available() ) {
 			return;
 		}
@@ -184,12 +184,19 @@ class AutomationRunner {
 		as_enqueue_async_action( self::HOOK_SYNC_CONTACT, array( 'user_id' => $user_id ), self::GROUP );
 	}
 
-	/** Delivers a single already-queued row right away, from inside a background action (never from an admin/customer request). */
-	public static function deliver_now( int $id ): void {
-		self::run_deliver( array( 'ids' => array( $id ) ) );
+	/** "Run automations now" (Messaging → Automations): queues an immediate run of the daily job without waiting for its next scheduled time. Still runs in the background, never inline in the admin request. */
+	public static function run_now(): void {
+		if ( self::as_available() ) {
+			as_enqueue_async_action( self::HOOK_DAILY, array(), self::GROUP );
+		}
 	}
 
-	public function run_daily(): void {
+	/** Delivers a single already-queued row right away, from inside a background action (never from an admin/customer request). */
+	public static function deliver_now( int $id ): void {
+		self::run_deliver( array( $id ) );
+	}
+
+	public static function run_daily(): void {
 		$now = time();
 
 		MessageLog::sweep( $now );
@@ -274,10 +281,16 @@ class AutomationRunner {
 	}
 
 	/**
-	 * @param array{ids: int[]} $args
+	 * Parameter name matters: Action Scheduler runs a scheduled action via
+	 * do_action_ref_array(), and since PHP 8.1 a callback invoked through
+	 * call_user_func_array() with a STRING-keyed args array (schedule_delivery()
+	 * schedules with ['ids' => $chunk]) binds by NAME, not position — this
+	 * parameter has to be named $ids, not $args, or the call fails outright.
+	 *
+	 * @param int[] $ids
 	 */
-	public function run_deliver( array $args ): void {
-		foreach ( (array) ( $args['ids'] ?? array() ) as $id ) {
+	public static function run_deliver( array $ids ): void {
+		foreach ( $ids as $id ) {
 			$row = MessageLog::claim( (int) $id );
 
 			if ( null === $row ) {
@@ -314,19 +327,14 @@ class AutomationRunner {
 		}
 	}
 
-	/**
-	 * @param array{order_id: int, rule_id: string, status: string} $args
-	 */
-	public function run_order_event( array $args ): void {
-		Automations::fire_order_event( (int) ( $args['order_id'] ?? 0 ), (string) ( $args['rule_id'] ?? '' ), (string) ( $args['status'] ?? '' ) );
+	/** Parameter names must match schedule_order_event()'s array keys — see run_deliver()'s docblock. */
+	public static function run_order_event( int $order_id, string $rule_id, string $status ): void {
+		Automations::fire_order_event( $order_id, $rule_id, $status );
 	}
 
-	/**
-	 * @param array{user_id: int} $args
-	 */
-	public function run_sync_contact( array $args ): void {
-		$user_id = (int) ( $args['user_id'] ?? 0 );
-		$user    = get_userdata( $user_id );
+	/** Parameter name must match schedule_sync_contact()'s array key — see run_deliver()'s docblock. */
+	public static function run_sync_contact( int $user_id ): void {
+		$user = get_userdata( $user_id );
 
 		if ( ! $user || ! BrevoClient::is_configured() ) {
 			return;
@@ -341,7 +349,7 @@ class AutomationRunner {
 		( new BrevoClient() )->upsert_contact( $user->user_email, array( 'SMS' => $phone ) );
 	}
 
-	public function run_purge(): void {
+	public static function run_purge(): void {
 		MessageLog::sweep( time() );
 	}
 
