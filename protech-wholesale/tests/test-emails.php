@@ -60,6 +60,13 @@ class Test_Emails extends WP_UnitTestCase {
 
 		$mail = tests_retrieve_phpmailer_instance()->get_sent();
 
+		// TEMPORARY DIAGNOSTIC (CI only): why is the WooCommerce header absent?
+		fwrite( STDERR, "\n[diag] has_action email_header: " . var_export( has_action( 'woocommerce_email_header' ), true ) . "\n" );
+		fwrite( STDERR, '[diag] located template: ' . var_export( wc_locate_template( 'emails/email-header.php' ), true ) . "\n" );
+		fwrite( STDERR, '[diag] wrap_message: ' . substr( preg_replace( '/\s+/', ' ', WC()->mailer()->wrap_message( 'Diag', '<p>x</p>' ) ), 0, 400 ) . "\n" );
+		fwrite( STDERR, '[diag] mailer class: ' . get_class( WC()->mailer() ) . ' | WC ' . WC()->version . "\n" );
+		fwrite( STDERR, '[diag] body head: ' . substr( preg_replace( '/\s+/', ' ', $mail->body ), 0, 300 ) . "\n" );
+
 		$this->assertStringContainsString( 'Content-Type: text/html', $mail->header );
 		// WooCommerce's email-header.php / email-footer.php markup.
 		$this->assertStringContainsString( 'id="template_header"', $mail->body );
