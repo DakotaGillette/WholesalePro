@@ -1,6 +1,6 @@
 <?php
 /**
- * Reads the tax-exempt status of a wholesale customer.
+ * Reads and writes the tax-exempt status of a wholesale customer.
  *
  * This store already has a working mechanism for this: the "Stripe Tax for
  * WooCommerce" plugin (active on staging, with "Enable Stripe Tax" on)
@@ -16,10 +16,10 @@
  *
  * So there's no need for this plugin to reinvent that switch — doing so
  * would only add a second, look-alike "tax exempt" control that doesn't
- * actually affect what a customer is charged. This class just surfaces the
- * existing value where the wholesale admin actually looks: the Customers
- * tab, so tax-exempt accounts are visible at a glance without opening each
- * profile individually.
+ * actually affect what a customer is charged. This class reads and writes
+ * that same meta key, so the Wholesale → Customers tab can offer the same
+ * three states as a dropdown right in the row, without opening each
+ * customer's profile individually.
  *
  * @package ProtechWholesale
  */
@@ -38,28 +38,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 class TaxExemption {
 
 	/** User meta key owned by the "Stripe Tax for WooCommerce" plugin, not this one. */
-	private const META_KEY = 'tax_exemption';
+	public const META_KEY = 'tax_exemption';
 
-	private const STATUS_EXEMPT        = 'customer_exempt';
-	private const STATUS_REVERSE_CHARGE = 'reverse_charge';
+	public const STATUS_TAXABLE        = 'none';
+	public const STATUS_EXEMPT         = 'customer_exempt';
+	public const STATUS_REVERSE_CHARGE = 'reverse_charge';
+
+	/** @return array<string, string> status value => label, in the order the Stripe Tax plugin's own dropdown uses. */
+	public static function status_labels(): array {
+		return array(
+			self::STATUS_TAXABLE        => __( 'Taxable', 'protech-wholesale' ),
+			self::STATUS_EXEMPT         => __( 'Exempt', 'protech-wholesale' ),
+			self::STATUS_REVERSE_CHARGE => __( 'Reverse charge', 'protech-wholesale' ),
+		);
+	}
+
+	/** The raw status, defaulting to "Taxable" for an unset or unrecognised value — same fallback the Stripe Tax plugin itself uses. */
+	public static function status( int $user_id ): string {
+		$value = $user_id > 0 ? (string) get_user_meta( $user_id, self::META_KEY, true ) : '';
+
+		return array_key_exists( $value, self::status_labels() ) ? $value : self::STATUS_TAXABLE;
+	}
 
 	public static function is_exempt( int $user_id ): bool {
 		return in_array( self::status( $user_id ), array( self::STATUS_EXEMPT, self::STATUS_REVERSE_CHARGE ), true );
 	}
 
-	private static function status( int $user_id ): string {
-		return $user_id > 0 ? (string) get_user_meta( $user_id, self::META_KEY, true ) : '';
-	}
-
-	/** A short label for the Customers-tab badge, or '' when not exempt. */
-	public static function label( int $user_id ): string {
-		switch ( self::status( $user_id ) ) {
-			case self::STATUS_EXEMPT:
-				return __( 'Exempt', 'protech-wholesale' );
-			case self::STATUS_REVERSE_CHARGE:
-				return __( 'Reverse charge', 'protech-wholesale' );
-			default:
-				return '';
+	public static function set_status( int $user_id, string $status ): void {
+		if ( $user_id <= 0 || ! array_key_exists( $status, self::status_labels() ) ) {
+			return;
 		}
+
+		update_user_meta( $user_id, self::META_KEY, $status );
 	}
 }

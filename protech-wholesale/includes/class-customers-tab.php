@@ -3,8 +3,11 @@
  * The "Customers" tab of the WooCommerce → Wholesale admin screen: every
  * approved wholesale customer with their store, tier, override count,
  * order count, last order, and lifetime spend — the view the Applicants →
- * Approved list was standing in for. The tier can be changed right here;
- * price overrides and the wholesale flag itself live on the profile.
+ * Approved list was standing in for. The tier and tax status can both be
+ * changed right here; price overrides and the wholesale flag itself live
+ * on the profile. Tax status is the "Stripe Tax for WooCommerce" plugin's
+ * own per-account exemption field (see class-tax-exemption.php) — this
+ * tab reads and writes the exact same value, not a separate one.
  *
  * Order count and spend come from WooCommerce's own per-customer
  * lookups (wc_get_customer_order_count(), wc_get_customer_total_spent()),
@@ -34,7 +37,7 @@ class CustomersTab {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
-		self::maybe_save_tiers();
+		self::maybe_save_customer_changes();
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only paging and search.
 		$paged  = max( 1, absint( $_GET['paged'] ?? 1 ) );
@@ -58,7 +61,7 @@ class CustomersTab {
 		$query = new \WP_User_Query( $args );
 		$total = (int) $query->get_total();
 
-		echo '<p>' . esc_html__( 'Every approved wholesale customer. Change a tier here and save; price overrides and the wholesale flag itself are on each customer\'s profile.', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'Every approved wholesale customer. Change a tier or tax status here and save; price overrides and the wholesale flag itself are on each customer\'s profile.', 'protech-wholesale' ) . '</p>';
 
 		echo '<form method="get" class="search-form" style="margin:0 0 1em;">';
 		echo '<input type="hidden" name="page" value="protech-wholesale" /><input type="hidden" name="tab" value="customers" />';
@@ -89,7 +92,7 @@ class CustomersTab {
 				__( 'Last order', 'protech-wholesale' ),
 				__( 'Lifetime spend', 'protech-wholesale' ),
 				__( 'SMS', 'protech-wholesale' ),
-				__( 'Tax exempt', 'protech-wholesale' ),
+				__( 'Tax status', 'protech-wholesale' ),
 				'',
 			) as $heading
 		) {
@@ -136,15 +139,20 @@ class CustomersTab {
 			echo '</td>';
 			echo '<td>' . wp_kses_post( wc_price( wc_get_customer_total_spent( (int) $user->ID ) ) ) . '</td>';
 			echo '<td>' . esc_html( self::sms_status_label( $sms_state ) ) . '</td>';
-			$tax_exempt_label = TaxExemption::label( (int) $user->ID );
-			echo '<td>' . ( '' !== $tax_exempt_label ? '<span class="protech-admin-badge" style="display:inline-block;padding:1px 6px;border-radius:3px;background:#dde5f2;color:#2a4166;font-size:11px;">' . esc_html( $tax_exempt_label ) . '</span>' : '&#8212;' ) . '</td>';
+
+			echo '<td><select name="protech_tax_status[' . esc_attr( (string) $user->ID ) . ']" aria-label="' . esc_attr( sprintf( /* translators: %s: customer name. */ __( 'Tax status for %s', 'protech-wholesale' ), $user->display_name ) ) . '">';
+			foreach ( TaxExemption::status_labels() as $value => $label ) {
+				echo '<option value="' . esc_attr( $value ) . '" ' . selected( TaxExemption::status( (int) $user->ID ), $value, false ) . '>' . esc_html( $label ) . '</option>';
+			}
+			echo '</select></td>';
+
 			echo '<td><a href="' . esc_url( MessagingTab::url( 'compose', array( 'ids' => $user->ID ) ) ) . '">' . esc_html__( 'Message', 'protech-wholesale' ) . '</a></td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
 
-		submit_button( __( 'Save tiers', 'protech-wholesale' ), 'secondary', 'protech_save_customer_tiers', true, array( 'style' => 'margin-right:8px;' ) );
+		submit_button( __( 'Save changes', 'protech-wholesale' ), 'secondary', 'protech_save_customer_tiers', true, array( 'style' => 'margin-right:8px;' ) );
 
 		printf(
 			'<button type="submit" class="button" formaction="%s" formmethod="post" name="action" value="protech_message_customers">%s</button>',
@@ -191,8 +199,8 @@ class CustomersTab {
 		return __( 'Not opted in', 'protech-wholesale' );
 	}
 
-	/** The "Save tiers" button: only rows whose tier actually changed are written. */
-	private static function maybe_save_tiers(): void {
+	/** The "Save changes" button: only rows whose tier or tax status actually changed are written. */
+	private static function maybe_save_customer_changes(): void {
 		if ( ! isset( $_POST['protech_wholesale_customer_tiers_nonce'] )
 			|| ! wp_verify_nonce(
 				sanitize_text_field( wp_unslash( $_POST['protech_wholesale_customer_tiers_nonce'] ) ),
@@ -202,29 +210,40 @@ class CustomersTab {
 			return;
 		}
 
-		$posted  = isset( $_POST['protech_tier'] ) && is_array( $_POST['protech_tier'] ) ? wp_unslash( $_POST['protech_tier'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
-		$changed = 0;
+		$posted_tiers   = isset( $_POST['protech_tier'] ) && is_array( $_POST['protech_tier'] ) ? wp_unslash( $_POST['protech_tier'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
+		$posted_tax     = isset( $_POST['protech_tax_status'] ) && is_array( $_POST['protech_tax_status'] ) ? wp_unslash( $_POST['protech_tax_status'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
+		$changed        = 0;
 
-		foreach ( $posted as $user_id => $tier ) {
+		foreach ( $posted_tiers as $user_id => $tier ) {
 			$user_id = absint( $user_id );
-			$tier    = sanitize_key( (string) $tier );
 
-			if ( ! $user_id || ! Roles::is_wholesale_customer( $user_id ) || Tiers::get_user_tier( $user_id ) === $tier ) {
+			if ( ! $user_id || ! Roles::is_wholesale_customer( $user_id ) ) {
 				continue;
 			}
 
-			Tiers::set_user_tier( $user_id, $tier );
-			++$changed;
+			$tier = sanitize_key( (string) $tier );
+
+			if ( Tiers::get_user_tier( $user_id ) !== $tier ) {
+				Tiers::set_user_tier( $user_id, $tier );
+				++$changed;
+			}
+
+			$tax_status = isset( $posted_tax[ $user_id ] ) ? sanitize_key( (string) $posted_tax[ $user_id ] ) : '';
+
+			if ( '' !== $tax_status && TaxExemption::status( $user_id ) !== $tax_status ) {
+				TaxExemption::set_status( $user_id, $tax_status );
+				++$changed;
+			}
 		}
 
 		if ( $changed > 0 ) {
-			Logger::info( sprintf( 'Customer tiers changed for %d account(s) by admin #%d', $changed, get_current_user_id() ) );
+			Logger::info( sprintf( 'Customer tier/tax status changed for %d account(s) by admin #%d', $changed, get_current_user_id() ) );
 		}
 
 		echo '<div class="updated notice"><p>' . esc_html(
 			sprintf(
-				/* translators: %d: number of customers whose tier changed. */
-				_n( '%d customer tier updated.', '%d customer tiers updated.', $changed, 'protech-wholesale' ),
+				/* translators: %d: number of customer rows changed. */
+				_n( '%d customer updated.', '%d customers updated.', $changed, 'protech-wholesale' ),
 				$changed
 			)
 		) . '</p></div>';
