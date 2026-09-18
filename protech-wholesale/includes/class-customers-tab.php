@@ -101,7 +101,6 @@ class CustomersTab {
 				__( 'Lifetime spend', 'protech-wholesale' ),
 				__( 'SMS', 'protech-wholesale' ),
 				__( 'Tax status', 'protech-wholesale' ),
-				'',
 			) as $heading
 		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
@@ -110,6 +109,8 @@ class CustomersTab {
 		if ( $affiliates_available ) {
 			echo '<th>' . esc_html__( 'Affiliate', 'protech-wholesale' ) . '</th>';
 		}
+
+		echo '<th></th>';
 
 		echo '</tr></thead><tbody>';
 
