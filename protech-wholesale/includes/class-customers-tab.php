@@ -3,11 +3,15 @@
  * The "Customers" tab of the WooCommerce → Wholesale admin screen: every
  * approved wholesale customer with their store, tier, override count,
  * order count, last order, and lifetime spend — the view the Applicants →
- * Approved list was standing in for. The tier and tax status can both be
- * changed right here; price overrides and the wholesale flag itself live
- * on the profile. Tax status is the "Stripe Tax for WooCommerce" plugin's
- * own per-account exemption field (see class-tax-exemption.php) — this
- * tab reads and writes the exact same value, not a separate one.
+ * Approved list was standing in for. The tier, tax status, and lifetime
+ * affiliate can all be changed right here; price overrides and the
+ * wholesale flag itself live on the profile. Tax status is the "Stripe
+ * Tax for WooCommerce" plugin's own per-account exemption field (see
+ * class-tax-exemption.php); Affiliate is SliceWP's own "lifetime
+ * commissions" customer link (see class-affiliate-assignment.php) — both
+ * columns read and write the exact same values those plugins use, not a
+ * separate mechanism. The Affiliate column only appears when SliceWP's
+ * Lifetime Commissions functions are actually available.
  *
  * Order count and spend come from WooCommerce's own per-customer
  * lookups (wc_get_customer_order_count(), wc_get_customer_total_spent()),
@@ -61,7 +65,11 @@ class CustomersTab {
 		$query = new \WP_User_Query( $args );
 		$total = (int) $query->get_total();
 
-		echo '<p>' . esc_html__( 'Every approved wholesale customer. Change a tier or tax status here and save; price overrides and the wholesale flag itself are on each customer\'s profile.', 'protech-wholesale' ) . '</p>';
+		// SliceWP's own manual customer-linking action requires manage_options — matched here, not just manage_woocommerce.
+		$affiliates_available = AffiliateAssignment::is_available() && current_user_can( 'manage_options' );
+		$affiliate_options    = $affiliates_available ? AffiliateAssignment::get_affiliate_options() : array();
+
+		echo '<p>' . esc_html__( 'Every approved wholesale customer. Change a tier, tax status, or lifetime affiliate here and save; price overrides and the wholesale flag itself are on each customer\'s profile.', 'protech-wholesale' ) . '</p>';
 
 		echo '<form method="get" class="search-form" style="margin:0 0 1em;">';
 		echo '<input type="hidden" name="page" value="protech-wholesale" /><input type="hidden" name="tab" value="customers" />';
@@ -97,6 +105,10 @@ class CustomersTab {
 			) as $heading
 		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
+		}
+
+		if ( $affiliates_available ) {
+			echo '<th>' . esc_html__( 'Affiliate', 'protech-wholesale' ) . '</th>';
 		}
 
 		echo '</tr></thead><tbody>';
@@ -145,6 +157,17 @@ class CustomersTab {
 				echo '<option value="' . esc_attr( $value ) . '" ' . selected( TaxExemption::status( (int) $user->ID ), $value, false ) . '>' . esc_html( $label ) . '</option>';
 			}
 			echo '</select></td>';
+
+			if ( $affiliates_available ) {
+				$assigned_affiliate_id = AffiliateAssignment::get_assigned_affiliate_id( (int) $user->ID );
+
+				echo '<td><select name="protech_affiliate[' . esc_attr( (string) $user->ID ) . ']" aria-label="' . esc_attr( sprintf( /* translators: %s: customer name. */ __( 'Lifetime affiliate for %s', 'protech-wholesale' ), $user->display_name ) ) . '">';
+				echo '<option value="0" ' . selected( $assigned_affiliate_id, 0, false ) . '>' . esc_html__( '— None —', 'protech-wholesale' ) . '</option>';
+				foreach ( $affiliate_options as $affiliate_id => $affiliate_label ) {
+					echo '<option value="' . esc_attr( (string) $affiliate_id ) . '" ' . selected( $assigned_affiliate_id, $affiliate_id, false ) . '>' . esc_html( $affiliate_label ) . '</option>';
+				}
+				echo '</select></td>';
+			}
 
 			echo '<td><a href="' . esc_url( MessagingTab::url( 'compose', array( 'ids' => $user->ID ) ) ) . '">' . esc_html__( 'Message', 'protech-wholesale' ) . '</a></td>';
 			echo '</tr>';
@@ -199,7 +222,7 @@ class CustomersTab {
 		return __( 'Not opted in', 'protech-wholesale' );
 	}
 
-	/** The "Save changes" button: only rows whose tier or tax status actually changed are written. */
+	/** The "Save changes" button: only rows whose tier, tax status, or affiliate actually changed are written. */
 	private static function maybe_save_customer_changes(): void {
 		if ( ! isset( $_POST['protech_wholesale_customer_tiers_nonce'] )
 			|| ! wp_verify_nonce(
@@ -210,9 +233,13 @@ class CustomersTab {
 			return;
 		}
 
-		$posted_tiers   = isset( $_POST['protech_tier'] ) && is_array( $_POST['protech_tier'] ) ? wp_unslash( $_POST['protech_tier'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
-		$posted_tax     = isset( $_POST['protech_tax_status'] ) && is_array( $_POST['protech_tax_status'] ) ? wp_unslash( $_POST['protech_tax_status'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
-		$changed        = 0;
+		$posted_tiers     = isset( $_POST['protech_tier'] ) && is_array( $_POST['protech_tier'] ) ? wp_unslash( $_POST['protech_tier'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
+		$posted_tax       = isset( $_POST['protech_tax_status'] ) && is_array( $_POST['protech_tax_status'] ) ? wp_unslash( $_POST['protech_tax_status'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
+		$posted_affiliate = isset( $_POST['protech_affiliate'] ) && is_array( $_POST['protech_affiliate'] ) ? wp_unslash( $_POST['protech_affiliate'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each value is sanitized below.
+		// SliceWP's own manual customer-linking action requires this same capability — matching its security boundary here.
+		$can_assign_affiliates = AffiliateAssignment::is_available() && current_user_can( 'manage_options' );
+		$changed               = 0;
+		$warnings              = array();
 
 		foreach ( $posted_tiers as $user_id => $tier ) {
 			$user_id = absint( $user_id );
@@ -234,10 +261,33 @@ class CustomersTab {
 				TaxExemption::set_status( $user_id, $tax_status );
 				++$changed;
 			}
+
+			if ( ! $can_assign_affiliates ) {
+				continue;
+			}
+
+			$current_affiliate_id = AffiliateAssignment::get_assigned_affiliate_id( $user_id );
+			$affiliate_id         = isset( $posted_affiliate[ $user_id ] ) ? absint( $posted_affiliate[ $user_id ] ) : $current_affiliate_id;
+
+			if ( $affiliate_id === $current_affiliate_id ) {
+				continue;
+			}
+
+			if ( 0 === $affiliate_id ) {
+				AffiliateAssignment::unassign( $user_id );
+			} else {
+				$warning = AffiliateAssignment::assign( $user_id, $affiliate_id );
+
+				if ( '' !== $warning ) {
+					$warnings[] = $warning;
+				}
+			}
+
+			++$changed;
 		}
 
 		if ( $changed > 0 ) {
-			Logger::info( sprintf( 'Customer tier/tax status changed for %d account(s) by admin #%d', $changed, get_current_user_id() ) );
+			Logger::info( sprintf( 'Customer tier/tax status/affiliate changed for %d account(s) by admin #%d', $changed, get_current_user_id() ) );
 		}
 
 		echo '<div class="updated notice"><p>' . esc_html(
@@ -247,5 +297,9 @@ class CustomersTab {
 				$changed
 			)
 		) . '</p></div>';
+
+		foreach ( $warnings as $warning ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html( $warning ) . '</p></div>';
+		}
 	}
 }

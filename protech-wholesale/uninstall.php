@@ -201,9 +201,14 @@ foreach ( $protech_user_meta_keys as $protech_user_meta_key ) {
 //     fact would corrupt past reporting for orders that already shipped;
 //     uninstalling this plugin should never change what already
 //     happened.
-//   - The 'tax_exemption' user meta key — this plugin only reads it
-//     (TaxExemption::is_exempt(), for the Customers-tab badge); it's
-//     written and owned by the separate "Stripe Tax for WooCommerce"
-//     plugin, whose own "Stripe Tax Exemptions" profile section is the
-//     real, functioning tax-exemption control on this store.
+//   - The 'tax_exemption' user meta key (TaxExemption) — read and
+//     written from the Customers tab, but it's owned by the separate
+//     "Stripe Tax for WooCommerce" plugin, whose own "Stripe Tax
+//     Exemptions" profile section is the real, functioning tax-exemption
+//     control on this store; this plugin never purges another plugin's
+//     data.
+//   - SliceWP's own 'affiliate_id' customer meta and any affiliate meta
+//     this plugin may have set (AffiliateAssignment) — same reasoning:
+//     it's SliceWP's data, read and written in place, never owned or
+//     purged by this plugin.
 // -----------------------------------------------------------------
