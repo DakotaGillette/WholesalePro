@@ -89,12 +89,26 @@ class Protech_Test_Factory {
 		);
 	}
 
+	/**
+	 * WP_UnitTestCase::factory() is protected, so a helper outside the test
+	 * case can't call it; the underlying factory class is public.
+	 */
+	private static function factory(): WP_UnitTest_Factory {
+		static $factory = null;
+
+		if ( null === $factory ) {
+			$factory = new WP_UnitTest_Factory();
+		}
+
+		return $factory;
+	}
+
 	public static function wholesale_customer(): int {
-		return WP_UnitTestCase::factory()->user->create( array( 'role' => Roles::CUSTOMER ) );
+		return self::factory()->user->create( array( 'role' => Roles::CUSTOMER ) );
 	}
 
 	public static function retail_customer(): int {
-		return WP_UnitTestCase::factory()->user->create( array( 'role' => 'customer' ) );
+		return self::factory()->user->create( array( 'role' => 'customer' ) );
 	}
 
 	/**

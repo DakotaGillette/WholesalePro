@@ -18,6 +18,19 @@ class Test_Emails extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		reset_phpmailer_instance();
+
+		// WC_Emails registers its header/footer actions in its constructor.
+		// If the singleton was first created INSIDE an earlier test, the WP
+		// test framework's hook restore at that test's end removed those
+		// actions while the instance lived on, so every email wrapped from
+		// then on has no header or footer — in the suite only, never on a
+		// real request, where instance and hooks are created together.
+		$mailer = WC()->mailer();
+
+		if ( false === has_action( 'woocommerce_email_header', array( $mailer, 'email_header' ) ) ) {
+			add_action( 'woocommerce_email_header', array( $mailer, 'email_header' ) );
+			add_action( 'woocommerce_email_footer', array( $mailer, 'email_footer' ) );
+		}
 	}
 
 	private function applicant( string $email ): int {
@@ -47,7 +60,9 @@ class Test_Emails extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'lost-password', $mail->body );
 		$this->assertStringNotContainsString( 'wp-login.php', $mail->body );
 
-		preg_match( '/[?&]key=([^&"]+)&(?:amp;)?id=(\d+)/', $mail->body, $matches );
+		// esc_url() writes the ampersand as &#038;; read the link the way a
+		// mail client would.
+		preg_match( '/[?&]key=([^&"]+)&id=(\d+)/', html_entity_decode( $mail->body, ENT_QUOTES | ENT_HTML5 ), $matches );
 		$this->assertNotEmpty( $matches, 'Expected a key/id reset link in the body.' );
 		$this->assertSame( $user_id, (int) $matches[2] );
 		$this->assertInstanceOf( WP_User::class, check_password_reset_key( rawurldecode( $matches[1] ), get_userdata( $user_id )->user_login ) );
@@ -59,13 +74,6 @@ class Test_Emails extends WP_UnitTestCase {
 		Emails::send_applicant_received( $user_id );
 
 		$mail = tests_retrieve_phpmailer_instance()->get_sent();
-
-		// TEMPORARY DIAGNOSTIC (CI only): why is the WooCommerce header absent?
-		fwrite( STDERR, "\n[diag] has_action email_header: " . var_export( has_action( 'woocommerce_email_header' ), true ) . "\n" );
-		fwrite( STDERR, '[diag] located template: ' . var_export( wc_locate_template( 'emails/email-header.php' ), true ) . "\n" );
-		fwrite( STDERR, '[diag] wrap_message: ' . substr( preg_replace( '/\s+/', ' ', WC()->mailer()->wrap_message( 'Diag', '<p>x</p>' ) ), 0, 400 ) . "\n" );
-		fwrite( STDERR, '[diag] mailer class: ' . get_class( WC()->mailer() ) . ' | WC ' . WC()->version . "\n" );
-		fwrite( STDERR, '[diag] body head: ' . substr( preg_replace( '/\s+/', ' ', $mail->body ), 0, 300 ) . "\n" );
 
 		$this->assertStringContainsString( 'Content-Type: text/html', $mail->header );
 		// WooCommerce's email-header.php / email-footer.php markup.
