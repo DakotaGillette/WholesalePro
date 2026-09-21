@@ -49,8 +49,13 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 		return $id;
 	}
 
-	private function applicant(): int {
-		return self::factory()->user->create( array( 'role' => Roles::PENDING, 'user_email' => 'ada@example.com' ) );
+	private function applicant( string $email = 'ada@example.com' ): int {
+		return self::factory()->user->create( array( 'role' => Roles::PENDING, 'user_email' => $email ) );
+	}
+
+	/** The last email's body as a reader sees it: long lines are quoted-printable encoded on the wire. */
+	private function body(): string {
+		return quoted_printable_decode( tests_retrieve_phpmailer_instance()->get_sent()->body );
 	}
 
 	public function test_a_slot_is_read_only_when_the_form_sends_it_and_makes_the_template_a_service_email(): void {
@@ -90,9 +95,9 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 
 		$this->assertSame( 'ada@example.com', $mail->to[0][0] );
 		$this->assertStringStartsWith( 'Got it,', $mail->subject );
-		$this->assertStringContainsString( 'Template says thanks', $mail->body );
-		$this->assertStringNotContainsString( '1–3 business days', $mail->body, 'The built-in wording is not also sent.' );
-		$this->assertStringNotContainsString( 'Unsubscribe', $mail->body, 'A lifecycle email carries no marketing footer.' );
+		$this->assertStringContainsString( 'Template says thanks', $this->body() );
+		$this->assertStringNotContainsString( '1–3 business days', $this->body(), 'The built-in wording is not also sent.' );
+		$this->assertStringNotContainsString( 'Unsubscribe', $this->body(), 'A lifecycle email carries no marketing footer.' );
 	}
 
 	public function test_an_unbound_received_email_is_still_the_built_in_one(): void {
@@ -108,7 +113,7 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 
 		Emails::send_approved( $user_id );
 
-		$body = html_entity_decode( tests_retrieve_phpmailer_instance()->get_sent()->body, ENT_QUOTES | ENT_HTML5 );
+		$body = html_entity_decode( $this->body(), ENT_QUOTES | ENT_HTML5 );
 
 		preg_match( '/[?&]key=([^&"]+)&id=(\d+)/', $body, $matches );
 
@@ -124,7 +129,7 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 
 		Emails::send_approved( $this->applicant() );
 
-		$body = html_entity_decode( tests_retrieve_phpmailer_instance()->get_sent()->body, ENT_QUOTES | ENT_HTML5 );
+		$body = html_entity_decode( $this->body(), ENT_QUOTES | ENT_HTML5 );
 
 		$this->assertStringNotContainsString( 'key=', $body );
 		$this->assertStringContainsString( 'href="' . wc_get_page_permalink( 'myaccount' ) . '"', $body, 'The button still goes somewhere useful.' );
@@ -133,14 +138,14 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 	public function test_a_bound_rejection_email_carries_the_reason_only_when_there_is_one(): void {
 		$this->bound( EmailTemplates::SLOT_APPLICATION_REJECTED, 'Update', "Sorry.\n\n{application_reject_reason}\n\nReply to talk." );
 
-		Emails::send_rejected( $this->applicant(), 'Outside our area' );
+		Emails::send_rejected( $this->applicant( 'ada@example.com' ), 'Outside our area' );
 
-		$this->assertStringContainsString( 'Reason: Outside our area', tests_retrieve_phpmailer_instance()->get_sent()->body );
+		$this->assertStringContainsString( 'Reason: Outside our area', $this->body() );
 
 		reset_phpmailer_instance();
-		Emails::send_rejected( $this->applicant(), '' );
+		Emails::send_rejected( $this->applicant( 'grace@example.com' ), '' );
 
-		$body = tests_retrieve_phpmailer_instance()->get_sent()->body;
+		$body = $this->body();
 
 		$this->assertStringNotContainsString( 'Reason:', $body );
 		$this->assertStringContainsString( 'Reply to talk.', $body );
@@ -157,7 +162,7 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 		$mail = tests_retrieve_phpmailer_instance()->get_sent();
 
 		$this->assertSame( 'Welcome aboard', $mail->subject );
-		$this->assertStringContainsString( 'Template welcome for', $mail->body );
+		$this->assertStringContainsString( 'Template welcome for', $this->body() );
 		$this->assertGreaterThan( 0, (int) get_user_meta( $user_id, WelcomeEmail::META_SENT_AT, true ) );
 	}
 
