@@ -204,6 +204,42 @@ class Test_Email_Renderer extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'per pack', $retail );
 	}
 
+	public function test_the_document_is_a_fluid_card_that_fits_a_phone(): void {
+		$html = EmailRenderer::render( $this->template( array( $this->block( 'heading' ) ) ), $this->context() )['html'];
+
+		$this->assertStringContainsString( 'width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;', $html );
+		$this->assertStringContainsString( '<!--[if mso]>', $html, 'Outlook on Windows gets a fixed-width table around the card.' );
+		$this->assertStringNotContainsString( 'border-collapse', $html, 'It would remove the cellspacing the swatch grids depend on.' );
+	}
+
+	public function test_the_quantity_diagram_carries_its_own_font(): void {
+		$html = EmailRenderer::render( $this->template( array( $this->block( 'explainer_quantities' ) ) ), $this->context( array( '_wholesale' => true ) ) )['html'];
+
+		$this->assertStringContainsString( 'padding:20px 22px;font-family:Helvetica,Arial,sans-serif;', $html );
+	}
+
+	public function test_the_newest_products_never_include_ones_hidden_from_the_catalog(): void {
+		$visible = Protech_Test_Factory::simple_product( '5.50' );
+		$hidden  = Protech_Test_Factory::simple_product( '5.50' );
+		$hidden->set_catalog_visibility( 'hidden' );
+		$hidden->save();
+
+		$ids = array_map(
+			static fn( $p ): int => $p->get_id(),
+			EmailBlocks::grid_products( array( 'mode' => 'newest', 'limit' => 12 ), $this->context() )
+		);
+
+		$this->assertContains( $visible->get_id(), $ids );
+		$this->assertNotContains( $hidden->get_id(), $ids );
+
+		$picked = array_map(
+			static fn( $p ): int => $p->get_id(),
+			EmailBlocks::grid_products( array( 'mode' => 'picked', 'product_ids' => array( $hidden->get_id() ) ), $this->context() )
+		);
+
+		$this->assertContains( $hidden->get_id(), $picked, 'A product picked by hand is always allowed.' );
+	}
+
 	public function test_an_empty_product_grid_renders_nothing(): void {
 		$html = EmailRenderer::render( $this->template( array( $this->block( 'product_grid', array( 'product_ids' => array( 999999 ) ) ), $this->block( 'heading', array( 'text' => 'After' ) ) ) ), $this->context() )['html'];
 

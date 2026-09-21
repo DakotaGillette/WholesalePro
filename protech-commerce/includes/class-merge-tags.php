@@ -250,12 +250,16 @@ class MergeTags {
 			return '';
 		}
 
+		// WooCommerce keeps country and state in one value ("US:IL"); the formatter wants them apart.
+		$location = wc_format_country_state_string( (string) get_option( 'woocommerce_default_country' ) );
+
 		$address = array(
 			'address_1' => get_option( 'woocommerce_store_address' ),
 			'address_2' => get_option( 'woocommerce_store_address_2' ),
 			'city'      => get_option( 'woocommerce_store_city' ),
+			'state'     => $location['state'],
 			'postcode'  => get_option( 'woocommerce_store_postcode' ),
-			'country'   => get_option( 'woocommerce_default_country' ),
+			'country'   => $location['country'],
 		);
 
 		return wp_strip_all_tags( WC()->countries->get_formatted_address( $address, ', ' ) );

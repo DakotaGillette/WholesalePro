@@ -3,6 +3,20 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.2.1 - 2026-09-21
+
+### Fixed
+- **The store address in the marketing footer** read "Evanston, 60204, US:IL"
+  (WooCommerce keeps country and state in one value). It now reads "Evanston,
+  IL 60204". This affected the footer added in 2.1.1.
+- Email templates on a phone: the card no longer overflows the screen (it is
+  fluid up to the set width, with a fixed-width fallback for Outlook on
+  Windows).
+- The pack, display and case picture in a template drew its text in a serif
+  font, and its dot grids lost their spacing.
+- "Newest products" in a product block no longer includes products hidden from
+  the catalog (an unlisted kit, for example).
+
 ## 2.2.0 - 2026-09-21
 
 ### Added

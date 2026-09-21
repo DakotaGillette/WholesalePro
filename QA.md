@@ -384,6 +384,12 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 27. Template rendering fixes (2.2.1)
+
+- [ ] Preview "Welcome to wholesale" at phone width: the card fits the screen with nothing cut off, and the diagram text is in the same sans-serif font as the rest.
+- [ ] Preview "Restock reminder": the product row shows visible products only (no Vendor Starter Kit or Sample Pack).
+- [ ] The footer address reads like an address ("Evanston, IL 60204"), with no "US:IL".
+
 ## 26. Email templates library (2.2.0)
 
 - [ ] Messaging → **Email templates** lists six starters: Welcome to wholesale, Application received, Restock reminder, Win-back offer, New arrivals announcement, Blank. Each shows its type, block count and a Preview link; "Used for" is empty for all of them.

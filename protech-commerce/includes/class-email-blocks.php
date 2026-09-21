@@ -647,6 +647,12 @@ class EmailBlocks {
 
 			$id = $product->get_id();
 
+			// The newest products are what the shop shows: never the ones hidden from the
+			// catalog (an unlisted kit, say). A product an admin picks by hand is always allowed.
+			if ( 'newest' === ( $a['mode'] ?? 'picked' ) && ! in_array( $product->get_catalog_visibility(), array( 'visible', 'catalog' ), true ) ) {
+				continue;
+			}
+
 			if ( ! $wholesale && ProductFields::is_wholesale_only( $id ) ) {
 				continue;
 			}
@@ -777,7 +783,7 @@ class EmailBlocks {
 			$body = ( '' !== $title ? '<p style="margin:0 0 16px;font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:' . esc_attr( (string) $style['brand'] ) . ';">' . $title . '</p>' : '' ) . self::quantity_diagram( $args );
 
 			return self::row(
-				'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#eef3fa;border:1px solid #c9d6ea;border-radius:8px;"><tr><td style="padding:20px 22px;">' . $body . '</td></tr></table>',
+				'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#eef3fa;border:1px solid #c9d6ea;border-radius:8px;"><tr><td style="padding:20px 22px;font-family:' . esc_attr( (string) $style['font'] ) . ';">' . $body . '</td></tr></table>',
 				$a,
 				$inner
 			);

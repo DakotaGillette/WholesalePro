@@ -49,6 +49,16 @@ class Test_Marketing_Footer extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Portland', $footer );
 	}
 
+	public function test_the_address_reads_as_an_address_not_a_country_state_code(): void {
+		$this->set_store_address(); // Country US, state OR.
+
+		$address = MergeTags::store_address();
+
+		$this->assertStringNotContainsString( 'US:', $address );
+		$this->assertStringContainsString( 'OR', $address );
+		$this->assertStringContainsString( '97201', $address );
+	}
+
 	public function test_the_wording_fits_a_wholesale_account_and_a_past_customer(): void {
 		$wholesale = MessageTransport::footer_html_for( Protech_Test_Factory::wholesale_customer(), MessageLog::CATEGORY_MARKETING );
 		$retail    = MessageTransport::footer_html_for( Protech_Test_Factory::retail_customer(), MessageLog::CATEGORY_MARKETING );

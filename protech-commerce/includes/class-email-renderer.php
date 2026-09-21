@@ -159,14 +159,19 @@ class EmailRenderer {
 			. '<meta name="viewport" content="width=device-width, initial-scale=1.0" />'
 			. '<meta http-equiv="X-UA-Compatible" content="IE=edge" />'
 			. '<title>' . esc_html( $subject ) . '</title>'
-			. '<style type="text/css">body{margin:0;padding:0;}img{border:0;}table{border-collapse:collapse;}'
+			. '<style type="text/css">body{margin:0;padding:0;}img{border:0;}'
 			. '@media only screen and (max-width:' . ( $width + 20 ) . 'px){.pw-col{display:block !important;width:100% !important;padding:0 0 12px !important;}}</style>'
 			. '</head><body style="margin:0;padding:0;background:' . esc_attr( (string) $style['page_bg'] ) . ';">'
 			. $hidden
 			. '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:' . esc_attr( (string) $style['page_bg'] ) . ';"><tr><td align="center" style="padding:24px 12px;">'
-			. '<table role="presentation" width="' . $width . '" cellspacing="0" cellpadding="0" border="0" style="width:' . $width . 'px;max-width:100%;background:' . $canvas . ';border-radius:10px;">'
+			// A fluid card with a maximum width, so it fits a phone. Outlook on Windows ignores
+			// max-width, so it gets a fixed-width table around the card through a conditional comment.
+			. '<!--[if mso]><table role="presentation" width="' . $width . '" align="center" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->'
+			. '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:' . $width . 'px;background:' . $canvas . ';border-radius:10px;">'
 			. $rows
-			. '</table></td></tr></table></body></html>';
+			. '</table>'
+			. '<!--[if mso]></td></tr></table><![endif]-->'
+			. '</td></tr></table></body></html>';
 	}
 
 	/**
