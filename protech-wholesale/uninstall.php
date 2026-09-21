@@ -56,6 +56,7 @@ $protech_option_keys = array(
 	'protech_wholesale_application_form_id',
 	'protech_wholesale_purge_on_uninstall',
 	'protech_wholesale_notification_email',
+	'protech_wholesale_login_landing_url',
 	'protech_wholesale_tier_settings', // Tiers::OPT_TIER_SETTINGS.
 	'protech_wholesale_db_version',    // Plugin::OPT_DB_VERSION.
 	// Messaging & automations, 1.5.0 (mirrors MessagingSettings::get_defaults() keys).
