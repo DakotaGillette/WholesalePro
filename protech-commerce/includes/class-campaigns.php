@@ -42,13 +42,23 @@ class Campaigns {
 			'body'    => wp_kses_post( (string) ( $input['email']['body'] ?? '' ) ),
 		);
 
+		$email['template_id'] = sanitize_text_field( (string) ( $input['email']['template_id'] ?? '' ) );
+
+		if ( '' !== $email['template_id'] && ! EmailTemplates::exists( $email['template_id'] ) ) {
+			$errors[]             = __( 'That email template no longer exists. Choose another, or write the email here.', 'protech-wholesale' );
+			$email['template_id'] = '';
+		}
+
+		// With a template the design and wording come from it; only the subject can be typed here, to override its own.
+		$templated = '' !== $email['template_id'];
+
 		$sms = array(
 			'body' => sanitize_textarea_field( (string) ( $input['sms']['body'] ?? '' ) ),
 		);
 
 		$channels = 'both' === $channel ? array( 'email', 'sms' ) : array( $channel );
 
-		if ( in_array( 'email', $channels, true ) && '' === trim( $email['body'] ) ) {
+		if ( in_array( 'email', $channels, true ) && ! $templated && '' === trim( $email['body'] ) ) {
 			$errors[] = __( 'Write an email body.', 'protech-wholesale' );
 		}
 
@@ -62,7 +72,7 @@ class Campaigns {
 			}
 		}
 
-		foreach ( array( 'email' => $email['subject'] . ' ' . $email['heading'] . ' ' . $email['body'], 'sms' => $sms['body'] ) as $part => $body ) {
+		foreach ( array( 'email' => $templated ? $email['subject'] : $email['subject'] . ' ' . $email['heading'] . ' ' . $email['body'], 'sms' => $sms['body'] ) as $part => $body ) {
 			if ( ! in_array( $part, $channels, true ) ) {
 				continue;
 			}
@@ -235,13 +245,10 @@ class Campaigns {
 			$body   = MergeTags::render( (string) ( $input['sms']['body'] ?? '' ), $context, 'text' );
 			$result = MessageTransport::send_sms( $to_user_id, $phone, $body, $category );
 		} else {
-			$user    = get_userdata( $to_user_id );
-			$typed   = sanitize_email( (string) ( $input['preview_email'] ?? '' ) );
-			$to      = is_email( $typed ) ? $typed : ( $user ? $user->user_email : '' );
-			$subject = MergeTags::render( (string) ( $input['email']['subject'] ?? '' ), $context, 'subject' );
-			$heading = MergeTags::render( (string) ( $input['email']['heading'] ?? '' ), $context, 'subject' );
-			$body    = MergeTags::render( (string) ( $input['email']['body'] ?? '' ), $context, 'html' );
-			$result  = MessageTransport::send_email( $to_user_id, $to, $subject, $heading, $body, $category, array( 'test' ) );
+			$user   = get_userdata( $to_user_id );
+			$typed  = sanitize_email( (string) ( $input['preview_email'] ?? '' ) );
+			$to     = is_email( $typed ) ? $typed : ( $user ? $user->user_email : '' );
+			$result = MessageTransport::send_content_email( $to_user_id, $to, (array) ( $input['email'] ?? array() ), $category, array( 'test' ), null, true );
 		}
 
 		if ( $log_id ) {

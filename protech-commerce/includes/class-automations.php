@@ -109,7 +109,7 @@ class Automations {
 			'category' => self::category_for( $trigger ),
 			'tiers'    => array(),
 			'params'   => $params,
-			'email'    => array( 'subject' => '', 'heading' => '', 'body' => '' ),
+			'email'    => array( 'subject' => '', 'heading' => '', 'body' => '', 'template_id' => '' ),
 			'sms'      => array( 'body' => '' ),
 		);
 	}
@@ -258,6 +258,16 @@ class Automations {
 		$rule['email']['body']    = wp_kses_post( (string) ( $email_in['body'] ?? '' ) );
 		$rule['sms']['body']      = sanitize_textarea_field( (string) ( $sms_in['body'] ?? '' ) );
 
+		$rule['email']['template_id'] = sanitize_text_field( (string) ( $email_in['template_id'] ?? '' ) );
+
+		if ( '' !== $rule['email']['template_id'] && ! EmailTemplates::exists( $rule['email']['template_id'] ) ) {
+			$errors[]                     = __( 'That email template no longer exists. Choose another, or write the email here.', 'protech-wholesale' );
+			$rule['email']['template_id'] = '';
+		}
+
+		// With a template the design and wording come from it; only the subject can be typed here, to override its own.
+		$templated = '' !== $rule['email']['template_id'];
+
 		if ( strlen( $rule['email']['subject'] ) > 200 ) {
 			$errors[] = __( 'Email subject is too long (200 characters max).', 'protech-wholesale' );
 		}
@@ -266,7 +276,7 @@ class Automations {
 			$errors[] = __( 'SMS text is too long (600 characters max).', 'protech-wholesale' );
 		}
 
-		if ( in_array( 'email', $channels, true ) && '' === trim( $rule['email']['body'] ) ) {
+		if ( in_array( 'email', $channels, true ) && ! $templated && '' === trim( $rule['email']['body'] ) ) {
 			$errors[] = __( 'Write an email body, or remove email from this rule\'s channel.', 'protech-wholesale' );
 		}
 
@@ -294,7 +304,8 @@ class Automations {
 				continue;
 			}
 
-			$body   = 'email' === $part ? ( $rule['email']['subject'] . ' ' . $rule['email']['heading'] . ' ' . $rule['email']['body'] ) : $rule['sms']['body'];
+			$typed  = $templated ? $rule['email']['subject'] : $rule['email']['subject'] . ' ' . $rule['email']['heading'] . ' ' . $rule['email']['body'];
+			$body   = 'email' === $part ? $typed : $rule['sms']['body'];
 			$unknown = MergeTags::unknown_tags( $body, $trigger );
 
 			if ( ! empty( $unknown ) ) {
@@ -305,6 +316,7 @@ class Automations {
 
 		if ( MessageLog::CATEGORY_MARKETING === $rule['category']
 			&& in_array( 'email', $channels, true )
+			&& ! $templated
 			&& ! MessagingSettings::email_footer_enabled()
 			&& ! str_contains( $rule['email']['body'], '{unsubscribe_url}' )
 		) {

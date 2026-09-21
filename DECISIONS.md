@@ -1680,6 +1680,33 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Templates on the send path, and the review screen (2026-09-21, 2.4.0)
+
+1. **One sender decides.** `MessageTransport::send_content_email()` resolves a rule's or
+   campaign's email: the template when there is one, otherwise the typed subject,
+   heading and body exactly as before. Real sends, test sends and the review screen
+   all go through it (the review through a twin, `content_email_preview()`, that
+   shares the same two document builders), so they cannot show different things.
+2. **A typed subject beats the template's.** It is the one field left on the form
+   that makes sense with a template (a campaign's own subject line). Heading and body
+   are ignored when a template is chosen, and the Design row says so.
+3. **A deleted template is not an empty email.** With a typed body it falls back to
+   it; without one the message fails with reason `template_missing`, which the Log
+   shows. Saving a rule or campaign that points at a template that does not exist is
+   refused.
+4. **Order-only tags stay out of templates**, so a template on an order-status rule
+   cannot use `{order_number}`. Templates were built without an order context; adding
+   one is a later change if it is asked for.
+5. **The review is a page, not a dialog.** "Review and send" stores the input and
+   redirects back to Compose, which shows the review when a stash exists. It carries
+   the whole input forward as hidden fields, so Send, Back to edit and a preview sent
+   from the review all work from the same form. The form's default `action` leads
+   only to the review or back to the form, never to a send: the send is its own button.
+   The old pop-up confirmation and its localized string were removed with it.
+6. **The review applies the same consent gate a send does**, per customer and
+   channel, but is a snapshot: each recipient is checked again when their message
+   goes out.
+
 ## Buttons carry their own action (2026-09-21, 2.3.1)
 
 A submit button with `formaction="admin-post.php?action=x"` inside a form that has

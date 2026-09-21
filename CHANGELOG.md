@@ -3,6 +3,27 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.4.0 - 2026-09-21
+
+### Added
+- **Designed emails on automations and Compose.** Both forms have a Design
+  picker: choose an email template and it supplies the layout and wording (the
+  typed Heading and Body are then ignored), or leave it on "Plain message" for
+  exactly the behavior of before. A Subject typed on the rule or message still
+  replaces the template's own. A template that has since been deleted falls back
+  to the typed body if there is one, and otherwise the message fails in the Log
+  with a clear reason instead of sending an empty email.
+- **A review screen before anything is sent.** Compose now ends in "Review and
+  send": who it goes to and how many people, who is left out and why
+  (unsubscribed, no phone number, not opted in), the email drawn as it will look
+  (or the text message with its length), and a reminder of what kind of message
+  it is. From there: send a preview to any address, go back and edit, or send.
+  The old browser pop-up confirmation is gone; this screen replaces it.
+
+### Changed
+- "Preview recipients" on Compose is replaced by the review screen. The
+  automation form's own "Preview recipients" is unchanged.
+
 ## 2.3.1 - 2026-09-21
 
 ### Fixed

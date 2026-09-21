@@ -244,13 +244,5 @@
 				}
 			}
 		} );
-
-		document.querySelectorAll( '.protech-confirm-send' ).forEach( function ( button ) {
-			button.addEventListener( 'click', function ( event ) {
-				if ( ! window.confirm( strings.sendMessageConfirm || 'Send this message now? This cannot be undone.' ) ) {
-					event.preventDefault();
-				}
-			} );
-		} );
 	}
 } )();

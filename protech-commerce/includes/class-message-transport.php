@@ -63,11 +63,7 @@ class MessageTransport {
 				return self::result( 'failed', '', '', '', __( 'Customer account no longer exists.', 'protech-wholesale' ), 'no_user', false );
 			}
 
-			$subject = MergeTags::render( (string) ( $content['email']['subject'] ?? '' ), $context, 'subject' );
-			$heading = MergeTags::render( (string) ( $content['email']['heading'] ?? '' ), $context, 'subject' );
-			$body    = MergeTags::render( (string) ( $content['email']['body'] ?? '' ), $context, 'html' );
-
-			return self::send_email( $user_id, $user->user_email, $subject, $heading, $body, $category, array( (string) $row['rule_id'] ) );
+			return self::send_content_email( $user_id, $user->user_email, (array) $content['email'], $category, array( (string) $row['rule_id'] ), $order );
 		}
 
 		$sms_body = MergeTags::render( (string) ( $content['sms']['body'] ?? '' ), $context, 'text' );
@@ -90,6 +86,147 @@ class MessageTransport {
 	}
 
 	/**
+	 * The template an email points at, with its own subject replaced by one typed
+	 * on the rule or campaign, or null when it has none (or it was deleted).
+	 *
+	 * @param array<string, mixed> $email `subject`, `heading`, `body` and optionally `template_id`.
+	 * @return array<string, mixed>|null
+	 */
+	private static function template_for( array $email ): ?array {
+		$template_id = (string) ( $email['template_id'] ?? '' );
+		$template    = '' !== $template_id ? EmailTemplates::get( $template_id ) : null;
+
+		if ( null === $template ) {
+			return null;
+		}
+
+		$typed = trim( (string) ( $email['subject'] ?? '' ) );
+
+		if ( '' !== $typed ) {
+			$template['subject'] = $typed;
+		}
+
+		return $template;
+	}
+
+	/**
+	 * True when an email points at a template that no longer exists and has no
+	 * typed body to fall back on: it cannot be sent.
+	 *
+	 * @param array<string, mixed> $email
+	 */
+	private static function template_lost( array $email ): bool {
+		return '' !== (string) ( $email['template_id'] ?? '' ) && null === self::template_for( $email ) && '' === trim( (string) ( $email['body'] ?? '' ) );
+	}
+
+	/**
+	 * Sends the email a rule or campaign holds: the template it points at when
+	 * it has one, otherwise the subject, heading and body typed into it. The one
+	 * place that decides, so a rule, a campaign and a test send cannot drift.
+	 * A typed subject beats the template's own; a template that has since been
+	 * deleted falls back to the typed body, or fails the message with a reason.
+	 *
+	 * @param array<string, mixed> $email `subject`, `heading`, `body` and optionally `template_id`.
+	 * @param string[]             $tags
+	 * @param bool                 $preview Fills merge tags from the sender's own account and shows wholesale-only blocks.
+	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
+	 */
+	public static function send_content_email( int $user_id, string $to, array $email, string $category, array $tags = array(), ?\WC_Order $order = null, bool $preview = false ): array {
+		if ( self::template_lost( $email ) ) {
+			return self::result( 'failed', '', '', $to, '', __( 'The email template for this message no longer exists.', 'protech-wholesale' ), 'template_missing', false );
+		}
+
+		$template = self::template_for( $email );
+
+		if ( null !== $template ) {
+			$context = EmailRenderer::context( $user_id, $preview );
+
+			return self::send_template_email( $user_id, $to, EmailRenderer::subject( $template, $context ), $template, $context, $category, $tags );
+		}
+
+		$context = MergeTags::context_for_customer( $user_id, $order );
+		$subject = MergeTags::render( (string) ( $email['subject'] ?? '' ), $context, 'subject' );
+		$heading = MergeTags::render( (string) ( $email['heading'] ?? '' ), $context, 'subject' );
+		$body    = MergeTags::render( (string) ( $email['body'] ?? '' ), $context, 'html' );
+
+		return self::send_email( $user_id, $to, $subject, $heading, $body, $category, $tags );
+	}
+
+	/**
+	 * The email exactly as send_content_email() would send it to $user_id, but
+	 * not sent: the subject and the finished HTML, for the review screen.
+	 *
+	 * @param array<string, mixed> $email
+	 * @return array{subject: string, html: string}|null Null when the template is gone and nothing is typed.
+	 */
+	public static function content_email_preview( int $user_id, array $email, string $category ): ?array {
+		if ( self::template_lost( $email ) ) {
+			return null;
+		}
+
+		$template = self::template_for( $email );
+
+		if ( null !== $template ) {
+			$context = EmailRenderer::context( $user_id, true );
+
+			return array(
+				'subject' => EmailRenderer::subject( $template, $context ),
+				'html'    => self::template_document( $user_id, $template, $context, $category )['html'],
+			);
+		}
+
+		$context = MergeTags::context_for_customer( $user_id );
+
+		return array(
+			'subject' => MergeTags::render( (string) ( $email['subject'] ?? '' ), $context, 'subject' ),
+			'html'    => self::legacy_document( $user_id, MergeTags::render( (string) ( $email['heading'] ?? '' ), $context, 'subject' ), MergeTags::render( (string) ( $email['body'] ?? '' ), $context, 'html' ), $category )['html'],
+		);
+	}
+
+	/**
+	 * A typed email as a finished document: WooCommerce's header and footer
+	 * around it, its stylesheet inlined, and the footer its category needs.
+	 *
+	 * @return array{html: string, text: string}
+	 */
+	private static function legacy_document( int $user_id, string $heading, string $body_html, string $category ): array {
+		$full_body = $body_html . self::footer_html_for( $user_id, $category );
+		$wrapped   = WC()->mailer()->wrap_message( $heading, $full_body );
+
+		return array(
+			'html' => ( new \WC_Email() )->style_inline( $wrapped ),
+			'text' => wp_strip_all_tags( $full_body ),
+		);
+	}
+
+	/**
+	 * A template as a finished document. The template owns the whole email, so
+	 * it is not wrapped in WooCommerce's header and footer or run through
+	 * WC_Email::style_inline(); the footer it needs comes from footer_html_for(),
+	 * so a marketing template cannot go out without the unsubscribe link and
+	 * postal address.
+	 *
+	 * @param array<string, mixed> $template
+	 * @param array<string, mixed> $context  From EmailRenderer::context().
+	 * @return array{html: string, text: string}
+	 */
+	private static function template_document( int $user_id, array $template, array $context, string $category ): array {
+		$rendered = EmailRenderer::render( $template, $context, array( 'footer_html' => self::footer_html_for( $user_id, $category ) ) );
+
+		/**
+		 * The finished HTML of a template email, just before it is sent. A hook to
+		 * add WC_Email::style_inline() or anything else that must see the final markup.
+		 *
+		 * @param string               $html
+		 * @param array<string, mixed> $template
+		 * @param array<string, mixed> $context
+		 */
+		$html = (string) apply_filters( 'protech_wholesale_email_template_html', $rendered['html'], $template, $context );
+
+		return array( 'html' => $html, 'text' => $rendered['text'] );
+	}
+
+	/**
 	 * @param string[] $tags
 	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
 	 */
@@ -102,19 +239,13 @@ class MessageTransport {
 			$subject = (string) get_bloginfo( 'name' );
 		}
 
-		$full_body = $body_html . self::footer_html_for( $user_id, $category );
-		$wrapped   = WC()->mailer()->wrap_message( $heading, $full_body );
-		$html      = ( new \WC_Email() )->style_inline( $wrapped );
+		$document = self::legacy_document( $user_id, $heading, $body_html, $category );
 
-		return self::dispatch( $to, $subject, $html, wp_strip_all_tags( $full_body ), $tags );
+		return self::dispatch( $to, $subject, $document['html'], $document['text'], $tags );
 	}
 
 	/**
-	 * Sends an email built from a template. The template owns the whole email,
-	 * so it is not wrapped in WooCommerce's header and footer or run through
-	 * WC_Email::style_inline(); the footer it needs comes from footer_html_for(),
-	 * so a marketing template cannot go out without the unsubscribe link and
-	 * postal address.
+	 * Sends an email built from a template.
 	 *
 	 * @param array<string, mixed> $template
 	 * @param array<string, mixed> $context  From EmailRenderer::context().
@@ -130,19 +261,9 @@ class MessageTransport {
 			$subject = (string) get_bloginfo( 'name' );
 		}
 
-		$rendered = EmailRenderer::render( $template, $context, array( 'footer_html' => self::footer_html_for( $user_id, $category ) ) );
+		$document = self::template_document( $user_id, $template, $context, $category );
 
-		/**
-		 * The finished HTML of a template email, just before it is sent. A hook to
-		 * add WC_Email::style_inline() or anything else that must see the final markup.
-		 *
-		 * @param string               $html
-		 * @param array<string, mixed> $template
-		 * @param array<string, mixed> $context
-		 */
-		$html = (string) apply_filters( 'protech_wholesale_email_template_html', $rendered['html'], $template, $context );
-
-		return self::dispatch( $to, $subject, $html, $rendered['text'], $tags );
+		return self::dispatch( $to, $subject, $document['html'], $document['text'], $tags );
 	}
 
 	/**

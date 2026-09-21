@@ -341,8 +341,8 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 **Compose (manual send)**
 - [ ] Customers tab: tick the one wholesale customer, "Send message to selected" lands on Compose with them pre-selected.
 - [ ] Write a subject/body with `{first_name}` and `{shop_url}`, "Send preview" (leave the email blank) — arrives at your own address with the branded header/footer and the tags filled in.
-- [ ] "Preview recipients" shows the right count before sending for real.
-- [ ] "Send" queues it; the Log (filtered by the campaign id in the URL) shows it move from queued → sent within a minute or two of a real page load (cron permitting — see the cron note in the README if it sits at "queued").
+- [ ] "Review and send" opens the review screen with the right count (see section 29) before anything is sent.
+- [ ] "Send ... now" on the review screen queues it; the Log (filtered by the campaign id in the URL) shows it move from queued → sent within a minute or two of a real page load (cron permitting — see the cron note in the README if it sits at "queued").
 
 **Automations**
 - [ ] Add the "Reorder reminder" preset, leave disabled, click Preview — shows a sensible recipient count and skip reasons (most real customers will show "window" until an order is 30 days old).
@@ -383,6 +383,19 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] Above the "Wholesale pricing" table on the product page (full width, not next to the order control): "How wholesale quantities work" with the three tiles (1 pack, ×10, 1 display = 10 packs, ×8, 1 case = 8 displays (80 packs), all in US spelling (color)) and the line "1 case = 8 displays. Mix and match your displays however you'd like. Free shipping from 16 displays (2 cases), any combination of colors."
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
+
+## 29. Designed emails and the review screen (2.4.0)
+
+- [ ] Compose and an automation rule each have a **Design** row above Subject: "Plain message" plus every template. Both keep whatever they had before (Plain message).
+- [ ] Compose, channel Email, Design "Welcome to wholesale", leave Body empty, click "Review and send": no error about the body. The review shows the audience and how many emails, the email in a frame exactly as designed, and a Subject line.
+- [ ] Type a Subject in Compose with a template chosen: the review's Subject is yours, not the template's.
+- [ ] Use an audience that includes someone unsubscribed from marketing: the review says "Left out: 1 unsubscribed", and the count excludes them. Tick "service message": they are included, and the review says so.
+- [ ] Choose a channel with nobody able to receive it: the review says nobody would receive it and the Send button is disabled.
+- [ ] From the review, "Send preview" to your own address: you land back on the review with a green line, and the email arrived with the template design and the marketing footer.
+- [ ] "Back to edit" returns to Compose with everything still typed. Nothing was sent by any of the above (check the Log).
+- [ ] "Send ... now": the Log shows the queued messages and they arrive as the template.
+- [ ] Automation rule with a template: "Send preview" sends the template. Delete a template a rule uses (you cannot: it says where it is used).
+- [ ] The Send preview and Review buttons on Compose and the rule form do only what they say (the Log stays empty after a preview).
 
 ## 28. Email template editor (2.3.0)
 

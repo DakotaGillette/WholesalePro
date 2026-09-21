@@ -42,7 +42,8 @@ class MessagingTab {
 		add_action( 'admin_post_protech_run_automations_now', array( $this, 'handle_run_automations_now' ) );
 
 		add_action( 'admin_post_protech_message_customers', array( $this, 'handle_message_customers' ) );
-		add_action( 'admin_post_protech_preview_message', array( $this, 'handle_preview_message' ) );
+		add_action( 'admin_post_protech_review_message', array( $this, 'handle_review_message' ) );
+		add_action( 'admin_post_protech_edit_message', array( $this, 'handle_edit_message' ) );
 		add_action( 'admin_post_protech_send_message', array( $this, 'handle_send_message' ) );
 		add_action( 'admin_post_protech_send_test_message', array( $this, 'handle_send_test_message' ) );
 
@@ -461,6 +462,7 @@ class MessagingTab {
 
 			<h3><?php esc_html_e( 'Email', 'protech-wholesale' ); ?></h3>
 			<table class="form-table" role="presentation">
+				<?php self::render_template_picker( (string) ( $rule['email']['template_id'] ?? '' ) ); ?>
 				<tr>
 					<th><label for="protech_email_subject"><?php esc_html_e( 'Subject', 'protech-wholesale' ); ?></label></th>
 					<td><input type="text" id="protech_email_subject" name="email[subject]" class="large-text protech-tag-target" value="<?php echo esc_attr( (string) $rule['email']['subject'] ); ?>" /></td>
@@ -717,16 +719,16 @@ class MessagingTab {
 	// -----------------------------------------------------------------
 
 	private static function render_compose(): void {
-		$form_stash    = self::unstash( 'compose_form' );
-		$preview_stash = self::unstash( 'compose_preview' );
-		$test_stash    = self::unstash( 'compose_test' );
+		$form_stash   = self::unstash( 'compose_form' );
+		$review_stash = self::unstash( 'compose_review' );
+		$test_stash   = self::unstash( 'compose_test' );
+
+		if ( null !== $review_stash ) {
+			self::render_review( $review_stash, $test_stash );
+			return;
+		}
 
 		self::render_preview_results( $test_stash );
-
-		if ( null !== $preview_stash ) {
-			self::render_preview_summary( $preview_stash );
-			echo '<p class="description">' . esc_html( $preview_stash['audience_label'] ?? '' ) . '</p>';
-		}
 
 		if ( null !== $form_stash && ! empty( $form_stash['errors'] ) ) {
 			echo '<div class="notice notice-error inline"><ul style="margin:0.5em 0 0 1.5em;list-style:disc;">';
@@ -736,7 +738,7 @@ class MessagingTab {
 			echo '</ul></div>';
 		}
 
-		$input = $form_stash['input'] ?? $preview_stash['input'] ?? $test_stash['input'] ?? null;
+		$input = $form_stash['input'] ?? $test_stash['input'] ?? null;
 
 		if ( null === $input ) {
 			$input = self::default_compose_input();
@@ -757,7 +759,8 @@ class MessagingTab {
 		$channel = (string) ( $input['channel'] ?? 'email' );
 		?>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="protech-compose-form">
-			<input type="hidden" name="action" value="protech_send_message" />
+			<?php // The default action only ever leads to the review screen; the send is its own button there. ?>
+			<input type="hidden" name="action" value="protech_review_message" />
 			<?php wp_nonce_field( 'protech_wholesale_compose', 'protech_wholesale_compose_nonce' ); ?>
 
 			<h2><?php esc_html_e( 'Audience', 'protech-wholesale' ); ?></h2>
@@ -813,6 +816,7 @@ class MessagingTab {
 
 			<h3><?php esc_html_e( 'Email', 'protech-wholesale' ); ?></h3>
 			<table class="form-table" role="presentation">
+				<?php self::render_template_picker( (string) ( $input['email']['template_id'] ?? '' ) ); ?>
 				<tr>
 					<th><label for="protech_compose_subject"><?php esc_html_e( 'Subject', 'protech-wholesale' ); ?></label></th>
 					<td><input type="text" id="protech_compose_subject" name="email[subject]" class="large-text protech-tag-target" value="<?php echo esc_attr( (string) ( $input['email']['subject'] ?? '' ) ); ?>" /></td>
@@ -838,8 +842,7 @@ class MessagingTab {
 			<?php self::render_preview_box( 'protech_send_test_message', $input ); ?>
 
 			<p>
-				<button type="submit" class="button button-primary protech-confirm-send"><?php esc_html_e( 'Send', 'protech-wholesale' ); ?></button>
-				<button type="submit" name="action" value="protech_preview_message" class="button"><?php esc_html_e( 'Preview recipients', 'protech-wholesale' ); ?></button>
+				<button type="submit" name="action" value="protech_review_message" class="button button-primary"><?php esc_html_e( 'Review and send', 'protech-wholesale' ); ?></button>
 			</p>
 		</form>
 		<?php
@@ -885,40 +888,262 @@ class MessagingTab {
 		exit;
 	}
 
-	public function handle_preview_message(): void {
+	/**
+	 * Checks the message and, if it is sendable, shows the review screen (who it
+	 * goes to, who is left out, the email as it will look). Nothing is sent from
+	 * here. Anything wrong sends the admin back to the form with what they typed.
+	 */
+	public function handle_review_message(): void {
 		check_admin_referer( 'protech_wholesale_compose', 'protech_wholesale_compose_nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
 		}
 
-		$input    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$audience = Audience::normalize( (array) ( $input['audience'] ?? array() ) );
-		$user_ids = Audience::resolve( $audience );
-		$channel  = in_array( $input['channel'] ?? '', array( 'email', 'sms', 'both' ), true ) ? $input['channel'] : 'email';
-		$channels = 'both' === $channel ? array( 'email', 'sms' ) : array( $channel );
-		$category = ! empty( $input['service_message'] ) ? MessageLog::CATEGORY_TRANSACTIONAL : MessageLog::CATEGORY_MARKETING;
+		self::stash_review_or_form( wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cleaned by Campaigns::create().
 
-		$ok      = 0;
-		$reasons = array();
+		wp_safe_redirect( self::url( 'compose' ) );
+		exit;
+	}
+
+	/** Back from the review screen to the form, with everything still typed. */
+	public function handle_edit_message(): void {
+		check_admin_referer( 'protech_wholesale_compose', 'protech_wholesale_compose_nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
+		}
+
+		self::stash( 'compose_form', array( 'input' => wp_unslash( $_POST ), 'errors' => array() ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- shown back in escaped fields only.
+
+		wp_safe_redirect( self::url( 'compose' ) );
+		exit;
+	}
+
+	/**
+	 * Stores what the review screen needs, or, when the message is not sendable,
+	 * what the form needs to show its errors.
+	 *
+	 * @param array<string, mixed> $input Raw form input.
+	 */
+	private static function stash_review_or_form( array $input ): void {
+		$review = self::build_review( $input );
+
+		if ( ! empty( $review['errors'] ) ) {
+			self::stash( 'compose_form', array( 'input' => $input, 'errors' => $review['errors'] ) );
+			return;
+		}
+
+		self::stash( 'compose_review', $review );
+	}
+
+	/**
+	 * Who would get this message right now and who would be left out, the same
+	 * gate a real send applies, without sending or saving anything.
+	 *
+	 * @param array<string, mixed> $input Raw form input.
+	 * @return array<string, mixed>
+	 */
+	private static function build_review( array $input ): array {
+		$created  = Campaigns::create( $input, get_current_user_id() );
+		$campaign = $created['campaign'];
+		$channels = 'both' === $campaign['channel'] ? array( 'email', 'sms' ) : array( (string) $campaign['channel'] );
+		$category = (string) $campaign['category'];
+		$user_ids = Audience::resolve( $campaign['audience'] );
+		$sent_to  = array_fill_keys( $channels, 0 );
+		$reasons  = array();
 
 		foreach ( $user_ids as $user_id ) {
-			foreach ( $channels as $ch ) {
-				$gate = 'sms' === $ch ? SmsConsent::can_receive_sms( $user_id, $category ) : SmsConsent::can_receive_email( $user_id, $category );
+			foreach ( $channels as $channel ) {
+				$gate = 'sms' === $channel ? SmsConsent::can_receive_sms( $user_id, $category ) : SmsConsent::can_receive_email( $user_id, $category );
 
 				if ( $gate['ok'] ) {
-					++$ok;
+					++$sent_to[ $channel ];
 				} else {
 					$reasons[ $gate['reason'] ] = ( $reasons[ $gate['reason'] ] ?? 0 ) + 1;
 				}
 			}
 		}
 
-		self::stash( 'compose_form', array( 'input' => $input, 'errors' => array() ) );
-		self::stash( 'compose_preview', array( 'ok' => $ok, 'reasons' => $reasons, 'audience_label' => Audience::describe( $audience ), 'input' => $input ) );
+		return array(
+			'input'          => $input,
+			'campaign'       => $campaign,
+			'errors'         => $created['errors'],
+			'audience_label' => Audience::describe( $campaign['audience'] ),
+			'audience_total' => count( $user_ids ),
+			'channels'       => $channels,
+			'sent_to'        => $sent_to,
+			'reasons'        => $reasons,
+		);
+	}
 
-		wp_safe_redirect( self::url( 'compose' ) );
-		exit;
+	/**
+	 * The screen between "Review and send" and the send itself.
+	 *
+	 * @param array<string, mixed>      $review From build_review().
+	 * @param array<string, mixed>|null $test   The result of a preview sent from this screen.
+	 */
+	private static function render_review( array $review, ?array $test ): void {
+		$campaign = (array) $review['campaign'];
+		$input    = (array) $review['input'];
+		$category = (string) $campaign['category'];
+		$channels = (array) $review['channels'];
+		$total    = (int) array_sum( (array) $review['sent_to'] );
+		$admin_id = get_current_user_id();
+		$email    = (array) $campaign['email'];
+		$template = '' !== (string) ( $email['template_id'] ?? '' ) ? EmailTemplates::get( (string) $email['template_id'] ) : null;
+
+		self::render_preview_results( $test );
+
+		echo '<h2>' . esc_html__( 'Review before sending', 'protech-wholesale' ) . '</h2>';
+
+		// Who.
+		echo '<div class="protech-review-box" style="max-width:820px;margin:1em 0;padding:1em 1.25em;background:#fff;border:1px solid #c3c4c7;border-left:4px solid ' . ( $total > 0 ? '#00a32a' : '#d63638' ) . ';">';
+		echo '<p style="margin-top:0;font-size:15px;"><strong>' . esc_html( $review['audience_label'] ) . '</strong> ';
+		/* translators: %d: number of customers in the audience. */
+		echo '<span class="description">(' . esc_html( sprintf( _n( '%d customer', '%d customers', (int) $review['audience_total'], 'protech-wholesale' ), (int) $review['audience_total'] ) ) . ')</span></p>';
+
+		$parts = array();
+
+		foreach ( (array) $review['sent_to'] as $channel => $count ) {
+			$parts[] = 'sms' === $channel
+				/* translators: %d: number of text messages. */
+				? sprintf( _n( '%d text message', '%d text messages', (int) $count, 'protech-wholesale' ), (int) $count )
+				/* translators: %d: number of emails. */
+				: sprintf( _n( '%d email', '%d emails', (int) $count, 'protech-wholesale' ), (int) $count );
+		}
+
+		if ( $total > 0 ) {
+			/* translators: %s: for example "12 emails and 4 text messages". */
+			echo '<p style="margin:0 0 .5em;">' . esc_html( sprintf( __( 'This will send %s.', 'protech-wholesale' ), implode( ' ' . __( 'and', 'protech-wholesale' ) . ' ', $parts ) ) ) . '</p>';
+		} else {
+			echo '<p style="margin:0 0 .5em;color:#b32d2e;"><strong>' . esc_html__( 'Nobody would receive this message, so there is nothing to send.', 'protech-wholesale' ) . '</strong></p>';
+		}
+
+		if ( ! empty( $review['reasons'] ) ) {
+			$left_out = array();
+
+			foreach ( (array) $review['reasons'] as $reason => $count ) {
+				$left_out[] = sprintf( '%d %s', (int) $count, self::reason_label( (string) $reason ) );
+			}
+
+			/* translators: %s: comma-separated reasons, for example "3 unsubscribed, 1 no phone number". */
+			echo '<p style="margin:0 0 .5em;">' . esc_html( sprintf( __( 'Left out: %s.', 'protech-wholesale' ), implode( ', ', $left_out ) ) ) . '</p>';
+		}
+
+		echo '<p class="description" style="margin:0;">';
+
+		if ( MessageLog::CATEGORY_MARKETING === $category ) {
+			esc_html_e( 'A marketing message: every email carries an unsubscribe link and the store address, and anyone who unsubscribed is left out automatically.', 'protech-wholesale' );
+		} else {
+			esc_html_e( 'A service message: it is sent even to people who unsubscribed from marketing, and carries no unsubscribe link. Use it only for an account or order matter.', 'protech-wholesale' );
+		}
+
+		echo '</p></div>';
+
+		// The email as it will look.
+		if ( in_array( 'email', $channels, true ) ) {
+			$built = MessageTransport::content_email_preview( $admin_id, $email, $category );
+
+			echo '<h3>' . esc_html__( 'The email', 'protech-wholesale' ) . '</h3>';
+
+			if ( null === $built ) {
+				echo '<p style="color:#b32d2e;">' . esc_html__( 'The email template for this message no longer exists.', 'protech-wholesale' ) . '</p>';
+			} else {
+				echo '<p class="description">' . esc_html(
+					null !== $template
+						/* translators: %s: template name. */
+						? sprintf( __( 'Designed with the "%s" template. Personal details are filled in with your own account.', 'protech-wholesale' ), (string) $template['name'] )
+						: __( 'Personal details are filled in with your own account.', 'protech-wholesale' )
+				) . '</p>';
+				echo '<p><strong>' . esc_html__( 'Subject:', 'protech-wholesale' ) . '</strong> ' . esc_html( $built['subject'] ) . '</p>';
+				echo '<iframe sandbox="" title="' . esc_attr__( 'Email preview', 'protech-wholesale' ) . '" srcdoc="' . esc_attr( $built['html'] ) . '" style="width:100%;max-width:820px;height:560px;border:1px solid #c3c4c7;background:#fff;"></iframe>';
+			}
+		}
+
+		// The text message as it will look.
+		if ( in_array( 'sms', $channels, true ) ) {
+			$context = MergeTags::context_for_customer( $admin_id );
+			$text    = MessageTransport::finalize_sms_text( MergeTags::render( (string) ( $campaign['sms']['body'] ?? '' ), $context, 'text' ), $category );
+			$size    = MergeTags::sms_segments( $text );
+
+			echo '<h3>' . esc_html__( 'The text message', 'protech-wholesale' ) . '</h3>';
+			echo '<p style="max-width:420px;padding:.75em 1em;background:#f0f6fc;border:1px solid #c3c4c7;border-radius:12px;white-space:pre-wrap;">' . esc_html( $text ) . '</p>';
+			/* translators: 1: number of characters, 2: number of text segments. */
+			echo '<p class="description">' . esc_html( sprintf( __( '%1$d characters, sent as %2$d text segment(s).', 'protech-wholesale' ), (int) $size['chars'], (int) $size['segments'] ) ) . '</p>';
+		}
+
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="protech-review-form">
+			<?php wp_nonce_field( 'protech_wholesale_compose', 'protech_wholesale_compose_nonce' ); ?>
+			<input type="hidden" name="action" value="protech_edit_message" />
+			<input type="hidden" name="from_review" value="1" />
+			<?php self::hidden_fields( $input ); ?>
+
+			<?php self::render_preview_box( 'protech_send_test_message', $input ); ?>
+
+			<p>
+				<button type="submit" name="action" value="protech_send_message" class="button button-primary button-large" <?php disabled( 0 === $total ); ?>>
+					<?php
+					echo esc_html(
+						$total > 0
+							/* translators: %s: for example "12 emails and 4 text messages". */
+							? sprintf( __( 'Send %s now', 'protech-wholesale' ), implode( ' ' . __( 'and', 'protech-wholesale' ) . ' ', $parts ) )
+							: __( 'Send', 'protech-wholesale' )
+					);
+					?>
+				</button>
+				<button type="submit" name="action" value="protech_edit_message" class="button"><?php esc_html_e( 'Back to edit', 'protech-wholesale' ); ?></button>
+			</p>
+			<p class="description"><?php esc_html_e( 'Sending cannot be undone. Each person is checked again at the moment their message goes out.', 'protech-wholesale' ); ?></p>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Every value in $data as a hidden input, nested names intact, so a form can
+	 * carry a whole earlier submission forward. The nonce, action and the
+	 * preview address fields belong to the form that carries it, not the data.
+	 *
+	 * @param array<string, mixed> $data
+	 */
+	private static function hidden_fields( array $data, string $prefix = '' ): void {
+		foreach ( $data as $key => $value ) {
+			if ( '' === $prefix && in_array( (string) $key, array( 'action', 'protech_wholesale_compose_nonce', '_wp_http_referer', 'preview_email', 'preview_phone', 'from_review' ), true ) ) {
+				continue;
+			}
+
+			$name = '' === $prefix ? (string) $key : $prefix . '[' . $key . ']';
+
+			if ( is_array( $value ) ) {
+				self::hidden_fields( $value, $name );
+				continue;
+			}
+
+			echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $value ) . '" />';
+		}
+	}
+
+	/**
+	 * The Design row of the email form: a designed template, or the typed
+	 * message below it.
+	 */
+	private static function render_template_picker( string $selected ): void {
+		?>
+		<tr>
+			<th><label for="protech_email_template"><?php esc_html_e( 'Design', 'protech-wholesale' ); ?></label></th>
+			<td>
+				<select id="protech_email_template" name="email[template_id]">
+					<option value=""><?php esc_html_e( 'Plain message (written below)', 'protech-wholesale' ); ?></option>
+					<?php foreach ( EmailTemplates::choices() as $template_id => $template_name ) : ?>
+						<option value="<?php echo esc_attr( (string) $template_id ); ?>" <?php selected( $selected, (string) $template_id ); ?>><?php echo esc_html( $template_name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<a href="<?php echo esc_url( self::url( 'templates' ) ); ?>"><?php esc_html_e( 'Manage templates', 'protech-wholesale' ); ?></a>
+				<p class="description"><?php esc_html_e( 'A designed template brings its own layout and wording, so the Heading and Body below are ignored. A Subject typed below still replaces the template\'s own.', 'protech-wholesale' ); ?></p>
+			</td>
+		</tr>
+		<?php
 	}
 
 	public function handle_send_message(): void {
@@ -954,8 +1179,14 @@ class MessagingTab {
 		$channel  = in_array( $input['channel'] ?? '', array( 'email', 'sms', 'both' ), true ) ? $input['channel'] : 'email';
 		$channels = 'both' === $channel ? array( 'email', 'sms' ) : array( $channel );
 
-		self::stash( 'compose_form', array( 'input' => $input, 'errors' => array() ) );
 		self::stash( 'compose_test', array( 'results' => self::send_previews( $input, $channels ), 'input' => $input ) );
+
+		// A preview sent from the review screen returns to it; from the form, to the form.
+		if ( ! empty( $input['from_review'] ) ) {
+			self::stash_review_or_form( $input );
+		} else {
+			self::stash( 'compose_form', array( 'input' => $input, 'errors' => array() ) );
+		}
 
 		wp_safe_redirect( self::url( 'compose' ) );
 		exit;

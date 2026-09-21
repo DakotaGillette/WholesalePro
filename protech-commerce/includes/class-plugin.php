@@ -544,7 +544,6 @@ final class Plugin {
 				'approveConfirm'   => __( 'Approve this application? The applicant is emailed a password link and sees wholesale pricing immediately.', 'protech-wholesale' ),
 				'rejectPrompt'     => __( 'Reject this application? Enter an optional reason to include in the email to the applicant, or leave blank:', 'protech-wholesale' ),
 				'deleteAutomationConfirm' => __( 'Delete this automation rule? This cannot be undone.', 'protech-wholesale' ),
-				'sendMessageConfirm'      => __( 'Send this message now? This cannot be undone.', 'protech-wholesale' ),
 			)
 		);
 
