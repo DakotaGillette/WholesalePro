@@ -11,6 +11,7 @@ use ProtechWholesale\Audience;
 use ProtechWholesale\Campaigns;
 use ProtechWholesale\MessageLog;
 use ProtechWholesale\MessageTransport;
+use ProtechWholesale\MessagingSettings;
 use ProtechWholesale\SmsConsent;
 use ProtechWholesale\Unsubscribe;
 
@@ -177,5 +178,33 @@ class Test_Audience_Scope extends WP_UnitTestCase {
 		$retail = Protech_Test_Factory::retail_customer();
 
 		$this->assertFalse( SmsConsent::can_receive_sms( $retail, MessageLog::CATEGORY_MARKETING )['ok'] );
+	}
+
+	public function test_counting_recipients_does_not_ask_brevo_about_each_person(): void {
+		update_option( MessagingSettings::OPT_BREVO_API_KEY, 'test-key' );
+
+		$calls = 0;
+		$spy   = static function ( $preempt, $args, $url ) use ( &$calls ) {
+			if ( false === strpos( (string) $url, 'api.brevo.com/v3/contacts/' ) ) {
+				return $preempt;
+			}
+
+			++$calls;
+
+			return array( 'response' => array( 'code' => 404 ), 'headers' => array(), 'body' => '{}' );
+		};
+
+		add_filter( 'pre_http_request', $spy, 10, 3 );
+
+		$retail = Protech_Test_Factory::retail_customer();
+
+		$this->assertTrue( SmsConsent::can_receive_email( $retail, MessageLog::CATEGORY_MARKETING, false )['ok'] );
+		$this->assertSame( 0, $calls, 'Counting an audience uses the local unsubscribe record only.' );
+
+		$this->assertTrue( SmsConsent::can_receive_email( $retail, MessageLog::CATEGORY_MARKETING )['ok'] );
+		$this->assertGreaterThan( 0, $calls, 'Delivering a message still asks Brevo.' );
+
+		remove_filter( 'pre_http_request', $spy, 10 );
+		delete_option( MessagingSettings::OPT_BREVO_API_KEY );
 	}
 }

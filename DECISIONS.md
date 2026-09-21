@@ -1680,6 +1680,17 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Counting versus delivering (2026-09-21, 2.5.1)
+
+Found the first time the review ran against staging's 421 retail customers:
+`SmsConsent::can_receive_email()` asks Brevo about the person (one HTTP call,
+cached afterwards), so counting an audience took one call per person and the page
+timed out. It now takes `$verify_with_brevo`; counting and queuing pass false (the
+local unsubscribe record), and `MessageTransport::deliver()` keeps the default, so
+every message is checked against Brevo at the moment it goes out. The review is a
+snapshot for that reason and says so. Texts are unchanged: the Brevo lookup comes
+after the opt-in check, so only opted-in people are looked up.
+
 ## Retail audiences (2026-09-21, 2.5.0)
 
 1. **A scope, not new segment types.** Every segment draws from a pool: wholesale

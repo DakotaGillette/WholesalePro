@@ -170,7 +170,7 @@ class Campaigns {
 			foreach ( $channels as $channel ) {
 				$gate = MessageLog::CHANNEL_SMS === $channel
 					? SmsConsent::can_receive_sms( $user_id, $category )
-					: SmsConsent::can_receive_email( $user_id, $category );
+					: SmsConsent::can_receive_email( $user_id, $category, false ); // Brevo is asked again when each message is delivered.
 
 				if ( ! $gate['ok'] ) {
 					$skipped[ $gate['reason'] ] = ( $skipped[ $gate['reason'] ] ?? 0 ) + 1;

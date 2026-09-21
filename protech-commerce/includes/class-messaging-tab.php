@@ -982,7 +982,8 @@ class MessagingTab {
 
 		foreach ( $user_ids as $user_id ) {
 			foreach ( $channels as $channel ) {
-				$gate = 'sms' === $channel ? SmsConsent::can_receive_sms( $user_id, $category ) : SmsConsent::can_receive_email( $user_id, $category );
+				// Email is counted from the local unsubscribe record only: asking Brevo about every person in a big audience would time the page out, and each message is checked against Brevo again as it goes out.
+				$gate = 'sms' === $channel ? SmsConsent::can_receive_sms( $user_id, $category ) : SmsConsent::can_receive_email( $user_id, $category, false );
 
 				if ( $gate['ok'] ) {
 					++$sent_to[ $channel ];

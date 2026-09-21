@@ -3,6 +3,15 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.5.1 - 2026-09-21
+
+### Fixed
+- Reviewing or sending a large audience (a few hundred retail customers) no
+  longer waits on Brevo for every person while the page loads, which made the
+  page time out. The review and the queueing use the local unsubscribe record,
+  and Brevo is asked about each person as their message is delivered, so
+  nobody blacklisted there is ever sent to.
+
 ## 2.5.0 - 2026-09-21
 
 ### Added

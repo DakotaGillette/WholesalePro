@@ -264,9 +264,18 @@ class SmsConsent {
 	}
 
 	/**
+	 * Whether a customer may get an email of this category.
+	 *
+	 * Brevo's blacklist is one HTTP lookup per person (cached afterwards), which is
+	 * right when a message is about to go out but far too slow to run for every
+	 * person in a large audience in one admin request. Counting and queuing pass
+	 * `$verify_with_brevo = false` (the local unsubscribe record only); every message
+	 * is checked against Brevo again when it is delivered, so nobody blacklisted there
+	 * is ever sent to.
+	 *
 	 * @return array{ok: bool, reason: string}
 	 */
-	public static function can_receive_email( int $user_id, string $category ): array {
+	public static function can_receive_email( int $user_id, string $category, bool $verify_with_brevo = true ): array {
 		$user = get_userdata( $user_id );
 
 		if ( ! $user || ! is_email( $user->user_email ) ) {
@@ -278,7 +287,7 @@ class SmsConsent {
 				return array( 'ok' => false, 'reason' => 'unsubscribed' );
 			}
 
-			$blacklisted = self::is_email_blacklisted( $user_id );
+			$blacklisted = $verify_with_brevo ? self::is_email_blacklisted( $user_id ) : null;
 
 			if ( true === $blacklisted ) {
 				self::record( $user_id, array( 'email_marketing' => false ), self::SOURCE_BREVO_STOP );
