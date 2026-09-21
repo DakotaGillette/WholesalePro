@@ -755,8 +755,12 @@ class MessagingTab {
 			}
 		}
 
-		$tiers   = Tiers::get_tier_labels();
-		$channel = (string) ( $input['channel'] ?? 'email' );
+		$tiers          = Tiers::get_tier_labels();
+		$channel        = (string) ( $input['channel'] ?? 'email' );
+		$scope          = (string) ( $input['audience']['scope'] ?? Audience::SCOPE_WHOLESALE );
+		$days           = (int) ( $input['audience']['days'] ?? 60 );
+		$recent_days    = (int) ( $input['audience']['recent_days'] ?? 30 );
+		$picked_product = ! empty( $input['audience']['product_id'] ) ? wc_get_product( (int) $input['audience']['product_id'] ) : null;
 		?>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="protech-compose-form">
 			<?php // The default action only ever leads to the review screen; the send is its own button there. ?>
@@ -766,20 +770,43 @@ class MessagingTab {
 			<h2><?php esc_html_e( 'Audience', 'protech-wholesale' ); ?></h2>
 			<table class="form-table" role="presentation">
 				<tr>
+					<th><label for="protech_audience_scope"><?php esc_html_e( 'Customers', 'protech-wholesale' ); ?></label></th>
+					<td>
+						<select id="protech_audience_scope" name="audience[scope]">
+							<option value="<?php echo esc_attr( Audience::SCOPE_WHOLESALE ); ?>" <?php selected( $scope, Audience::SCOPE_WHOLESALE ); ?>><?php esc_html_e( 'Wholesale customers', 'protech-wholesale' ); ?></option>
+							<option value="<?php echo esc_attr( Audience::SCOPE_RETAIL ); ?>" <?php selected( $scope, Audience::SCOPE_RETAIL ); ?>><?php esc_html_e( 'Retail customers', 'protech-wholesale' ); ?></option>
+							<option value="<?php echo esc_attr( Audience::SCOPE_EVERYONE ); ?>" <?php selected( $scope, Audience::SCOPE_EVERYONE ); ?>><?php esc_html_e( 'Everyone (wholesale and retail)', 'protech-wholesale' ); ?></option>
+						</select>
+						<p class="description"><?php esc_html_e( 'Retail customers are people with a shop account who are not wholesale accounts. Marketing email always carries an unsubscribe link and your address, and anyone who unsubscribed is left out. Texts only go to people who opted in to them.', 'protech-wholesale' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Tip: for a first email to retail customers, choose "Ordered in the last ... days". People who no longer remember you are the ones who mark email as spam, which hurts delivery of every email you send.', 'protech-wholesale' ); ?></p>
+					</td>
+				</tr>
+				<tr>
 					<th><?php esc_html_e( 'Send to', 'protech-wholesale' ); ?></th>
 					<td>
-						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_ALL ); ?>" <?php checked( $audience_type, Audience::TYPE_ALL ); ?> /> <?php esc_html_e( 'All wholesale customers', 'protech-wholesale' ); ?></label></p>
+						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_ALL ); ?>" <?php checked( $audience_type, Audience::TYPE_ALL ); ?> /> <?php esc_html_e( 'All of them', 'protech-wholesale' ); ?></label></p>
 						<p>
-							<label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_TIER ); ?>" <?php checked( $audience_type, Audience::TYPE_TIER ); ?> /> <?php esc_html_e( 'Specific tiers:', 'protech-wholesale' ); ?></label>
+							<label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_RECENT ); ?>" <?php checked( $audience_type, Audience::TYPE_RECENT ); ?> /> <?php esc_html_e( 'Ordered in the last', 'protech-wholesale' ); ?> <input type="number" name="audience[recent_days]" min="1" value="<?php echo esc_attr( (string) $recent_days ); ?>" style="width:70px;" /> <?php esc_html_e( 'days', 'protech-wholesale' ); ?></label>
+						</p>
+						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_INACTIVE ); ?>" <?php checked( $audience_type, Audience::TYPE_INACTIVE ); ?> /> <?php esc_html_e( 'No order in', 'protech-wholesale' ); ?> <input type="number" name="audience[days]" min="1" value="<?php echo esc_attr( (string) $days ); ?>" style="width:70px;" /> <?php esc_html_e( 'days', 'protech-wholesale' ); ?></label></p>
+						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_NEVER_ORDERED ); ?>" <?php checked( $audience_type, Audience::TYPE_NEVER_ORDERED ); ?> /> <?php esc_html_e( 'Have never ordered', 'protech-wholesale' ); ?></label></p>
+						<p>
+							<label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_BOUGHT_PRODUCT ); ?>" <?php checked( $audience_type, Audience::TYPE_BOUGHT_PRODUCT ); ?> /> <?php esc_html_e( 'Bought this product:', 'protech-wholesale' ); ?></label>
+							<select class="wc-product-search" name="audience[product_id]" data-placeholder="<?php esc_attr_e( 'Search for a product…', 'protech-wholesale' ); ?>" data-action="woocommerce_json_search_products_and_variations" data-allow_clear="true" style="width:320px;">
+								<?php if ( $picked_product instanceof WC_Product ) : ?>
+									<option value="<?php echo esc_attr( (string) $picked_product->get_id() ); ?>" selected="selected"><?php echo esc_html( wp_strip_all_tags( $picked_product->get_formatted_name() ) ); ?></option>
+								<?php endif; ?>
+							</select>
+						</p>
+						<p>
+							<label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_TIER ); ?>" <?php checked( $audience_type, Audience::TYPE_TIER ); ?> /> <?php esc_html_e( 'Specific tiers (wholesale only):', 'protech-wholesale' ); ?></label>
 							<?php foreach ( $tiers as $tier_slug => $tier_label ) : ?>
 								<label style="margin-left:1em;"><input type="checkbox" name="audience[tiers][]" value="<?php echo esc_attr( $tier_slug ); ?>" <?php checked( in_array( $tier_slug, (array) ( $input['audience']['tiers'] ?? array() ), true ) ); ?> /> <?php echo esc_html( $tier_label ); ?></label>
 							<?php endforeach; ?>
 						</p>
-						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_INACTIVE ); ?>" <?php checked( $audience_type, Audience::TYPE_INACTIVE ); ?> /> <?php esc_html_e( 'No order in', 'protech-wholesale' ); ?> <input type="number" name="audience[days]" min="1" value="<?php echo esc_attr( (string) ( $input['audience']['days'] ?? 60 ) ); ?>" style="width:70px;" /> <?php esc_html_e( 'days', 'protech-wholesale' ); ?></label></p>
-						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_NEVER_ORDERED ); ?>" <?php checked( $audience_type, Audience::TYPE_NEVER_ORDERED ); ?> /> <?php esc_html_e( 'Approved but never ordered', 'protech-wholesale' ); ?></label></p>
-						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_PREFERS_TEXT ); ?>" <?php checked( $audience_type, Audience::TYPE_PREFERS_TEXT ); ?> /> <?php esc_html_e( 'Said they prefer texts, but haven\'t opted in', 'protech-wholesale' ); ?></label></p>
+						<p><label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_PREFERS_TEXT ); ?>" <?php checked( $audience_type, Audience::TYPE_PREFERS_TEXT ); ?> /> <?php esc_html_e( 'Wholesale customers who said they prefer texts, but haven\'t opted in', 'protech-wholesale' ); ?></label></p>
 						<p>
-							<label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_SELECTED ); ?>" <?php checked( $audience_type, Audience::TYPE_SELECTED ); ?> /> <?php esc_html_e( 'Selected customers', 'protech-wholesale' ); ?></label>
+							<label><input type="radio" name="audience[type]" value="<?php echo esc_attr( Audience::TYPE_SELECTED ); ?>" <?php checked( $audience_type, Audience::TYPE_SELECTED ); ?> /> <?php esc_html_e( 'Selected wholesale customers', 'protech-wholesale' ); ?></label>
 							<?php if ( ! empty( $selected_names ) ) : ?>
 								<span class="description"> — <?php echo esc_html( implode( ', ', $selected_names ) ); ?></span>
 							<?php else : ?>
@@ -1426,35 +1453,41 @@ class MessagingTab {
 		}
 
 		echo '<h2>' . esc_html__( 'Consent on file', 'protech-wholesale' ) . '</h2>';
-		$customers = get_users( array( 'role' => Roles::CUSTOMER, 'fields' => 'ID' ) );
-		$marketing = $transactional = $email_optout = 0;
+		echo '<p>' . esc_html__( 'Email and texts are treated differently on purpose. Marketing email may go to any past customer, always with an unsubscribe link and your postal address, until they unsubscribe. Marketing texts go only to people who have said yes to them, and that is never assumed from being a customer.', 'protech-wholesale' ) . '</p>';
+		echo '<table class="widefat striped" style="max-width:800px;"><thead><tr><th></th><th>' . esc_html__( 'Customers', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Can get marketing email', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Unsubscribed', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Said yes to marketing texts', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Said yes to order-update texts', 'protech-wholesale' ) . '</th></tr></thead><tbody>';
 
-		foreach ( $customers as $id ) {
-			$state = SmsConsent::state( (int) $id );
-			if ( 'yes' === $state['sms_marketing'] ) {
-				++$marketing;
+		foreach ( array( Audience::SCOPE_WHOLESALE => __( 'Wholesale', 'protech-wholesale' ), Audience::SCOPE_RETAIL => __( 'Retail', 'protech-wholesale' ) ) as $scope => $scope_label ) {
+			$customers = Audience::pool( $scope );
+			$marketing = $transactional = $email_optout = 0;
+
+			foreach ( $customers as $id ) {
+				$state = SmsConsent::state( (int) $id );
+
+				if ( 'yes' === $state['sms_marketing'] ) {
+					++$marketing;
+				}
+
+				if ( 'yes' === $state['sms_transactional'] ) {
+					++$transactional;
+				}
+
+				if ( 'no' === $state['email_marketing'] ) {
+					++$email_optout;
+				}
 			}
-			if ( 'yes' === $state['sms_transactional'] ) {
-				++$transactional;
-			}
-			if ( 'no' === $state['email_marketing'] ) {
-				++$email_optout;
-			}
+
+			printf(
+				'<tr><th>%s</th><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td></tr>',
+				esc_html( $scope_label ),
+				count( $customers ),
+				count( $customers ) - $email_optout,
+				$email_optout,
+				$marketing,
+				$transactional
+			);
 		}
 
-		printf(
-			'<p>%s</p>',
-			esc_html(
-				sprintf(
-					/* translators: 1: customers consented to marketing SMS, 2: consented to transactional SMS, 3: unsubscribed from marketing email, 4: total wholesale customers. */
-					__( '%1$d consented to marketing texts, %2$d to order-update texts, %3$d unsubscribed from marketing email — out of %4$d wholesale customers.', 'protech-wholesale' ),
-					$marketing,
-					$transactional,
-					$email_optout,
-					count( $customers )
-				)
-			)
-		);
+		echo '</tbody></table>';
 
 		$export_url = wp_nonce_url( add_query_arg( 'action', 'protech_export_consent', admin_url( 'admin-post.php' ) ), 'protech_export_consent' );
 		echo '<p><a class="button" href="' . esc_url( $export_url ) . '">' . esc_html__( 'Download consent records (CSV)', 'protech-wholesale' ) . '</a></p>';

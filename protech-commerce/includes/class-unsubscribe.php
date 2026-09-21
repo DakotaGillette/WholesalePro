@@ -56,10 +56,27 @@ class Unsubscribe {
 		$user_id = isset( $_GET['uid'] ) ? absint( $_GET['uid'] ) : 0;
 		$token   = isset( $_GET['t'] ) ? sanitize_text_field( wp_unslash( $_GET['t'] ) ) : '';
 
-		self::process( $user_id, $token );
+		$valid = self::process( $user_id, $token );
 
-		wp_safe_redirect( add_query_arg( self::QUERY_FLAG, '1', home_url( '/wholesale' ) ) );
-		exit;
+		// A wholesale account lands on the wholesale page, which shows its own confirmation.
+		// Anyone else (a retail customer) gets a plain confirmation instead of a wholesale login screen.
+		if ( ! $valid || Roles::is_wholesale_customer( $user_id ) ) {
+			wp_safe_redirect( add_query_arg( self::QUERY_FLAG, '1', home_url( '/wholesale' ) ) );
+			exit;
+		}
+
+		wp_die(
+			wp_kses_post(
+				sprintf(
+					/* translators: 1: site name, 2: shop link. */
+					__( '<p>You have been unsubscribed from marketing email from %1$s. You will still get emails about your orders.</p><p><a href="%2$s">Back to the shop</a></p>', 'protech-wholesale' ),
+					esc_html( get_bloginfo( 'name' ) ),
+					esc_url( wc_get_page_permalink( 'shop' ) )
+				)
+			),
+			esc_html__( 'Unsubscribed', 'protech-wholesale' ),
+			array( 'response' => 200 )
+		);
 	}
 
 	/**

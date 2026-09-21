@@ -1,10 +1,16 @@
 <?php
 /**
- * Resolves a Compose/campaign "audience" description into the wholesale
- * customer ids it matches. Shared by the Compose screen (live recipient
- * count, the actual send) and nothing else — automation rules use their
- * own tier + anchor-window logic in Automations, since a rule's audience
- * is really "who is in the window today," not a static segment.
+ * Resolves a Compose/campaign "audience" description into the customer ids
+ * it matches. Shared by the Compose screen (the review counts, the actual
+ * send) and nothing else — automation rules use their own tier + anchor-window
+ * logic in Automations, since a rule's audience is really "who is in the
+ * window today," not a static segment.
+ *
+ * Every segment is drawn from a pool of customers, chosen by `scope`: wholesale
+ * accounts (the default, and the only pool before 2.5.0), retail customers (a
+ * WooCommerce customer who is not a wholesale account), or everyone. The tier,
+ * "prefers texts" and "selected" segments are wholesale ideas and always use
+ * the wholesale pool.
  *
  * @package ProtechWholesale
  */
@@ -25,7 +31,9 @@ class Audience {
 	public const TYPE_ALL              = 'all';
 	public const TYPE_TIER              = 'tier';
 	public const TYPE_INACTIVE          = 'inactive';
+	public const TYPE_RECENT            = 'recent';
 	public const TYPE_NEVER_ORDERED     = 'never_ordered';
+	public const TYPE_BOUGHT_PRODUCT    = 'bought_product';
 	public const TYPE_PREFERS_TEXT      = 'prefers_text';
 	public const TYPE_SELECTED          = 'selected';
 
@@ -33,28 +41,60 @@ class Audience {
 		self::TYPE_ALL,
 		self::TYPE_TIER,
 		self::TYPE_INACTIVE,
+		self::TYPE_RECENT,
 		self::TYPE_NEVER_ORDERED,
+		self::TYPE_BOUGHT_PRODUCT,
 		self::TYPE_PREFERS_TEXT,
 		self::TYPE_SELECTED,
 	);
 
+	public const SCOPE_WHOLESALE = 'wholesale';
+	public const SCOPE_RETAIL    = 'retail';
+	public const SCOPE_EVERYONE  = 'everyone';
+
+	public const SCOPES = array( self::SCOPE_WHOLESALE, self::SCOPE_RETAIL, self::SCOPE_EVERYONE );
+
+	/** Order statuses that count as "bought" or "ordered": money came in or is on its way. */
+	private const ORDER_STATUSES = array( 'wc-processing', 'wc-completed', 'wc-on-hold' );
+
 	/**
 	 * @param array<string, mixed> $input
-	 * @return array{type: string, tiers: string[], days: int, user_ids: int[]}
+	 * @return array{type: string, scope: string, tiers: string[], days: int, product_id: int, user_ids: int[]}
 	 */
 	public static function normalize( array $input ): array {
-		$type = (string) ( $input['type'] ?? self::TYPE_ALL );
+		$type  = (string) ( $input['type'] ?? self::TYPE_ALL );
+		$scope = (string) ( $input['scope'] ?? self::SCOPE_WHOLESALE );
 
 		return array(
-			'type'     => in_array( $type, self::TYPES, true ) ? $type : self::TYPE_ALL,
-			'tiers'    => array_values( array_intersect( (array) ( $input['tiers'] ?? array() ), array_keys( Tiers::get_tier_labels() ) ) ),
-			'days'     => max( 1, (int) ( $input['days'] ?? 60 ) ),
-			'user_ids' => array_values( array_unique( array_map( 'absint', (array) ( $input['user_ids'] ?? array() ) ) ) ),
+			'type'       => in_array( $type, self::TYPES, true ) ? $type : self::TYPE_ALL,
+			'scope'      => in_array( $scope, self::SCOPES, true ) ? $scope : self::SCOPE_WHOLESALE,
+			'tiers'      => array_values( array_intersect( (array) ( $input['tiers'] ?? array() ), array_keys( Tiers::get_tier_labels() ) ) ),
+			'days'       => max( 1, (int) ( ( self::TYPE_RECENT === $type ? ( $input['recent_days'] ?? $input['days'] ?? null ) : ( $input['days'] ?? null ) ) ?? 60 ) ),
+			'product_id' => absint( $input['product_id'] ?? 0 ),
+			'user_ids'   => array_values( array_unique( array_map( 'absint', (array) ( $input['user_ids'] ?? array() ) ) ) ),
 		);
 	}
 
 	/**
-	 * @param array{type: string, tiers: string[], days: int, user_ids: int[]} $segment
+	 * The customers a scope draws from.
+	 *
+	 * @return int[]
+	 */
+	public static function pool( string $scope ): array {
+		$wholesale = array_map( 'intval', get_users( array( 'role' => Roles::CUSTOMER, 'fields' => 'ID' ) ) );
+
+		if ( self::SCOPE_WHOLESALE === $scope ) {
+			return $wholesale;
+		}
+
+		$retail = array_map( 'intval', get_users( array( 'role' => 'customer', 'fields' => 'ID' ) ) );
+		$retail = array_values( array_diff( $retail, $wholesale ) );
+
+		return self::SCOPE_RETAIL === $scope ? $retail : array_values( array_unique( array_merge( $wholesale, $retail ) ) );
+	}
+
+	/**
+	 * @param array<string, mixed> $segment
 	 * @return int[]
 	 */
 	public static function resolve( array $segment ): array {
@@ -64,7 +104,9 @@ class Audience {
 			return array_values( array_filter( $segment['user_ids'], static fn( int $id ): bool => Roles::is_wholesale_customer( $id ) ) );
 		}
 
-		$user_ids = array_map( 'intval', get_users( array( 'role' => Roles::CUSTOMER, 'fields' => 'ID' ) ) );
+		// Tiers and "prefers texts" only mean something for a wholesale account.
+		$wholesale_only = in_array( $segment['type'], array( self::TYPE_TIER, self::TYPE_PREFERS_TEXT ), true );
+		$user_ids       = self::pool( $wholesale_only ? self::SCOPE_WHOLESALE : $segment['scope'] );
 
 		switch ( $segment['type'] ) {
 			case self::TYPE_TIER:
@@ -83,17 +125,32 @@ class Audience {
 					array_filter(
 						$user_ids,
 						static function ( int $id ) use ( $cutoff ): bool {
-							$order = Reorder::get_last_order_for_user( $id );
+							$last = self::last_order_time( $id );
 
-							return $order instanceof \WC_Order
-								&& $order->get_date_created()
-								&& $order->get_date_created()->getTimestamp() < $cutoff;
+							return null !== $last && $last < $cutoff;
+						}
+					)
+				);
+
+			case self::TYPE_RECENT:
+				$cutoff = time() - $segment['days'] * DAY_IN_SECONDS;
+
+				return array_values(
+					array_filter(
+						$user_ids,
+						static function ( int $id ) use ( $cutoff ): bool {
+							$last = self::last_order_time( $id );
+
+							return null !== $last && $last >= $cutoff;
 						}
 					)
 				);
 
 			case self::TYPE_NEVER_ORDERED:
 				return array_values( array_filter( $user_ids, static fn( int $id ): bool => 0 === wc_get_customer_order_count( $id ) ) );
+
+			case self::TYPE_BOUGHT_PRODUCT:
+				return array_values( array_intersect( $user_ids, self::buyers_of( $segment['product_id'] ) ) );
 
 			case self::TYPE_PREFERS_TEXT:
 				return array_values(
@@ -111,15 +168,78 @@ class Audience {
 		}
 	}
 
+	/** When the customer last ordered (an order that counts), or null when they never have. */
+	private static function last_order_time( int $user_id ): ?int {
+		$order = Reorder::get_last_order_for_user( $user_id );
+
+		return $order instanceof \WC_Order && $order->get_date_created() ? $order->get_date_created()->getTimestamp() : null;
+	}
+
+	/**
+	 * The customers (user ids) with a counting order containing a product or any
+	 * of its variations. Read from the order line items, which every WooCommerce
+	 * order storage layout keeps, then mapped to the order's customer.
+	 *
+	 * @return int[]
+	 */
+	public static function buyers_of( int $product_id ): array {
+		global $wpdb;
+
+		$product = $product_id > 0 ? wc_get_product( $product_id ) : null;
+
+		if ( ! $product instanceof \WC_Product ) {
+			return array();
+		}
+
+		$product_ids = array_map( 'intval', array_merge( array( $product_id ), $product->get_children() ) );
+		$placeholders = implode( ',', array_fill( 0, count( $product_ids ), '%d' ) );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- the only interpolation is a generated list of %d placeholders.
+		$order_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT i.order_id FROM {$wpdb->prefix}woocommerce_order_items i
+				INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta m ON m.order_item_id = i.order_item_id
+				WHERE i.order_item_type = 'line_item' AND m.meta_key IN ( '_product_id', '_variation_id' ) AND m.meta_value IN ( $placeholders )",
+				$product_ids
+			)
+		);
+		// phpcs:enable
+
+		$buyers = array();
+
+		foreach ( array_map( 'intval', (array) $order_ids ) as $order_id ) {
+			$order = wc_get_order( $order_id );
+
+			if ( $order instanceof \WC_Order && in_array( 'wc-' . $order->get_status(), self::ORDER_STATUSES, true ) && $order->get_customer_id() > 0 ) {
+				$buyers[ $order->get_customer_id() ] = $order->get_customer_id();
+			}
+		}
+
+		return array_values( $buyers );
+	}
+
 	public static function count( array $segment ): int {
 		return count( self::resolve( $segment ) );
 	}
 
+	/** "All wholesale customers", "All retail customers" or "All customers", for use in a sentence. */
+	private static function scope_label( string $scope ): string {
+		switch ( $scope ) {
+			case self::SCOPE_RETAIL:
+				return __( 'retail customers', 'protech-wholesale' );
+			case self::SCOPE_EVERYONE:
+				return __( 'customers', 'protech-wholesale' );
+			default:
+				return __( 'wholesale customers', 'protech-wholesale' );
+		}
+	}
+
 	/**
-	 * @param array{type: string, tiers: string[], days: int, user_ids: int[]} $segment
+	 * @param array<string, mixed> $segment
 	 */
 	public static function describe( array $segment ): string {
 		$segment = self::normalize( $segment );
+		$who     = self::scope_label( $segment['scope'] );
 
 		switch ( $segment['type'] ) {
 			case self::TYPE_TIER:
@@ -131,11 +251,22 @@ class Audience {
 				return implode( ', ', array_map( static fn( string $t ): string => $labels[ $t ] ?? $t, $segment['tiers'] ) ) . ' ' . __( 'customers', 'protech-wholesale' );
 
 			case self::TYPE_INACTIVE:
-				/* translators: %d: number of days. */
-				return sprintf( __( 'Customers with no order in %d days', 'protech-wholesale' ), $segment['days'] );
+				/* translators: 1: kind of customer, for example "retail customers"; 2: number of days. */
+				return ucfirst( sprintf( __( '%1$s with no order in %2$d days', 'protech-wholesale' ), $who, $segment['days'] ) );
+
+			case self::TYPE_RECENT:
+				/* translators: 1: kind of customer, for example "retail customers"; 2: number of days. */
+				return ucfirst( sprintf( __( '%1$s who ordered in the last %2$d days', 'protech-wholesale' ), $who, $segment['days'] ) );
 
 			case self::TYPE_NEVER_ORDERED:
-				return __( 'Approved customers who have never ordered', 'protech-wholesale' );
+				/* translators: %s: kind of customer, for example "retail customers". */
+				return ucfirst( sprintf( __( '%s who have never ordered', 'protech-wholesale' ), $who ) );
+
+			case self::TYPE_BOUGHT_PRODUCT:
+				$product = $segment['product_id'] > 0 ? wc_get_product( $segment['product_id'] ) : null;
+
+				/* translators: 1: kind of customer, for example "retail customers"; 2: product name. */
+				return ucfirst( sprintf( __( '%1$s who bought %2$s', 'protech-wholesale' ), $who, $product instanceof \WC_Product ? $product->get_name() : __( 'a product', 'protech-wholesale' ) ) );
 
 			case self::TYPE_PREFERS_TEXT:
 				return __( 'Said they prefer texts, but haven\'t opted in', 'protech-wholesale' );
@@ -145,7 +276,8 @@ class Audience {
 				return sprintf( _n( '%d selected customer', '%d selected customers', count( $segment['user_ids'] ), 'protech-wholesale' ), count( $segment['user_ids'] ) );
 
 			default:
-				return __( 'All wholesale customers', 'protech-wholesale' );
+				/* translators: %s: kind of customer, for example "retail customers". */
+				return ucfirst( sprintf( __( 'All %s', 'protech-wholesale' ), $who ) );
 		}
 	}
 }

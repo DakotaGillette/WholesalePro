@@ -1680,6 +1680,30 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Retail audiences (2026-09-21, 2.5.0)
+
+1. **A scope, not new segment types.** Every segment draws from a pool: wholesale
+   (the default, so every existing campaign means what it always did), retail, or
+   everyone. "Retail" is a WooCommerce `customer` who is not a wholesale account.
+   Tiers, "prefers texts" and "selected" are wholesale ideas and ignore the scope.
+2. **"Bought a product" reads order line items directly** (`woocommerce_order_items`
+   and its meta), which every order storage layout keeps, then maps each order to
+   its customer. It does not use the Analytics lookup tables, which are filled by a
+   background import and can lag. Orders count when processing, completed or on
+   hold, the same statuses "last order" already used. Guest orders have no account
+   to email and are skipped.
+3. **The retail footer has no "Manage preferences".** That page is under the wholesale
+   My Account and is hidden from a retail customer, so the link would be a dead end.
+   The unsubscribe link is the one control they need, and it works for any user id.
+   After it, a wholesale account is redirected to the wholesale page as before; anyone
+   else gets a plain confirmation page.
+4. **Texts are untouched.** `SmsConsent::can_receive_sms()` already needs an explicit
+   yes, and a retail customer has nowhere to give one, so a retail audience is email
+   only. The Compliance page now says why email and texts differ, as the plan asked.
+5. **Deliverability is on the form, not only in the docs.** Retail is drawn from all
+   past shoppers, so the audience form says to start with people who ordered recently:
+   people who no longer recognize the sender are the ones who report spam.
+
 ## Templates on the send path, and the review screen (2026-09-21, 2.4.0)
 
 1. **One sender decides.** `MessageTransport::send_content_email()` resolves a rule's or

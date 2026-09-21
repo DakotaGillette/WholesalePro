@@ -401,10 +401,15 @@ class MessageTransport {
 
 		$address = MergeTags::store_address();
 
+		// The preferences page lives in the wholesale part of My Account; a retail customer just gets the unsubscribe link.
+		$manage = Roles::is_wholesale_customer( $user_id )
+			? ' <a href="' . esc_url( $preferences ) . '">' . esc_html__( 'Manage preferences', 'protech-wholesale' ) . '</a> &middot;'
+			: '';
+
 		return '<p style="font-size:12px;color:#767676;margin-top:24px;">'
 			. esc_html( $reason )
-			. ' <a href="' . esc_url( $preferences ) . '">' . esc_html__( 'Manage preferences', 'protech-wholesale' ) . '</a>'
-			. ' &middot; <a href="' . esc_url( $unsubscribe ) . '">' . esc_html__( 'Unsubscribe', 'protech-wholesale' ) . '</a>'
+			. $manage
+			. ' <a href="' . esc_url( $unsubscribe ) . '">' . esc_html__( 'Unsubscribe', 'protech-wholesale' ) . '</a>'
 			. ( '' !== $address ? '<br />' . esc_html( $site_name . ', ' . $address ) : '' )
 			. '</p>';
 	}

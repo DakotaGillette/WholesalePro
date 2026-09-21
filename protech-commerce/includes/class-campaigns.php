@@ -91,6 +91,10 @@ class Campaigns {
 			$errors[] = __( 'No customers were selected.', 'protech-wholesale' );
 		}
 
+		if ( Audience::TYPE_BOUGHT_PRODUCT === $audience['type'] && ! wc_get_product( $audience['product_id'] ) instanceof \WC_Product ) {
+			$errors[] = __( 'Choose the product they bought.', 'protech-wholesale' );
+		}
+
 		$campaign = array(
 			'id'         => 'c_' . time() . '_' . substr( md5( uniqid( '', true ) ), 0, 6 ),
 			'name'       => sanitize_text_field( (string) ( $input['name'] ?? '' ) ) ?: sprintf( /* translators: %s: date. */ __( 'Message sent %s', 'protech-wholesale' ), date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ),

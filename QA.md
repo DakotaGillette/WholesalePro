@@ -384,6 +384,17 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 30. Retail audiences (2.5.0)
+
+- [ ] Compose has a **Customers** choice (Wholesale / Retail / Everyone) above "Send to". With Wholesale chosen, everything behaves as before.
+- [ ] Retail, "All of them", Review: the audience reads "All retail customers" and the count is your shop's non-wholesale accounts. Nobody who is a wholesale account is in it.
+- [ ] Retail, "Ordered in the last 30 days": only recent buyers. "No order in 60 days": only people who ordered before that (not people who never ordered). "Have never ordered": accounts with no orders.
+- [ ] "Bought this product": search for a product; the count matches the buyers you expect. Leave the product empty and Review: an error asks for one.
+- [ ] Channel Text or Both with a retail audience: the review says nobody is opted in to texts (or counts only those who are).
+- [ ] Send a marketing email to yourself as a retail account (a test customer): the footer has your address and an Unsubscribe link and no "Manage preferences". Click Unsubscribe while logged out: a plain "You have been unsubscribed" page with a Back to the shop link, not the wholesale login. Then Review the same audience: you are left out as "unsubscribed".
+- [ ] A wholesale account's email still has "Manage preferences" and Unsubscribe, and unsubscribing still lands on the wholesale page.
+- [ ] Compliance → Consent on file: a table with a Wholesale and a Retail row, and the paragraph explaining email versus texts.
+
 ## 29. Designed emails and the review screen (2.4.0)
 
 - [ ] Compose and an automation rule each have a **Design** row above Subject: "Plain message" plus every template. Both keep whatever they had before (Plain message).

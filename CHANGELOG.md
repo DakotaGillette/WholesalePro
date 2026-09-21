@@ -3,6 +3,28 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.5.0 - 2026-09-21
+
+### Added
+- **Compose can reach retail customers.** A new "Customers" choice above the
+  audience: wholesale customers (as before), retail customers (shop accounts that
+  are not wholesale), or everyone. New segments: "Ordered in the last N days" and
+  "Bought this product" (a product or any of its variations; cancelled and
+  refunded orders do not count). "All of them", "No order in N days" and "Have
+  never ordered" work for whichever group you chose.
+- The review screen names the audience ("All retail customers", "Retail
+  customers who ordered in the last 30 days") and shows who is left out and why.
+- Compliance shows consent on file for wholesale and retail customers side by
+  side, and says plainly why email and texts differ.
+
+### Changed
+- Marketing email to a retail customer carries the unsubscribe link and your
+  postal address, but no "Manage preferences" link (that page is part of the
+  wholesale My Account). After unsubscribing, a retail customer sees a plain
+  confirmation page instead of the wholesale login page.
+- Texts are unchanged: marketing texts still go only to people who have opted in
+  to them, so a retail audience gets email only unless someone has said yes.
+
 ## 2.4.0 - 2026-09-21
 
 ### Added
