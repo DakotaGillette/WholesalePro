@@ -43,9 +43,9 @@ class Protech_Test_Factory {
 	}
 
 	/**
-	 * A published variable product with one variation per colour, each at a
+	 * A published variable product with one variation per color, each at a
 	 * $9.99 retail price and no wholesale price unless $wholesale_prices
-	 * (colour => price) says otherwise.
+	 * (color => price) says otherwise.
 	 *
 	 * @param string[]              $colors
 	 * @param array<string, string> $wholesale_prices

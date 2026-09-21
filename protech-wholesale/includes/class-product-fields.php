@@ -128,10 +128,10 @@ class ProductFields {
 		echo '</div>';
 
 		// Variable products are priced per variation (the store's flagship
-		// sleeves have 14 colours, all at one price). These three fields
+		// sleeves have 14 colors, all at one price). These three fields
 		// write the same value to every variation on Update and then come
 		// back empty; the current state is summarised underneath. Pricing
-		// one colour differently is still done on the Variations tab.
+		// one color differently is still done on the Variations tab.
 		echo '<div class="options_group show_if_variable">';
 
 		$variation_ids = $product_object instanceof \WC_Product && $product_object->is_type( 'variable' )
@@ -152,7 +152,7 @@ class ProductFields {
 			);
 		}
 
-		echo '<p class="form-field"><span class="description">' . esc_html__( 'To price one colour differently, expand it on the Variations tab.', 'protech-wholesale' ) . '</span></p>';
+		echo '<p class="form-field"><span class="description">' . esc_html__( 'To price one color differently, expand it on the Variations tab.', 'protech-wholesale' ) . '</span></p>';
 		echo '</div>';
 
 		echo '<div class="options_group">';

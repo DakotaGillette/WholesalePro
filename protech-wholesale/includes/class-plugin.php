@@ -55,6 +55,7 @@ final class Plugin {
 	private NotificationsEndpoint $notifications_endpoint;
 	private MessagingTab $messaging_tab;
 	private CustomersTab $customers_tab;
+	private WelcomeEmail $welcome_email;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -101,6 +102,7 @@ final class Plugin {
 		$this->notifications_endpoint = new NotificationsEndpoint();
 		$this->messaging_tab          = new MessagingTab();
 		$this->customers_tab          = new CustomersTab();
+		$this->welcome_email          = new WelcomeEmail();
 
 		foreach (
 			array(
@@ -132,6 +134,7 @@ final class Plugin {
 				$this->notifications_endpoint,
 				$this->messaging_tab,
 				$this->customers_tab,
+				$this->welcome_email,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -325,10 +328,10 @@ final class Plugin {
 					 */
 					'alignTo'     => (string) apply_filters( 'protech_wholesale_tier_bar_align_selector', '#header-outer, .site-header, #masthead, header[role="banner"], body > header' ),
 					/**
-					 * Background colour of the space reserved for the sticky bar
+					 * Background color of the space reserved for the sticky bar
 					 * at the very end of the page. '' (the default) samples it
 					 * from the page itself, so it matches the footer above it;
-					 * set a CSS colour only if that guess is ever wrong.
+					 * set a CSS color only if that guess is ever wrong.
 					 *
 					 * @param string $color
 					 */

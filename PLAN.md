@@ -26,7 +26,7 @@ protech-wholesale/
     class-case-rules.php              Packs-per-display rules, unit selector, Store API quantity limits, shipping-rate hiding
     class-wholesale-shipping-method.php  WC_Shipping_Method: flat rate below Volume threshold, free at/above
     class-tier-ladder.php             Product-page quantity-tier price table (un-named base, Standard, Volume)
-    class-starter-kit.php             Starter kits: one display of every colour of a source product, admin fields, quote + add endpoints
+    class-starter-kit.php             Starter kits: one display of every color of a source product, admin fields, quote + add endpoints
     class-setup-checks.php            Shipping zone / priced product / portal page / form ID checks behind the setup notice
     class-updater.php                 Updates from GitHub releases (Update URI header, plugins_api details, check-now)
     class-global-tier-bar.php         Sticky site-wide progress bar + AJAX state endpoint

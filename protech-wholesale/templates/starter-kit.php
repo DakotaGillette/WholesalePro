@@ -48,7 +48,7 @@ endif;
 				<?php if ( $protech_line['displays'] > 1 ) : ?>
 					<span class="protech-kit-line-count">
 						<?php
-						/* translators: %d: number of displays of this colour in the kit. */
+						/* translators: %d: number of displays of this color in the kit. */
 						echo esc_html( sprintf( __( '×%d', 'protech-wholesale' ), $protech_line['displays'] ) );
 						?>
 					</span>
@@ -62,7 +62,7 @@ endif;
 			<?php
 			echo esc_html(
 				sprintf(
-					/* translators: %s: comma-separated colour names. */
+					/* translators: %s: comma-separated color names. */
 					__( 'Out of stock and left out for now: %s.', 'protech-wholesale' ),
 					implode( ', ', $composition['unavailable'] )
 				)

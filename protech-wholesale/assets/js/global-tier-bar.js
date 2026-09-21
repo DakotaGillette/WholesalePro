@@ -28,7 +28,7 @@
  *
  * And its placement: the dock's edges are measured off the site header's
  * inner container so the two are the same width, and the room reserved
- * for it at the end of the page is a spacer coloured to match whatever
+ * for it at the end of the page is a spacer colored to match whatever
  * the page ends with (see alignToHeader() / paintSpacer()).
  *
  * It also re-broadcasts each new state as a `protech:tier-state` DOM
@@ -211,7 +211,7 @@
 		//
 		// This used to be padding-bottom on <body>, which paints the BODY's
 		// background: a white band under this site's black footer. It is
-		// now a spacer element that takes the colour of whatever the page
+		// now a spacer element that takes the color of whatever the page
 		// actually ends with. That is sampled from the live page
 		// (elementsFromPoint just above the spacer) rather than read off a
 		// known footer element, because the visible footer here is a
@@ -224,8 +224,8 @@
 		spacer.setAttribute( 'aria-hidden', 'true' );
 		document.body.appendChild( spacer );
 
-		// A fully opaque background colour, or '' — a see-through layer
-		// (a 30% overlay, say) isn't what the eye reads as the page colour.
+		// A fully opaque background color, or '' — a see-through layer
+		// (a 30% overlay, say) isn't what the eye reads as the page color.
 		function solidBackground( element ) {
 			var style = window.getComputedStyle( element );
 
@@ -259,7 +259,7 @@
 			// Only points inside the viewport can be sampled. While the
 			// spacer is still just below the fold, sample the viewport's
 			// bottom edge instead — by then that is already the footer — so
-			// the colour is in place before the spacer scrolls into view.
+			// the color is in place before the spacer scrolls into view.
 			if ( top - window.innerHeight > 150 ) {
 				return;
 			}
@@ -327,7 +327,7 @@
 			}
 		}
 
-		// Keep re-sampling the spacer's colour while the end of the page is
+		// Keep re-sampling the spacer's color while the end of the page is
 		// in or near view, AND for a couple of seconds after the last
 		// scroll event. That tail matters: this site's footer has a
 		// parallax effect that is still gliding into place after scrolling

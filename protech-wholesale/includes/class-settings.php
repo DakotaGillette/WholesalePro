@@ -85,7 +85,7 @@ class Settings {
 			),
 			array(
 				'title'   => __( 'Products with no wholesale price', 'protech-wholesale' ),
-				'desc'    => __( 'What a wholesale customer sees for a product or colour that has no wholesale price. Either way it is bought on retail terms, with no display or case rules.', 'protech-wholesale' ),
+				'desc'    => __( 'What a wholesale customer sees for a product or color that has no wholesale price. Either way it is bought on retail terms, with no display or case rules.', 'protech-wholesale' ),
 				'id'      => self::OPT_EMPTY_PRICE_BEHAVIOR,
 				'type'    => 'select',
 				'default' => 'hide',

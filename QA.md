@@ -229,11 +229,11 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] The Add to cart button reads "Add 3 displays to cart" / "Add 1 case to cart" and the cart receives exactly that many packs.
 - [ ] After adding: a green "Added 3 displays (30 packs) to your cart." line shows for a few seconds, the quantity returns to 1, the unit stays put.
 - [ ] Choose Case, open a different product: Case is preselected (remembered per browser).
-- [ ] On the variable flagship product, change colour: card captions, read-back and button text stay correct.
+- [ ] On the variable flagship product, change color: card captions, read-back and button text stay correct.
 
 **Sticky bar**
 - [ ] Desktop: a rounded Protech Blue dock floats ~14px above the bottom edge. **Its left and right edges line up exactly with the floating header card.** Resize the window: it follows. (If the header can't be found it falls back to a centred 1180px.)
-- [ ] **Scroll to the very bottom of several pages (home, shop, a product, My Account, the cart).** Page content can be scrolled fully clear of the dock, and the space under the footer is the **footer's own colour** — no white (or any other) band. This was the first bug found on staging: see `DECISIONS.md`, "Storefront polish", item 14. Also check a page whose last section is light: the space should be light there.
+- [ ] **Scroll to the very bottom of several pages (home, shop, a product, My Account, the cart).** Page content can be scrolled fully clear of the dock, and the space under the footer is the **footer's own color** — no white (or any other) band. This was the first bug found on staging: see `DECISIONS.md`, "Storefront polish", item 14. Also check a page whose last section is light: the space should be light there.
 - [ ] It slides in once on the first page of a browser session and does not re-animate on later pages.
 - [ ] Left to right: a "WHOLESALE · STANDARD" chip with the message (quantity in bold), the track, subtotal with "N displays (N cases)" under it, a white "View cart" pill.
 - [ ] Track: three markers — Standard at the start, "16 displays" at 40% with "$5.00/pack + free shipping", "16 cases" at the end with "$4.50/pack, our best price" — plus faint tick marks between them. Reached markers are white with a blue check. (Prices are the store defaults from the Pricing tab with the account's tier discount; if the catalogue ever makes that misleading, `protech_wholesale_tier_bar_show_prices` removes them.)
@@ -246,7 +246,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] The cart button gives a small bump on every cart change; changed numbers tick into place.
 - [ ] Below ~1160px wide (try 1100px and 800px): two rows; the cart pill shows the subtotal instead of "View cart"; marker captions still visible and never overlapping each other.
 - [ ] 375px: flush to the bottom, rounded top corners, dots only (no captions or ticks), message clamps to two lines, nothing overlaps. On an iPhone the home-indicator area is clear.
-- [ ] With the OS "reduce motion" setting on: no slide-in, shine, pulse or confetti; tier changes still show through colour and text.
+- [ ] With the OS "reduce motion" setting on: no slide-in, shine, pulse or confetti; tier changes still show through color and text.
 - [ ] Still absent on checkout; still absent for retail customers and guests.
 
 **Product page price table**
@@ -279,11 +279,11 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 
 - [ ] Set up a test kit: on a disposable simple product's Wholesale tab tick **Starter kit**, choose *Protech Premium Matte Sleeves* under "Kit is built from", leave "Displays in a kit" empty (= 16), pick Black then White under "Make up the difference with", tick Wholesale only, Update.
 - [ ] As an admin (not wholesale), open that product's page: it loads (no 404) and shows the "approved wholesale accounts only" notice with no price and no button.
-- [ ] As the wholesale customer: the page shows every colour with a swatch, "×2" on Black and White, "16 displays · 160 packs", a kit total of **$800.00** with "Volume pricing ($5.00/pack) with free shipping.", a how-many stepper, and "Add starter kit to cart". The price beside the title is the same $800.00. No Display/Case control and no price table on this page.
+- [ ] As the wholesale customer: the page shows every color with a swatch, "×2" on Black and White, "16 displays · 160 packs", a kit total of **$800.00** with "Volume pricing ($5.00/pack) with free shipping.", a how-many stepper, and "Add starter kit to cart". The price beside the title is the same $800.00. No Display/Case control and no price table on this page.
 - [ ] The sticky bar's preview segment reaches the "16 displays" marker and that marker pulses while the page is open with an empty cart.
 - [ ] Set 2 kits: the button reads "Add 2 starter kits to cart" and the total re-quotes (32 displays, still Volume pricing). Set 8: 128 displays is 16 cases, so the quote switches to Bulk pricing ($4.50/pack).
-- [ ] Add 1 kit with an empty cart. Confirm: a green "Starter kit added: 16 displays are in your cart." line, the bar celebrates Volume, the cart holds one line per colour (Black and White at 20 packs, the rest at 10), no Vendor Starter Kit line, subtotal $800.00, free shipping at checkout.
-- [ ] Mark one colour out of stock and reload the kit page: it is listed as left out, and the fillers cover the shortfall so the kit is still 16 displays.
+- [ ] Add 1 kit with an empty cart. Confirm: a green "Starter kit added: 16 displays are in your cart." line, the bar celebrates Volume, the cart holds one line per color (Black and White at 20 packs, the rest at 10), no Vendor Starter Kit line, subtotal $800.00, free shipping at checkout.
+- [ ] Mark one color out of stock and reload the kit page: it is listed as left out, and the fillers cover the shortfall so the kit is still 16 displays.
 - [ ] Reorder the resulting order from My Account: all 16 displays come back into the cart.
 - [ ] Disable JavaScript and click the button: the kit is added and you land on the cart with the same success notice.
 
@@ -324,7 +324,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] Logged in as a retail (non-wholesale) customer: same, unchanged.
 - [ ] Logged in as an approved wholesale customer: the header instead reads "FREE SHIPPING ON WHOLESALE ORDERS OF 16+ DISPLAYS" (or the current Volume threshold from Pricing & Shipping).
 - [ ] Change the Volume threshold on Pricing & Shipping to a different number, reload as a wholesale customer: the header number matches.
-- [ ] Confirm the styling (colour, alignment, size) matches the rest of that header text — it inherits the theme's own CSS since no markup is added, only the text.
+- [ ] Confirm the styling (color, alignment, size) matches the rest of that header text — it inherits the theme's own CSS since no markup is added, only the text.
 
 ## 21. Messaging & automations (1.5.0)
 
@@ -340,7 +340,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 
 **Compose (manual send)**
 - [ ] Customers tab: tick the one wholesale customer, "Send message to selected" lands on Compose with them pre-selected.
-- [ ] Write a subject/body with `{first_name}` and `{shop_url}`, "Send test to me" — email arrives at djg10212's address (not anyone else's) with the branded header/footer and the tags filled in.
+- [ ] Write a subject/body with `{first_name}` and `{shop_url}`, "Send preview" (leave the email blank) — arrives at your own address with the branded header/footer and the tags filled in.
 - [ ] "Preview recipients" shows the right count before sending for real.
 - [ ] "Send" queues it; the Log (filtered by the campaign id in the URL) shows it move from queued → sent within a minute or two of a real page load (cron permitting — see the cron note in the README if it sits at "queued").
 
@@ -357,7 +357,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 - [ ] Click a real `{unsubscribe_url}` link from a test email while logged out: lands on `/wholesale` with the "you're unsubscribed" notice, and My Account → Notifications (once logged in) shows the email checkbox now unchecked.
 
 **SMS itself** (only once a toll-free number is registered with Brevo)
-- [ ] "Send test to me" over SMS reaches a real phone with the brand prefix and, for a marketing message, "Reply STOP to opt out."
+- [ ] "Send preview" with a phone number typed in reaches that real phone with the brand prefix and, for a marketing message, "Reply STOP to opt out."
 - [ ] Reply STOP on a real phone, then try sending another marketing text to that number — the Log shows it skipped as unsubscribed, not sent.
 
 ## 22. MSRP price, login landing, tier names, quantity legend (1.5.0)
@@ -365,7 +365,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 Log in as the wholesale customer (djg10212) for everything below.
 
 **MSRP price**
-- [ ] Product page for Protech Premium Matte Sleeves: the price line reads "~~$9.99~~ $5.50 Save 45% Wholesale price" (the crossed-out amount is the same grey as in the price table below) (or $5.00 / Save 50% once the cart is at 16+ displays). Picking a colour keeps the strikethrough.
+- [ ] Product page for Protech Premium Matte Sleeves: the price line reads "~~$9.99~~ $5.50 Save 45% Wholesale price" (the crossed-out amount is the same grey as in the price table below) (or $5.00 / Save 50% once the cart is at 16+ displays). Picking a color keeps the strikethrough.
 - [ ] Shop grid: every wholesale-priced product shows the same crossed-out MSRP; the Vendor Starter Kit (no wholesale price) shows its plain $800.
 - [ ] Logged out or as a retail customer: no strikethrough anywhere, plain $9.99.
 
@@ -380,6 +380,20 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] Admin: Pricing & Shipping rows read Base / Standard / Volume; a variation's fields read "Standard price override" and "Volume price override"; the Products tab columns "Standard override" / "Volume override". Existing override values are unchanged.
 
 **Legend**
-- [ ] Above "Order by" on the product page: "How wholesale quantities work" with the three tiles (1 pack, ×10, 1 display = 10 packs, ×8, 1 case = 8 displays (80 packs), all in US spelling (color)) and the line "1 case = 8 displays. Mix and match your displays however you'd like. Free shipping from 16 displays (2 cases), any combination of colours."
+- [ ] Above the "Wholesale pricing" table on the product page (full width, not next to the order control): "How wholesale quantities work" with the three tiles (1 pack, ×10, 1 display = 10 packs, ×8, 1 case = 8 displays (80 packs), all in US spelling (color)) and the line "1 case = 8 displays. Mix and match your displays however you'd like. Free shipping from 16 displays (2 cases), any combination of colors."
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
+
+## 23. Welcome email and previews (1.6.0)
+
+**Welcome email**
+- [ ] WooCommerce → Wholesale → Customers → "Welcome email" (collapsed box): type your own address, "Send preview". It arrives with the branded header, "Hi <your first name>", your address in step 2, the working login and reset links, the three-tile picture (colors) and "8 displays = 1 case."
+- [ ] Look at it on a phone and in Gmail: the tiles line up and nothing is cut off.
+- [ ] The table has a Welcome email column ("Not sent" plus Send). Send to yourself as a test wholesale customer: the column now reads "Sent <today>" with Resend, and the Messaging → Log shows a "welcome" row.
+- [ ] Tick two customers and press "Send welcome email": the notice says how many were sent.
+- [ ] "Add existing customers to wholesale": the box is ticked by default; adding a plain customer with it ticked sends them the welcome email (not the "set your password" one) and adds no reset key.
+
+**Previews**
+- [ ] Compose: fill in an email, type a friend's address in "Send a preview", press it. They receive it; your own inbox does not.
+- [ ] Compose with the channel set to Both and a phone number typed: two green notices (email and text).
+- [ ] An automation rule (reorder reminder): "Send a preview" works before saving, and the rule is not saved by it.

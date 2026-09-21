@@ -36,6 +36,9 @@ class CaseRules {
 
 		// Display/Case unit selector on the single product page.
 		add_action( 'woocommerce_before_add_to_cart_quantity', array( $this, 'render_unit_selector' ) );
+
+		// The legend sits in the summary, above the price table (TierLadder, 25).
+		add_action( 'woocommerce_single_product_summary', array( $this, 'render_quantity_legend' ), 24 );
 		add_filter( 'woocommerce_available_variation', array( $this, 'add_unit_data_to_variation' ), 10, 3 );
 
 		// Header cart badge / Blocks mini-cart count, in displays.
@@ -149,7 +152,7 @@ class CaseRules {
 
 		// "Including variations": WooCommerce builds a variable product's
 		// quantity box (woocommerce_quantity_input_args) from the PARENT,
-		// which never carries a price itself — its colours do. Checking the
+		// which never carries a price itself — its colors do. Checking the
 		// bare parent said "not wholesale" for the flagship sleeves, so the
 		// theme's own stepper came back and the Display/Case control had
 		// nothing to drive (1.3.0, caught by the owner on staging). Cart
@@ -161,7 +164,7 @@ class CaseRules {
 	/**
 	 * Packs per display: the product's own value, else (for a variation)
 	 * its parent's — set once on the parent's Wholesale tab instead of on
-	 * every colour — else the store default. Same fallback order as
+	 * every color — else the store default. Same fallback order as
 	 * VolumePricing::get_displays_per_case().
 	 */
 	public static function get_case_size( int $product_id ): int {
@@ -291,24 +294,6 @@ class CaseRules {
 		$case_size         = self::get_case_size( $product->get_id() );
 		$displays_per_case = max( 1, VolumePricing::get_displays_per_case( $product->get_id() ) );
 		$case_packs        = $case_size * $displays_per_case;
-		$volume_threshold  = Settings::get_volume_threshold_displays();
-
-		// First, what a display and a case even are (templates/quantity-
-		// legend.php): most wholesale buyers meet these words here for the
-		// first time, and the control below assumes they know them.
-		wc_get_template(
-			'quantity-legend.php',
-			array(
-				'case_size'         => $case_size,
-				'displays_per_case' => $displays_per_case,
-				'case_packs'        => $case_packs,
-				'volume_threshold'  => $volume_threshold,
-				'threshold_cases'   => VolumePricing::format_quantity( $volume_threshold / $displays_per_case ),
-			),
-			'',
-			PROTECH_WHOLESALE_DIR . 'templates/'
-		);
-
 		// One control, top to bottom: pick the unit (two big radio cards),
 		// dial in how many, read back exactly what that means in packs.
 		// The theme's own pack stepper underneath is hidden by
@@ -358,6 +343,42 @@ class CaseRules {
 			<p class="protech-unit-selector-hint" id="protech-unit-selector-hint" aria-live="polite"></p>
 		</div>
 		<?php
+	}
+
+	/**
+	 * "How wholesale quantities work" (templates/quantity-legend.php), above
+	 * the wholesale price table on a single product page: most wholesale
+	 * buyers meet the words display and case here for the first time, and
+	 * everything below (the price table's quantities, the order control)
+	 * assumes they know them.
+	 */
+	public function render_quantity_legend(): void {
+		global $product;
+
+		if ( ! $product instanceof \WC_Product || ! Roles::is_wholesale_customer() ) {
+			return;
+		}
+
+		if ( ! Pricing::is_available_at_wholesale_including_variations( $product->get_id(), get_current_user_id() ) ) {
+			return;
+		}
+
+		$case_size         = self::get_case_size( $product->get_id() );
+		$displays_per_case = max( 1, VolumePricing::get_displays_per_case( $product->get_id() ) );
+		$volume_threshold  = Settings::get_volume_threshold_displays();
+
+		wc_get_template(
+			'quantity-legend.php',
+			array(
+				'case_size'         => $case_size,
+				'displays_per_case' => $displays_per_case,
+				'case_packs'        => $case_size * $displays_per_case,
+				'volume_threshold'  => $volume_threshold,
+				'threshold_cases'   => VolumePricing::format_quantity( $volume_threshold / $displays_per_case ),
+			),
+			'',
+			PROTECH_WHOLESALE_DIR . 'templates/'
+		);
 	}
 
 	/**

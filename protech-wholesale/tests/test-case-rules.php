@@ -99,7 +99,7 @@ class Test_CaseRules extends WP_UnitTestCase {
 	}
 
 	public function test_quantity_box_of_a_variable_product_steps_by_the_display(): void {
-		// The parent has no price of its own; its colours do. WooCommerce
+		// The parent has no price of its own; its colors do. WooCommerce
 		// hands the parent to woocommerce_quantity_input_args.
 		$built       = Protech_Test_Factory::variable_product( array( 'blue', 'red' ), array( 'blue' => '5.50', 'red' => '5.50' ) );
 		$customer_id = $this->create_wholesale_customer();
@@ -201,20 +201,26 @@ class Test_CaseRules extends WP_UnitTestCase {
 		WC()->cart->empty_cart();
 	}
 
-	public function test_unit_selector_opens_with_the_quantity_legend(): void {
+	public function test_the_quantity_legend_renders_on_its_own_and_not_inside_the_order_control(): void {
 		global $product;
 
 		$product = Protech_Test_Factory::simple_product( '5.50' ); // Store defaults: 10 packs/display, 8 displays/case, 16 displays for free shipping.
 		wp_set_current_user( $this->create_wholesale_customer() );
 
 		ob_start();
-		( new CaseRules() )->render_unit_selector();
+		( new CaseRules() )->render_quantity_legend();
 		$html = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'How wholesale quantities work', $html );
 		$this->assertStringContainsString( '8 displays = 1 case.', $html );
 		$this->assertStringContainsString( 'Free shipping from 16 displays (2 cases)', $html );
-		$this->assertStringContainsString( 'protech-unit-selector', $html );
+
+		// The order control no longer carries it.
+		ob_start();
+		( new CaseRules() )->render_unit_selector();
+		$selector = (string) ob_get_clean();
+		$this->assertStringContainsString( 'protech-unit-selector', $selector );
+		$this->assertStringNotContainsString( 'How wholesale quantities work', $selector );
 
 		wp_set_current_user( 0 );
 		$product = null;

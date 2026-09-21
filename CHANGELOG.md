@@ -3,6 +3,25 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.6.0 - 2026-09-21
+
+### Added
+- **Welcome email** for accounts upgraded to wholesale (Customers tab): how to
+  log in, the pack / display / case picture, and what each quantity level
+  unlocks. Send it from "Add existing customers to wholesale" (a box, ticked
+  by default), from ticked rows ("Send welcome email"), or from Send / Resend
+  on a row. A new Welcome email column shows when each customer got it. It is
+  logged like any other message and never touches a password.
+- **Send a preview** on Compose, on every automation rule, and for the welcome
+  email: type any email address (and a phone number for texts) and the message
+  goes there as written. It replaces "Send test to me", which could only reach
+  your own account. "Both" now previews both the email and the text.
+
+### Changed
+- "colour" is now "color" everywhere (screens, emails, docs, tests).
+- The quantity legend moved from above the order control to above the
+  Wholesale pricing table, full width to match it.
+
 ## 1.5.1 - 2026-09-21
 
 ### Changed
@@ -46,7 +65,7 @@ change landed on staging.
     this plugin (`{prefix}protech_wholesale_messages`), created via
     `DB_VERSION` 3.
 - **MSRP crossed out next to the wholesale price** everywhere a price
-  shows to a wholesale customer (product page, shop grid, the per-colour
+  shows to a wholesale customer (product page, shop grid, the per-color
   price swap): "~~$9.99~~ $5.00 Save 50%", using WooCommerce's own
   del/ins sale markup so the theme's price styles still apply. The MSRP
   is the store's regular price; a product whose MSRP isn't above the
@@ -92,7 +111,7 @@ change landed on staging.
   beside the Display/Case control, with no read-back line and a plain "Add
   to cart" button, and the quantity no longer stepped by the display. The
   1.3.0 "sold at wholesale" check looked at the variable product's parent,
-  which never carries a price itself; it now looks through to the colours.
+  which never carries a price itself; it now looks through to the colors.
   Regression test added. (Sample packs without any wholesale price are still
   exempt, as intended.)
 
@@ -147,7 +166,7 @@ Admin-side audit, and updates from GitHub.
 Storefront polish: everything a wholesale customer sees.
 
 ### Changed
-- **Protech Blue (`#42649D`) is now the colour of all wholesale UI**: the
+- **Protech Blue (`#42649D`) is now the color of all wholesale UI**: the
   sticky bar, the "Wholesale price" label, the price table, the account
   card and the `/wholesale` page. Theme buttons (Add to cart, Checkout) stay
   black. Plugin text now inherits the site font (Poppins) instead of forcing
@@ -200,7 +219,7 @@ Storefront polish: everything a wholesale customer sees.
   shows as documented.
 - A white band showed under the footer at the very end of every page: the
   room reserved for the floating bar was `<body>` padding, which paints the
-  body's background. It is now a spacer that takes the colour of whatever
+  body's background. It is now a spacer that takes the color of whatever
   the page ends with (found on staging, first look).
 - The sticky bar is now the same width as the site header instead of a
   fixed 1180px: it matches the floating header card edge for edge (measured
@@ -211,9 +230,9 @@ Storefront polish: everything a wholesale customer sees.
 
 ### Added
 - **Starter kits.** A simple product can be marked as a kit on its Wholesale
-  tab: its page adds one display of every colour of a chosen variable
+  tab: its page adds one display of every color of a chosen variable
   product to the cart, topped up to a target (default: the Volume threshold)
-  with chosen filler colours. Real variations go in the cart, so stock,
+  with chosen filler colors. Real variations go in the cart, so stock,
   pricing and Reorder all just work; a 16-display kit costs 160 packs at the
   Volume price with free shipping. The page lists the kit's contents, quotes
   it live for any number of kits, and adds it in place (the sticky bar

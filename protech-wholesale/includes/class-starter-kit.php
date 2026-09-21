@@ -1,31 +1,31 @@
 <?php
 /**
  * Starter kits: a product page that, instead of selling itself, adds one
- * display of every colour of another product to the cart in one click.
+ * display of every color of another product to the cart in one click.
  *
  * The kit product is only a landing page. What goes into the cart is the
- * REAL variations of the source product, one line per colour — so stock
- * stays right per colour, Reorder works on the resulting order, and the
+ * REAL variations of the source product, one line per color — so stock
+ * stays right per color, Reorder works on the resulting order, and the
  * price is whatever the ordinary pricing engine says: a 16-display kit
  * lands exactly on the Volume threshold, which is where its "$800 with
  * free shipping" comes from (160 packs x the Volume price), not from a
  * number typed onto the kit product.
  *
- * Composition is a rule, not a list, so it needs no upkeep as colours are
+ * Composition is a rule, not a list, so it needs no upkeep as colors are
  * added. Two modes, set per kit:
- *   - "One of every colour" (META_ONE_OF_EACH): exactly one display of
+ *   - "One of every color" (META_ONE_OF_EACH): exactly one display of
  *     every variation this customer can buy at wholesale and that is in
- *     stock — no target, no padding. 14 colours today is 14 displays;
+ *     stock — no target, no padding. 14 colors today is 14 displays;
  *     add a 15th tomorrow and the kit is 15 displays with nothing to
  *     edit, forever.
  *   - Padded to a target (the original mode, still available for a kit
- *     that should always land on a specific tier): one of every colour,
+ *     that should always land on a specific tier): one of every color,
  *     then if that is fewer than the target (default: the Volume
  *     threshold) the shortfall is made up with extra displays of the
- *     chosen filler colours, in order, round-robin. With 14 colours, a
- *     target of 16 and fillers Black, White that is every colour plus a
+ *     chosen filler colors, in order, round-robin. With 14 colors, a
+ *     target of 16 and fillers Black, White that is every color plus a
  *     second Black and a second White.
- * Either way, a colour that is out of stock is simply left out.
+ * Either way, a color that is out of stock is simply left out.
  *
  * Configured per product on the Wholesale tab (simple products).
  *
@@ -115,8 +115,8 @@ class StarterKit {
 			'unavailable' => array(),
 			'displays'    => 0,
 			'packs'       => 0,
-			// Meaningless in "one of every colour" mode — there is no fixed
-			// target, the kit simply is however many colours exist.
+			// Meaningless in "one of every color" mode — there is no fixed
+			// target, the kit simply is however many colors exist.
 			'target'      => $one_of_each ? 0 : self::get_target_displays( $kit_id ),
 		);
 
@@ -153,11 +153,11 @@ class StarterKit {
 			$variations[ $variation_id ] = $variation;
 		}
 
-		// "One of every colour" skips all of this: no target, no padding —
-		// whatever count() of available colours came out of the loop above
+		// "One of every color" skips all of this: no target, no padding —
+		// whatever count() of available colors came out of the loop above
 		// is the whole kit.
 		if ( ! $one_of_each ) {
-			// Make up any shortfall with the filler colours, round-robin, for
+			// Make up any shortfall with the filler colors, round-robin, for
 			// as long as at least one of them can still supply another display.
 			$shortfall = $empty['target'] - count( $displays );
 			$fillers   = array_values( array_intersect( self::get_filler_ids( $kit_id ), array_keys( $displays ) ) );
@@ -210,7 +210,7 @@ class StarterKit {
 			'unavailable' => $unavailable,
 			'displays'    => $total_displays,
 			'packs'       => $total_packs,
-			// In "one of every colour" mode there is no fixed target — report
+			// In "one of every color" mode there is no fixed target — report
 			// however many displays this kit actually turned out to be.
 			'target'      => $one_of_each ? $total_displays : $empty['target'],
 		);
@@ -244,8 +244,8 @@ class StarterKit {
 	}
 
 	/**
-	 * The colour swatch the store already assigned to this variation's
-	 * colour term (the "Variation Swatches for WooCommerce" plugin keeps it
+	 * The color swatch the store already assigned to this variation's
+	 * color term (the "Variation Swatches for WooCommerce" plugin keeps it
 	 * in term meta), if there is one. Purely decorative: '' when absent.
 	 */
 	private static function swatch_color( \WC_Product_Variation $variation ): string {
@@ -396,7 +396,7 @@ class StarterKit {
 				$notes[] = '' !== $reason
 					? $line['name'] . ': ' . $reason
 					: sprintf(
-						/* translators: %s: colour name. */
+						/* translators: %s: color name. */
 						__( 'Could not add %s to your cart.', 'protech-wholesale' ),
 						$line['name']
 					);
@@ -409,7 +409,7 @@ class StarterKit {
 
 		foreach ( $composition['unavailable'] as $name ) {
 			$notes[] = sprintf(
-				/* translators: %s: colour name. */
+				/* translators: %s: color name. */
 				__( '%s is out of stock and was left out.', 'protech-wholesale' ),
 				$name
 			);
@@ -636,7 +636,7 @@ class StarterKit {
 			array(
 				'id'          => self::META_ENABLED,
 				'label'       => __( 'Starter kit', 'protech-wholesale' ),
-				'description' => __( 'This product is a starter kit: its page adds one display of every colour of the product chosen below to the cart. The kit itself is never sold, so its own prices and pack sizes above are ignored.', 'protech-wholesale' ),
+				'description' => __( 'This product is a starter kit: its page adds one display of every color of the product chosen below to the cart. The kit itself is never sold, so its own prices and pack sizes above are ignored.', 'protech-wholesale' ),
 				'value'       => $product_id && self::is_kit( $product_id ) ? 'yes' : 'no',
 			)
 		);
@@ -648,13 +648,13 @@ class StarterKit {
 			echo '<option value="' . esc_attr( (string) $source_id ) . '" selected="selected">' . esc_html( wp_strip_all_tags( $source->get_formatted_name() ) ) . '</option>';
 		}
 
-		echo '</select> ' . wc_help_tip( __( 'The variable product whose colours make up the kit. Every colour with a wholesale price, in stock, gets one display.', 'protech-wholesale' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wc_help_tip() escapes.
+		echo '</select> ' . wc_help_tip( __( 'The variable product whose colors make up the kit. Every color with a wholesale price, in stock, gets one display.', 'protech-wholesale' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wc_help_tip() escapes.
 
 		woocommerce_wp_checkbox(
 			array(
 				'id'          => self::META_ONE_OF_EACH,
-				'label'       => __( 'One of every colour', 'protech-wholesale' ),
-				'description' => __( 'The kit is exactly one display of every colour currently available — no padding to a fixed count. Add or remove a colour on the product above and the kit updates on its own; the two fields below are ignored while this is checked.', 'protech-wholesale' ),
+				'label'       => __( 'One of every color', 'protech-wholesale' ),
+				'description' => __( 'The kit is exactly one display of every color currently available — no padding to a fixed count. Add or remove a color on the product above and the kit updates on its own; the two fields below are ignored while this is checked.', 'protech-wholesale' ),
 				'value'       => $product_id && self::is_one_of_each( $product_id ) ? 'yes' : 'no',
 			)
 		);
@@ -666,7 +666,7 @@ class StarterKit {
 				'id'                => self::META_TARGET_DISPLAYS,
 				'label'             => __( 'Displays in a kit', 'protech-wholesale' ),
 				/* translators: %d: the Standard threshold, in displays. */
-				'description'       => sprintf( __( 'If there are fewer colours than this, the difference is made up with the colours below. Leave empty to use the Standard threshold (%d), which is what earns the kit Standard pricing and free shipping.', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ),
+				'description'       => sprintf( __( 'If there are fewer colors than this, the difference is made up with the colors below. Leave empty to use the Standard threshold (%d), which is what earns the kit Standard pricing and free shipping.', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ),
 				'desc_tip'          => true,
 				'type'              => 'number',
 				'custom_attributes' => array(
@@ -679,7 +679,7 @@ class StarterKit {
 		);
 
 		echo '<p class="form-field"><label for="' . esc_attr( self::META_FILLERS ) . '">' . esc_html__( 'Make up the difference with', 'protech-wholesale' ) . '</label>';
-		echo '<select class="wc-product-search" multiple="multiple" style="width:50%;" id="' . esc_attr( self::META_FILLERS ) . '" name="' . esc_attr( self::META_FILLERS ) . '[]" data-sortable="true" data-placeholder="' . esc_attr__( 'Search for colours, e.g. Black, White…', 'protech-wholesale' ) . '" data-action="woocommerce_json_search_products_and_variations">';
+		echo '<select class="wc-product-search" multiple="multiple" style="width:50%;" id="' . esc_attr( self::META_FILLERS ) . '" name="' . esc_attr( self::META_FILLERS ) . '[]" data-sortable="true" data-placeholder="' . esc_attr__( 'Search for colors, e.g. Black, White…', 'protech-wholesale' ) . '" data-action="woocommerce_json_search_products_and_variations">';
 
 		$filler_ids = $product_id ? self::get_filler_ids( $product_id ) : array();
 
@@ -691,7 +691,7 @@ class StarterKit {
 			}
 		}
 
-		echo '</select> ' . wc_help_tip( __( 'Colours of the product above that get an extra display while there are fewer colours than displays in the kit, in this order. Once there are enough colours these are no longer used.', 'protech-wholesale' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wc_help_tip() escapes.
+		echo '</select> ' . wc_help_tip( __( 'Colors of the product above that get an extra display while there are fewer colors than displays in the kit, in this order. Once there are enough colors these are no longer used.', 'protech-wholesale' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wc_help_tip() escapes.
 
 		echo '</div>'; // #protech-kit-target-fields.
 

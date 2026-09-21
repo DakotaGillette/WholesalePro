@@ -886,7 +886,7 @@ look at.
    deliberate reversal of "New site-matching color palette" above.** That
    decision matched the theme's black accent so the plugin wouldn't look
    like a differently-branded add-on. The owner's call now is the
-   opposite, and better: blue is the brand colour, and using it for
+   opposite, and better: blue is the brand color, and using it for
    everything wholesale-specific (bar, "Wholesale price" label, price
    table, account card, portal) lets a partner see at a glance which parts
    of a page are about their wholesale account. Theme buttons — Add to
@@ -1018,18 +1018,18 @@ look at.
     nectar_hook_global_section_parallax_footer`) — a page-builder row
     whose black comes from an absolutely-positioned `.row-bg` layer, not
     from any wrapper. So the reserved room is now its own element
-    (`.protech-tier-bar-spacer`, last in `<body>`) whose colour is
+    (`.protech-tier-bar-spacer`, last in `<body>`) whose color is
     **sampled from the live page**: `document.elementsFromPoint()` just
     above the spacer, first fully opaque background in the stack (skipping
     the bar itself, see-through overlays and hidden layers). It samples
     early — from the viewport's bottom edge once the page end is within
-    300px — so the colour is in place before the spacer scrolls into view,
+    300px — so the color is in place before the spacer scrolls into view,
     and re-samples while the page end is near, since this footer has a
     parallax effect that settles as it arrives. Works for any page or
     theme without naming a footer element; `protech_wholesale_tier_bar_
     spacer_color` overrides it if the guess is ever wrong. A background
     *image* or gradient can't be matched this way — the nearest solid
-    colour under it is used.
+    color under it is used.
 
 15. **The dock is the same width as the site header (owner request).** On
     this site the header is a floating card: Salient sizes `#header-outer`
@@ -1054,7 +1054,7 @@ look at.
     and took its selector only from the localized settings, silently doing
     nothing when that key was absent — the owner's second screenshot showed
     the dock unchanged. The first deploy of item 14 sampled the footer
-    colour on the last scroll event, but this footer is a parallax section
+    color on the last scroll event, but this footer is a parallax section
     that is still gliding into place after scrolling stops, so it sampled
     the light strip above it. Neither was findable by reading code. Both
     were found in minutes once the page was actually rendered: Chrome is
@@ -1081,8 +1081,8 @@ Known gaps, not addressed in this pass:
 ## Starter kits, and a 404 they uncovered (2026-09-17, late evening)
 
 The owner has a "Vendor Starter Kit" product (#1656 on staging): one
-display of every colour of the flagship sleeves — today all 14 plus a
-second Black and a second White, and "all 16" once two more colours land.
+display of every color of the flagship sleeves — today all 14 plus a
+second Black and a second White, and "all 16" once two more colors land.
 It was set up as a simple product with a wholesale price of 800 and
 "packs per display" 160, which the plugin would have read as $800 *per
 pack* in multiples of 160. Asked to give it "the functionality" so it
@@ -1091,8 +1091,8 @@ pack* in multiples of 160. Asked to give it "the functionality" so it
 1. **The kit is a landing page, not a thing that gets bought.** Its page
    adds the source product's REAL variations to the cart, one display
    each. Everything then follows from machinery that already exists:
-   stock is per colour, Reorder works on the order, the order's lines are
-   the colours, and the price is what the pricing engine says — 16
+   stock is per color, Reorder works on the order, the order's lines are
+   the colors, and the price is what the pricing engine says — 16
    displays *is* the Volume threshold, so 160 packs at $5.00 with free
    shipping is exactly the $800 the owner had typed on the product. No
    number on the kit product is ever charged: `woocommerce_is_purchasable`
@@ -1104,10 +1104,10 @@ pack* in multiples of 160. Asked to give it "the functionality" so it
 2. **Composition is a rule with fillers, not a stored list.** One display
    of every variation this customer can buy at wholesale and that is in
    stock; if that is short of the kit's target (default: the Volume
-   threshold), extra displays of the configured filler colours, in order,
-   round-robin. 14 colours + Black + White = 16 today; add two colours and
+   threshold), extra displays of the configured filler colors, in order,
+   round-robin. 14 colors + Black + White = 16 today; add two colors and
    it is one of each with nothing to edit, which is the owner's stated
-   plan. An out-of-stock colour is left out (said so on the page) and the
+   plan. An out-of-stock color is left out (said so on the page) and the
    fillers cover for it, so the kit still reaches Volume. Target and
    fillers are per-kit settings on the Wholesale tab (`StarterKit::META_*`),
    using WooCommerce's own product-search selects.
@@ -1147,7 +1147,7 @@ pack* in multiples of 160. Asked to give it "the functionality" so it
 7. **Reversed for this product the same evening.** The Vendor Starter Kit
    is linked from the owner's one-sheet as an unlisted special that gets a
    *new* vendor — one who may not have a wholesale account yet — buying
-   quickly: one line, $800, no login. The kit behaviour (sixteen colour
+   quickly: one line, $800, no login. The kit behaviour (sixteen color
    lines, wholesale customers only) was the wrong shape for that. The
    feature stays in the plugin for a future product; this product goes
    back to a plain simple product. What actually stood in the way of a
@@ -1483,8 +1483,8 @@ Four owner asks in one message, after the header banner shipped:
    `CaseRules::render_unit_selector()` directly above the Display/Case
    control (the place the words are first needed), for wholesale
    customers on priced products only. Three tiles, pack, display (a
-   grid of pack dots), case (a grid of differently-coloured display
-   swatches, because a case is any mix of colours), with "×10" / "×8"
+   grid of pack dots), case (a grid of differently-colored display
+   swatches, because a case is any mix of colors), with "×10" / "×8"
    between them, then the owner's line verbatim-ish: "8 displays = 1 case.
    Mix and match your displays however you'd like." (the owner asked for
    this order after seeing the first version), then free shipping on its
@@ -1500,3 +1500,55 @@ shop grid at 1440) against the real Salient markup; PHPUnit covers the
 price HTML (simple, variable, retail untouched), the landing URL (empty,
 on-site, off-site, and the login_redirect filter), the ladder labels and
 the legend's copy. Not yet human-verified on staging.
+
+## Welcome email and previews to any address (2026-09-21, 1.6.0)
+
+Three asks: US spelling, a welcome email for accounts being upgraded to
+wholesale, and a preview-before-send with a typed address on every message.
+
+1. **"colour" to "color"** across the repo, including docs, the CHANGELOG's
+   history and two test method names. No option, meta key or class used the
+   British spelling, so nothing else moved.
+
+2. **The welcome email is its own thing, not the "approved" email.** That
+   email (Emails::send_approved) tells an applicant to set a password with a
+   reset key. The accounts being upgraded already have a password and use
+   it, and generating a reset key for each would be noise at best and a
+   lockout risk at worst, so the welcome email says "the password you
+   already use" and links WooCommerce's ordinary reset page. "Add existing
+   customers to wholesale" now calls approve_user() without the approved
+   email and sends the welcome email instead when the box is ticked (it is
+   ticked by default, since upgrading someone without telling them is the
+   unusual case). Sending goes through MessageTransport like every other
+   message, so Brevo is used when connected and the WooCommerce mailer
+   otherwise, it is written to the message log (kind "welcome"), and it is
+   categorised transactional: no marketing footer, no marketing opt-out
+   check. A customer is stamped (_protech_wholesale_welcome_sent_at) only on
+   a real send, never on a preview, which is what the Customers table's
+   Welcome email column shows. The legend is rebuilt from tables and inline
+   styles (the CSS version cannot work in an email client); it caps its
+   drawn dots and swatches the same way. Where it lives: the Customers tab,
+   because that is where an admin already is when they upgrade someone. It
+   is not editable text in an admin screen; the copy is a template plus two
+   filters, which is enough until the owner asks to change words often.
+
+3. **"Send a preview", not "Send test to me".** The old button could only
+   reach the admin's own account. Compose, each automation rule and the
+   welcome email now have a box with an email field (and a phone field for
+   texts); blank means the admin's own address. Merge tags still fill in from
+   the admin's account, because a preview to an arbitrary address has no
+   customer to be "about", and the automation form says order details show
+   as blank. The automation form previews the unsaved rule as typed, using
+   the same validation the rule would get (a missing name does not block a
+   preview). "Both" previews each channel and reports each. Messaging that
+   is not built from these screens (the applicant received / approved /
+   rejected emails) has no preview: they are fixed text with no editing
+   screen to preview from.
+
+**Legend position (same day):** the owner asked for the quantity legend
+above the Wholesale pricing table, so it is no longer rendered by
+CaseRules::render_unit_selector() inside the add-to-cart form. It has its
+own hook, CaseRules::render_quantity_legend(), on
+woocommerce_single_product_summary at 24 (the price table is 25), with the
+same wholesale-priced-product condition, and it drops its 520px cap to match
+the table's width.

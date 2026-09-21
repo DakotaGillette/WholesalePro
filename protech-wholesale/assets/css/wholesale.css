@@ -154,8 +154,7 @@ body .protech-wholesale-portal .protech-button--block {
 
 /* -- How wholesale quantities work (single product page) ----------------- */
 .protech-legend {
-	max-width: 520px;
-	margin: 0 0 24px;
+	margin: 0 0 1.25em;
 	padding: 22px 24px 20px;
 	border: 1px solid var( --protech-blue-border );
 	border-radius: var( --protech-radius );
@@ -1379,7 +1378,7 @@ body.protech-wholesale #header-outer #mobile-cart-link .cart-wrap span {
 	animation: protech-tick 0.45s var( --protech-ease );
 }
 /* Room reserved at the very end of the page so the dock never sits on top
- * of the last content. global-tier-bar.js sets its height, and its colour
+ * of the last content. global-tier-bar.js sets its height, and its color
  * to match whatever the page ends with (a black footer, here) - this used
  * to be padding on <body>, which showed as a white band under the footer. */
 .protech-tier-bar-spacer {
@@ -2146,7 +2145,7 @@ body .protech-wholesale-portal button.protech-password-toggle:focus {
 	}
 }
 
-/* Nothing above is essential motion: state still changes through colour
+/* Nothing above is essential motion: state still changes through color
  * and text. global-tier-bar.js also skips its entrance, confetti and
  * replayed animations when this matches. */
 @media ( prefers-reduced-motion: reduce ) {

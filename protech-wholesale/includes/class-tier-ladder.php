@@ -68,7 +68,7 @@ class TierLadder {
 	/**
 	 * One row per quantity tier. For a variable product the price (and
 	 * MSRP) is the range across its wholesale-priced variations (usually
-	 * a single value, since every colour is normally priced the same).
+	 * a single value, since every color is normally priced the same).
 	 *
 	 * @return array<int, array{tier: string, label: string, threshold: string, note: string, price_html: string, min: float, max: float, msrp: ?float, msrp_html: string}>
 	 */

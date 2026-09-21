@@ -30,6 +30,7 @@ class MessagingTab {
 	public function register_hooks(): void {
 		add_action( 'admin_post_protech_save_automation', array( $this, 'handle_save_automation' ) );
 		add_action( 'admin_post_protech_preview_automation', array( $this, 'handle_preview_automation' ) );
+		add_action( 'admin_post_protech_send_test_automation', array( $this, 'handle_send_test_automation' ) );
 		add_action( 'admin_post_protech_toggle_automation', array( $this, 'handle_toggle_automation' ) );
 		add_action( 'admin_post_protech_delete_automation', array( $this, 'handle_delete_automation' ) );
 		add_action( 'admin_post_protech_run_automations_now', array( $this, 'handle_run_automations_now' ) );
@@ -301,6 +302,8 @@ class MessagingTab {
 
 		$preview = self::unstash( 'automation_preview' );
 
+		self::render_preview_results( self::unstash( 'automation_test' ) );
+
 		if ( ! empty( $errors ) ) {
 			echo '<div class="notice notice-error inline"><ul style="margin:0.5em 0 0 1.5em;list-style:disc;">';
 			foreach ( $errors as $error ) {
@@ -388,6 +391,8 @@ class MessagingTab {
 					</td>
 				</tr>
 			</table>
+
+			<?php self::render_preview_box( 'protech_send_test_automation', $stash['input'] ?? array(), true ); ?>
 
 			<p>
 				<button type="submit" class="button button-primary"><?php esc_html_e( 'Save rule', 'protech-wholesale' ); ?></button>
@@ -622,14 +627,7 @@ class MessagingTab {
 		$preview_stash = self::unstash( 'compose_preview' );
 		$test_stash    = self::unstash( 'compose_test' );
 
-		if ( null !== $test_stash ) {
-			$result = $test_stash['result'];
-			$class  = $result['ok'] ? 'notice-success' : 'notice-error';
-			$msg    = $result['ok']
-				? __( 'Test sent.', 'protech-wholesale' )
-				: sprintf( /* translators: %s: error message. */ __( 'Test failed: %s', 'protech-wholesale' ), $result['error'] );
-			echo '<div class="notice ' . esc_attr( $class ) . ' inline"><p>' . esc_html( $msg ) . '</p></div>';
-		}
+		self::render_preview_results( $test_stash );
 
 		if ( null !== $preview_stash ) {
 			self::render_preview_summary( $preview_stash );
@@ -741,16 +739,13 @@ class MessagingTab {
 					<th><label for="protech_compose_sms"><?php esc_html_e( 'Text', 'protech-wholesale' ); ?></label></th>
 					<td><textarea id="protech_compose_sms" name="sms[body]" class="large-text protech-tag-target" rows="4"><?php echo esc_textarea( (string) ( $input['sms']['body'] ?? '' ) ); ?></textarea></td>
 				</tr>
-				<tr>
-					<th><label for="protech_compose_test_phone"><?php esc_html_e( 'Test phone (optional)', 'protech-wholesale' ); ?></label></th>
-					<td><input type="tel" id="protech_compose_test_phone" name="test_phone" placeholder="<?php esc_attr_e( 'Only used by "Send test to me"', 'protech-wholesale' ); ?>" /></td>
-				</tr>
 			</table>
+
+			<?php self::render_preview_box( 'protech_send_test_message', $input ); ?>
 
 			<p>
 				<button type="submit" class="button button-primary protech-confirm-send"><?php esc_html_e( 'Send', 'protech-wholesale' ); ?></button>
 				<button type="submit" formaction="<?php echo esc_url( add_query_arg( 'action', 'protech_preview_message', admin_url( 'admin-post.php' ) ) ); ?>" class="button"><?php esc_html_e( 'Preview recipients', 'protech-wholesale' ); ?></button>
-				<button type="submit" formaction="<?php echo esc_url( add_query_arg( 'action', 'protech_send_test_message', admin_url( 'admin-post.php' ) ) ); ?>" class="button"><?php esc_html_e( 'Send test to me', 'protech-wholesale' ); ?></button>
 			</p>
 		</form>
 		<?php
@@ -861,14 +856,116 @@ class MessagingTab {
 			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
 		}
 
-		$input  = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$result = Campaigns::send_test( $input, get_current_user_id() );
+		$input    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$channel  = in_array( $input['channel'] ?? '', array( 'email', 'sms', 'both' ), true ) ? $input['channel'] : 'email';
+		$channels = 'both' === $channel ? array( 'email', 'sms' ) : array( $channel );
 
 		self::stash( 'compose_form', array( 'input' => $input, 'errors' => array() ) );
-		self::stash( 'compose_test', array( 'result' => $result, 'input' => $input ) );
+		self::stash( 'compose_test', array( 'results' => self::send_previews( $input, $channels ), 'input' => $input ) );
 
 		wp_safe_redirect( self::url( 'compose' ) );
 		exit;
+	}
+
+	/** Preview send from the automation form: the rule's own channels, content and category, exactly as typed (saved or not). */
+	public function handle_send_test_automation(): void {
+		check_admin_referer( 'protech_wholesale_save_automation', 'protech_wholesale_automation_nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'protech-wholesale' ) );
+		}
+
+		$input = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$rule  = Automations::validate( $input )['rule']; // Errors (a missing name, say) do not matter for a preview.
+		$back  = '' !== (string) ( $input['id'] ?? '' )
+			? self::url( 'automations', array( 'edit' => $input['id'] ) )
+			: self::url( 'automations', array( 'new' => $rule['trigger'] ) );
+
+		$content = array(
+			'service_message' => MessageLog::CATEGORY_TRANSACTIONAL === $rule['category'] ? '1' : '',
+			'email'           => $rule['email'],
+			'sms'             => $rule['sms'],
+			'preview_email'   => $input['preview_email'] ?? '',
+			'preview_phone'   => $input['preview_phone'] ?? '',
+		);
+
+		self::stash( 'automation_form', array( 'input' => $input, 'errors' => array() ) );
+		self::stash( 'automation_test', array( 'results' => self::send_previews( $content, Automations::channels( $rule ) ), 'input' => $input ) );
+
+		wp_safe_redirect( $back );
+		exit;
+	}
+
+	/**
+	 * One preview per channel, to whoever the admin typed (else themselves).
+	 *
+	 * @param array<string, mixed> $content Campaigns::send_test() input, without a channel.
+	 * @param string[]             $channels
+	 * @return array<string, array{ok: bool, error: string, provider: string, recipient: string}>
+	 */
+	private static function send_previews( array $content, array $channels ): array {
+		$results = array();
+
+		foreach ( $channels as $channel ) {
+			$results[ $channel ] = Campaigns::send_test( array_merge( $content, array( 'channel' => $channel ) ), get_current_user_id() );
+		}
+
+		return $results;
+	}
+
+	/**
+	 * The "Send a preview" block, inside a compose or automation form: any
+	 * address to send to, one button. $action is the admin-post action the
+	 * button submits to; the form's own nonce covers it.
+	 *
+	 * @param array<string, mixed> $input Last submitted values, so a second preview needs no retyping.
+	 */
+	private static function render_preview_box( string $action, array $input, bool $note_order_tags = false ): void {
+		$me = wp_get_current_user();
+		?>
+		<div class="protech-preview-box" style="max-width:640px;margin:1.5em 0;padding:1em 1.25em;background:#fff;border:1px solid #c3c4c7;border-left:4px solid #42649d;">
+			<h3 style="margin-top:0;"><?php esc_html_e( 'Send a preview', 'protech-wholesale' ); ?></h3>
+			<p class="description">
+				<?php esc_html_e( 'Sends this message as written to any address before you send it for real. Merge tags fill in with your own account.', 'protech-wholesale' ); ?>
+				<?php if ( $note_order_tags ) : ?>
+					<?php esc_html_e( 'Order details (order number, tracking) show as blank in a preview.', 'protech-wholesale' ); ?>
+				<?php endif; ?>
+			</p>
+			<p>
+				<label for="protech_preview_email"><strong><?php esc_html_e( 'Email address', 'protech-wholesale' ); ?></strong></label><br />
+				<input type="email" id="protech_preview_email" name="preview_email" class="regular-text" value="<?php echo esc_attr( (string) ( $input['preview_email'] ?? '' ) ); ?>" placeholder="<?php echo esc_attr( $me->user_email ); ?>" />
+			</p>
+			<p>
+				<label for="protech_preview_phone"><strong><?php esc_html_e( 'Phone number for text messages', 'protech-wholesale' ); ?></strong></label><br />
+				<input type="tel" id="protech_preview_phone" name="preview_phone" class="regular-text" value="<?php echo esc_attr( (string) ( $input['preview_phone'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Only used when the channel includes SMS', 'protech-wholesale' ); ?>" />
+			</p>
+			<p class="description"><?php esc_html_e( 'Leave the email blank to send to yourself.', 'protech-wholesale' ); ?></p>
+			<button type="submit" formaction="<?php echo esc_url( add_query_arg( 'action', $action, admin_url( 'admin-post.php' ) ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Send preview', 'protech-wholesale' ); ?></button>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The green/red result line(s) after a preview send.
+	 *
+	 * @param array<string, mixed>|null $stash {results: array<string, array{ok: bool, error: string, recipient: string}>}
+	 */
+	private static function render_preview_results( ?array $stash ): void {
+		if ( null === $stash || empty( $stash['results'] ) ) {
+			return;
+		}
+
+		foreach ( $stash['results'] as $channel => $result ) {
+			$label = 'sms' === $channel ? __( 'Text', 'protech-wholesale' ) : __( 'Email', 'protech-wholesale' );
+			$class = $result['ok'] ? 'notice-success' : 'notice-error';
+			$msg   = $result['ok']
+				/* translators: 1: Email or Text, 2: where it was sent. */
+				? sprintf( __( '%1$s preview sent to %2$s.', 'protech-wholesale' ), $label, $result['recipient'] )
+				/* translators: 1: Email or Text, 2: error message. */
+				: sprintf( __( '%1$s preview failed: %2$s', 'protech-wholesale' ), $label, '' !== $result['error'] ? $result['error'] : __( 'no address or number to send to.', 'protech-wholesale' ) );
+
+			echo '<div class="notice ' . esc_attr( $class ) . ' inline"><p>' . esc_html( $msg ) . '</p></div>';
+		}
 	}
 
 	// -----------------------------------------------------------------

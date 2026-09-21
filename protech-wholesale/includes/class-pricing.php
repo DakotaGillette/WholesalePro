@@ -437,7 +437,7 @@ class Pricing {
 	 * The wholesale price with the retail MSRP crossed out in front of it
 	 * and a "Save N%" chip after it, so the discount is visible at a
 	 * glance everywhere a price shows — the product page, the shop grid,
-	 * a variable product's per-colour price swap. filter_sale_price()
+	 * a variable product's per-color price swap. filter_sale_price()
 	 * blanks WooCommerce's own sale markup for wholesale customers, so
 	 * this is the only strikethrough they ever see. The MSRP is the
 	 * store's regular price (Pricing::get_msrp()); a product whose MSRP

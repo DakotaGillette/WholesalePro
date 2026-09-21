@@ -194,4 +194,41 @@ class Test_Campaigns extends WP_UnitTestCase {
 		$this->assertSame( MessageLog::KIND_TEST, $row['kind'] );
 		$this->assertSame( MessageLog::STATUS_SENT, $row['status'] );
 	}
+
+	public function test_send_test_goes_to_a_typed_preview_address(): void {
+		reset_phpmailer_instance();
+		$mailer = WC()->mailer();
+		if ( false === has_action( 'woocommerce_email_header', array( $mailer, 'email_header' ) ) ) {
+			add_action( 'woocommerce_email_header', array( $mailer, 'email_header' ) );
+			add_action( 'woocommerce_email_footer', array( $mailer, 'email_footer' ) );
+		}
+
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator', 'user_email' => 'admin@example.com' ) );
+
+		$result = Campaigns::send_test(
+			array(
+				'channel'       => 'email',
+				'preview_email' => 'someone.else@example.com',
+				'email'         => array( 'subject' => 'Preview subject', 'heading' => 'Heading', 'body' => 'Hi {first_name}' ),
+			),
+			$admin_id
+		);
+
+		$this->assertTrue( $result['ok'] );
+		$this->assertSame( 'someone.else@example.com', $result['recipient'] );
+		$this->assertSame( 'someone.else@example.com', tests_retrieve_phpmailer_instance()->get_sent()->to[0][0] );
+
+		// A malformed address falls back to the admin's own.
+		reset_phpmailer_instance();
+		$again = Campaigns::send_test(
+			array(
+				'channel'       => 'email',
+				'preview_email' => 'not an email',
+				'email'         => array( 'subject' => 'Preview subject', 'heading' => 'Heading', 'body' => 'Body' ),
+			),
+			$admin_id
+		);
+
+		$this->assertSame( 'admin@example.com', $again['recipient'] );
+	}
 }

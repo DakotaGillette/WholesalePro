@@ -453,7 +453,7 @@ class VolumePricing {
 
 		// -- 1. Quantity pricing --------------------------------------------
 		echo '<h2>' . esc_html__( 'Quantity pricing', 'protech-wholesale' ) . '</h2>';
-		echo '<p>' . esc_html__( 'The price ladder every wholesale customer sees. It is based on the combined display and case quantity across their whole cart, every product and colour together. Base is always a product\'s own wholesale price and has no name on the storefront, so nobody is encouraged to stay there; a product can override its Standard or Volume price on its own edit screen.', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'The price ladder every wholesale customer sees. It is based on the combined display and case quantity across their whole cart, every product and color together. Base is always a product\'s own wholesale price and has no name on the storefront, so nobody is encouraged to stay there; a product can override its Standard or Volume price on its own edit screen.', 'protech-wholesale' ) . '</p>';
 
 		echo '<table class="widefat striped" style="max-width:760px;"><thead><tr>';
 		foreach (
@@ -484,7 +484,7 @@ class VolumePricing {
 
 		// -- 2. Displays and cases -------------------------------------------
 		echo '<h2>' . esc_html__( 'Displays and cases', 'protech-wholesale' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Wholesale quantities are whole displays. These are the store defaults; a product (or a single colour) can set its own on its Wholesale tab.', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'Wholesale quantities are whole displays. These are the store defaults; a product (or a single color) can set its own on its Wholesale tab.', 'protech-wholesale' ) . '</p>';
 		echo '<table class="form-table" role="presentation"><tbody>';
 		echo '<tr><th><label for="protech_default_case_size">' . esc_html__( 'Packs per display', 'protech-wholesale' ) . '</label></th><td><input type="number" step="1" min="1" id="protech_default_case_size" name="protech_default_case_size" value="' . esc_attr( (string) Settings::get_default_case_size() ) . '" style="width:100px;" /></td></tr>';
 		echo '<tr><th><label for="protech_default_displays_per_case">' . esc_html__( 'Displays per case', 'protech-wholesale' ) . '</label></th><td><input type="number" step="1" min="1" id="protech_default_displays_per_case" name="protech_default_displays_per_case" value="' . esc_attr( (string) Settings::get_default_displays_per_case() ) . '" style="width:100px;" /></td></tr>';

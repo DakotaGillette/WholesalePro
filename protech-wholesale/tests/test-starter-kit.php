@@ -1,8 +1,8 @@
 <?php
 /**
  * Starter kits (StarterKit): what a kit contains (one display of every
- * colour, topped up with the filler colours to the target), how it copes
- * with an out-of-stock colour, that adding it puts the REAL variations in
+ * color, topped up with the filler colors to the target), how it copes
+ * with an out-of-stock color, that adding it puts the REAL variations in
  * the cart at the right pack counts, that the quote prices it at the tier
  * the cart will reach, and that the kit product itself can never be bought.
  *
@@ -78,10 +78,10 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		return $map;
 	}
 
-	public function test_kit_is_one_of_every_colour_topped_up_with_the_fillers(): void {
+	public function test_kit_is_one_of_every_color_topped_up_with_the_fillers(): void {
 		$composition = StarterKit::get_composition( $this->kit_id, $this->customer_id );
 
-		// 3 colours, target 5: Black and White each get a second display.
+		// 3 colors, target 5: Black and White each get a second display.
 		$this->assertSame(
 			array(
 				$this->variation( 'black' ) => 2,
@@ -95,7 +95,7 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$this->assertSame( array(), $composition['unavailable'] );
 	}
 
-	public function test_enough_colours_means_one_of_each_and_no_fillers(): void {
+	public function test_enough_colors_means_one_of_each_and_no_fillers(): void {
 		update_post_meta( $this->kit_id, StarterKit::META_TARGET_DISPLAYS, 2 );
 
 		$composition = StarterKit::get_composition( $this->kit_id, $this->customer_id );
@@ -104,7 +104,7 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$this->assertSame( 3, $composition['displays'] );
 	}
 
-	public function test_an_out_of_stock_colour_is_left_out_and_covered_by_the_fillers(): void {
+	public function test_an_out_of_stock_color_is_left_out_and_covered_by_the_fillers(): void {
 		$red = wc_get_product( $this->variation( 'red' ) );
 		$red->set_stock_status( 'outofstock' );
 		$red->save();
@@ -122,7 +122,7 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$this->assertSame( array( 'Red' ), $composition['unavailable'] );
 	}
 
-	public function test_a_colour_with_no_wholesale_price_is_simply_not_in_the_kit(): void {
+	public function test_a_color_with_no_wholesale_price_is_simply_not_in_the_kit(): void {
 		delete_post_meta( $this->variation( 'red' ), \ProtechWholesale\ProductFields::META_WHOLESALE_PRICE );
 
 		$composition = StarterKit::get_composition( $this->kit_id, $this->customer_id );
@@ -225,7 +225,7 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$composition = StarterKit::get_composition( $this->kit_id, $this->customer_id );
 
 		// Target is 5 and Black/White are configured as fillers, but "one of
-		// every colour" ignores both: exactly one of each of the 3 colours.
+		// every color" ignores both: exactly one of each of the 3 colors.
 		$this->assertSame(
 			array( 1, 1, 1 ),
 			array_values( $this->displays_by_variation( $composition ) )
@@ -234,10 +234,10 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$this->assertSame( 3, $composition['target'], '"target" reports the real count reached, not the ignored fixed target.' );
 	}
 
-	public function test_one_of_each_mode_picks_up_a_newly_added_colour_with_no_config_change(): void {
+	public function test_one_of_each_mode_picks_up_a_newly_added_color_with_no_config_change(): void {
 		update_post_meta( $this->kit_id, StarterKit::META_ONE_OF_EACH, 'yes' );
 
-		// A colour added to the source product after the kit was set up —
+		// A color added to the source product after the kit was set up —
 		// the whole point of this mode is that nothing on the kit itself
 		// needs editing when this happens.
 		$blue = new WC_Product_Variation();

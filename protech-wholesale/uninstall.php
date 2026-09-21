@@ -177,6 +177,7 @@ $protech_user_meta_keys = array(
 	'_protech_wholesale_email_marketing',        // SmsConsent::META_EMAIL_MARKETING.
 	'_protech_wholesale_consent_log',            // SmsConsent::META_CONSENT_LOG.
 	'_protech_wholesale_unsub_token',            // Unsubscribe::META_TOKEN.
+	'_protech_wholesale_welcome_sent_at',        // WelcomeEmail::META_SENT_AT.
 );
 
 foreach ( $protech_user_meta_keys as $protech_user_meta_key ) {

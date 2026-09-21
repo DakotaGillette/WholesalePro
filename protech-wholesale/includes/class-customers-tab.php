@@ -48,6 +48,7 @@ class CustomersTab {
 
 		self::maybe_save_customer_changes();
 		self::maybe_show_quickadd_notice();
+		WelcomeEmail::render_notice();
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only paging and search.
 		$paged  = max( 1, absint( $_GET['paged'] ?? 1 ) );
@@ -78,6 +79,7 @@ class CustomersTab {
 		echo '<p>' . esc_html__( 'Every approved wholesale customer. Change a tier, tax status, or lifetime affiliate here and save; price overrides and the wholesale flag itself are on each customer\'s profile.', 'protech-wholesale' ) . '</p>';
 
 		self::render_quickadd_sections();
+		WelcomeEmail::render_preview_box();
 
 		echo '<form method="get" class="search-form" style="margin:0 0 1em;">';
 		echo '<input type="hidden" name="page" value="protech-wholesale" /><input type="hidden" name="tab" value="customers" />';
@@ -109,6 +111,7 @@ class CustomersTab {
 				__( 'Lifetime spend', 'protech-wholesale' ),
 				__( 'SMS', 'protech-wholesale' ),
 				__( 'Tax status', 'protech-wholesale' ),
+				__( 'Welcome email', 'protech-wholesale' ),
 			) as $heading
 		) {
 			echo '<th>' . esc_html( $heading ) . '</th>';
@@ -167,6 +170,8 @@ class CustomersTab {
 			}
 			echo '</select></td>';
 
+			echo wp_kses_post( WelcomeEmail::row_cell( $user ) );
+
 			if ( $affiliates_available ) {
 				$assigned_affiliate_id = AffiliateAssignment::get_assigned_affiliate_id( (int) $user->ID );
 
@@ -190,6 +195,12 @@ class CustomersTab {
 			'<button type="submit" class="button" formaction="%s" formmethod="post" name="action" value="protech_message_customers">%s</button>',
 			esc_url( admin_url( 'admin-post.php' ) ),
 			esc_html__( 'Send message to selected', 'protech-wholesale' )
+		);
+
+		printf(
+			' <button type="submit" class="button" formaction="%s" formmethod="post" name="action" value="protech_send_welcome">%s</button>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			esc_html__( 'Send welcome email', 'protech-wholesale' )
 		);
 
 		echo '</form>';
@@ -227,7 +238,7 @@ class CustomersTab {
 		wp_nonce_field( 'protech_wholesale_add_existing', 'protech_wholesale_add_existing_nonce' );
 		echo '<p>' . esc_html__( 'Already a customer, just never had a wholesale flag? Search for their account and add it directly.', 'protech-wholesale' ) . '</p>';
 		echo '<select class="wc-customer-search" multiple="multiple" style="width:100%;max-width:460px;" name="protech_existing_customer_ids[]" data-placeholder="' . esc_attr__( 'Search by name or email…', 'protech-wholesale' ) . '" data-action="woocommerce_json_search_customers"></select>';
-		echo '<p><label><input type="checkbox" name="protech_email_existing" value="1" /> ' . esc_html__( "Email them to let them know their wholesale pricing is ready", 'protech-wholesale' ) . '</label></p>';
+		echo '<p><label><input type="checkbox" name="protech_email_existing" value="1" checked="checked" /> ' . esc_html__( 'Send them the welcome email (how to log in, how ordering works)', 'protech-wholesale' ) . '</label></p>';
 		printf(
 			'<button type="submit" class="button" formaction="%s" formmethod="post" name="action" value="protech_add_existing_wholesale_customers">%s</button>',
 			esc_url( admin_url( 'admin-post.php' ) ),
@@ -298,7 +309,14 @@ class CustomersTab {
 				continue;
 			}
 
-			Approval::approve_user( $id, $send_email );
+			// The "approved" email tells an applicant to set a password; these
+			// accounts already have one, so they get the welcome email instead.
+			Approval::approve_user( $id, false );
+
+			if ( $send_email ) {
+				WelcomeEmail::send( $id );
+			}
+
 			++$added;
 		}
 

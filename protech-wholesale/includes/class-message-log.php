@@ -46,6 +46,7 @@ class MessageLog {
 	public const KIND_AUTO   = 'auto';
 	public const KIND_MANUAL = 'manual';
 	public const KIND_TEST   = 'test';
+	public const KIND_WELCOME = 'welcome';
 
 	public const CATEGORY_MARKETING     = 'marketing';
 	public const CATEGORY_TRANSACTIONAL = 'transactional';

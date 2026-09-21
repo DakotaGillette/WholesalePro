@@ -1,7 +1,7 @@
 <?php
 /**
  * The product-page price table: one row per quantity tier with this
- * customer's actual price, a range for a variable product whose colours
+ * customer's actual price, a range for a variable product whose colors
  * are priced differently, and nothing for an unpriced product.
  *
  * @package ProtechWholesale
@@ -43,7 +43,7 @@ class Test_Tier_Ladder extends WP_UnitTestCase {
 		$this->assertSame( 'Free shipping', $rows[1]['note'] );
 	}
 
-	public function test_variable_product_shows_a_range_when_colours_differ(): void {
+	public function test_variable_product_shows_a_range_when_colors_differ(): void {
 		$customer_id = Protech_Test_Factory::wholesale_customer();
 		$built       = Protech_Test_Factory::variable_product( array( 'blue', 'red', 'green' ), array( 'blue' => '5.50', 'red' => '6.00' ) );
 
@@ -52,7 +52,7 @@ class Test_Tier_Ladder extends WP_UnitTestCase {
 		$this->assertCount( 3, $rows );
 		$this->assertSame( 5.5, $rows[0]['min'] );
 		$this->assertSame( 6.0, $rows[0]['max'] );
-		// Volume/Bulk come from the store defaults, identical for every colour.
+		// Volume/Bulk come from the store defaults, identical for every color.
 		$this->assertSame( 5.0, $rows[1]['min'] );
 		$this->assertSame( 5.0, $rows[1]['max'] );
 	}

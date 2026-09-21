@@ -185,7 +185,7 @@ class Approval {
 				'id'      => 'protech-wholesale-products',
 				'title'   => __( 'Pricing a product', 'protech-wholesale' ),
 				'content' =>
-					'<p>' . esc_html__( 'Open the product and choose its Wholesale tab. A simple product has its wholesale price there. A variable product is priced per colour: enter a price in "Apply to all variations" and Update, or expand a variation on the Variations tab to price one colour differently.', 'protech-wholesale' ) . '</p>' .
+					'<p>' . esc_html__( 'Open the product and choose its Wholesale tab. A simple product has its wholesale price there. A variable product is priced per color: enter a price in "Apply to all variations" and Update, or expand a variation on the Variations tab to price one color differently.', 'protech-wholesale' ) . '</p>' .
 					'<p>' . esc_html__( 'Products with no wholesale price are not sold at wholesale: they are hidden from wholesale customers (or shown at retail, per Settings), and the display and case rules do not apply to them. That is how a one-off like a starter pack is sold to anyone at a plain price.', 'protech-wholesale' ) . '</p>',
 			)
 		);

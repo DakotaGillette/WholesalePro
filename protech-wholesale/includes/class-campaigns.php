@@ -198,13 +198,16 @@ class Campaigns {
 	}
 
 	/**
-	 * Sends immediately, bypassing consent gating (the recipient is the
-	 * admin who clicked "Send test to me"), so there is instant feedback
-	 * on whether the content and connection actually work. Still gets
-	 * the same footer/STOP text a real customer would see.
+	 * Sends a preview immediately, bypassing consent gating, so there is
+	 * instant feedback on whether the content and connection work. It goes
+	 * to `preview_email` / `preview_phone` when the admin typed one (any
+	 * address, not just their own), else to the admin's own account. Merge
+	 * tags always fill in from the admin's account, since that is who the
+	 * preview is "about". Still gets the same footer/STOP text a real
+	 * customer would see.
 	 *
-	 * @param array<string, mixed> $input Same shape as create()'s input.
-	 * @return array{ok: bool, error: string, provider: string}
+	 * @param array<string, mixed> $input Same shape as create()'s input, plus optional preview_email / preview_phone.
+	 * @return array{ok: bool, error: string, provider: string, recipient: string}
 	 */
 	public static function send_test( array $input, int $to_user_id ): array {
 		$channel  = in_array( $input['channel'] ?? '', array( 'email', 'sms' ), true ) ? $input['channel'] : 'email';
@@ -227,12 +230,14 @@ class Campaigns {
 		}
 
 		if ( 'sms' === $channel ) {
-			$phone  = SmsConsent::normalize_phone( (string) ( $input['test_phone'] ?? '' ) ) ?: SmsConsent::phone_for( $to_user_id );
+			$typed  = (string) ( $input['preview_phone'] ?? '' );
+			$phone  = SmsConsent::normalize_phone( $typed ) ?: SmsConsent::phone_for( $to_user_id );
 			$body   = MergeTags::render( (string) ( $input['sms']['body'] ?? '' ), $context, 'text' );
 			$result = MessageTransport::send_sms( $to_user_id, $phone, $body, $category );
 		} else {
 			$user    = get_userdata( $to_user_id );
-			$to      = $user ? $user->user_email : '';
+			$typed   = sanitize_email( (string) ( $input['preview_email'] ?? '' ) );
+			$to      = is_email( $typed ) ? $typed : ( $user ? $user->user_email : '' );
 			$subject = MergeTags::render( (string) ( $input['email']['subject'] ?? '' ), $context, 'subject' );
 			$heading = MergeTags::render( (string) ( $input['email']['heading'] ?? '' ), $context, 'subject' );
 			$body    = MergeTags::render( (string) ( $input['email']['body'] ?? '' ), $context, 'html' );
@@ -255,9 +260,10 @@ class Campaigns {
 		}
 
 		return array(
-			'ok'       => 'sent' === $result['status'],
-			'error'    => $result['error'],
-			'provider' => $result['provider'],
+			'ok'        => 'sent' === $result['status'],
+			'error'     => $result['error'],
+			'provider'  => $result['provider'],
+			'recipient' => $result['recipient'],
 		);
 	}
 }

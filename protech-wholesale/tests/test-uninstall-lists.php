@@ -83,6 +83,7 @@ class Test_Uninstall_Lists extends WP_UnitTestCase {
 				SmsConsent::META_EMAIL_MARKETING,
 				SmsConsent::META_CONSENT_LOG,
 				Unsubscribe::META_TOKEN,
+				\ProtechWholesale\WelcomeEmail::META_SENT_AT,
 			) as $meta_key
 		) {
 			$this->assert_literal_present( $meta_key, 'a feature class user-meta constant' );

@@ -17,7 +17,7 @@
 
 	/**
 	 * Product edit screen, Wholesale tab: hides the "Displays in a kit" /
-	 * "Make up the difference with" fields while "One of every colour" is
+	 * "Make up the difference with" fields while "One of every color" is
 	 * checked, since StarterKit ignores them in that mode. Pure
 	 * progressive enhancement — without JS the fields just stay visible,
 	 * with their own description explaining they're ignored.
