@@ -583,8 +583,8 @@ body .protech-wholesale-portal .protech-button--block {
 	height: 18px;
 	margin-top: 1px;
 	border-radius: 50%;
-	background: var( --protech-warning-bg );
-	color: var( --protech-warning );
+	background: #f8d7d7;
+	color: var( --protech-danger );
 	font-size: 12px;
 	font-weight: 700;
 	line-height: 18px;

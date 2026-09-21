@@ -399,7 +399,7 @@ Log in as the wholesale customer (djg10212) for everything below.
 **Add one display of every color**
 - [ ] On the Premium Matte Sleeves page, directly under the Wholesale pricing table (above the color picker): "Want every color?" with a swatch per color, the line "One display of each of the N colors: N displays, N0 packs", a price, and the outlined button.
 - [ ] Press it with an empty cart: a green "Added N displays to your cart, one of every color." line, the cart badge, the sticky bar and the mini-cart update, and the cart holds one line per color at one display each.
-- [ ] Mark one color out of stock and reload: an amber box says "Out of stock: <color>. It will not be added. The other N colors are added.", its swatch is crossed out, the line says "colors in stock", the button reads "Add one display of each color in stock", and the count drops by one. Add a color (with a wholesale price) and reload: the count goes up with nothing else changed.
+- [ ] Mark one color out of stock and reload: a line with a small red "!" says "Out of stock: <color>", its swatch is crossed out, the line says "colors in stock", the button reads "Add one display of each color in stock", and the count drops by one. Add a color (with a wholesale price) and reload: the count goes up with nothing else changed.
 - [ ] Not shown to a guest or a retail customer, and not on a product with only one color.
 
 **Previews**

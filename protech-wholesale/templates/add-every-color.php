@@ -56,17 +56,6 @@ $protech_out_names = array_column( $protech_out, 'name' );
 					);
 					?>
 				</strong>
-				<?php
-				echo esc_html( _n( 'It will not be added.', 'They will not be added.', count( $protech_out_names ), 'protech-wholesale' ) );
-				echo ' ';
-				echo esc_html(
-					sprintf(
-						/* translators: %d: number of colors that will be added. */
-						_n( 'The other %d color is added.', 'The other %d colors are added.', $protech_colors, 'protech-wholesale' ),
-						$protech_colors
-					)
-				);
-				?>
 			</p>
 		</div>
 	<?php endif; ?>

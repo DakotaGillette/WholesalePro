@@ -1589,3 +1589,9 @@ Reading the current priority rather than assuming 20 means a theme that
 already moved it cannot end up with it printed twice. Nothing changes for
 guests or retail customers, so the standard product page and its SEO
 structure are untouched.
+
+**Out-of-stock line, second pass (1.6.3):** the owner found the yellow icon
+hard to see on the block's light blue and the sentence after the color name
+redundant, since the line below already says "each of the 13 colors in stock"
+and the button says "each color in stock". The icon is now a soft red circle
+with a red mark (the danger color) and the line is just "Out of stock: <name>".

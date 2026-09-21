@@ -364,8 +364,6 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'protech-everycolor-alert', $html );
 		$this->assertStringContainsString( 'Out of stock: ', $html );
-		$this->assertStringContainsString( 'It will not be added.', $html );
-		$this->assertStringContainsString( 'The other 2 colors are added.', $html );
 		$this->assertStringContainsString( 'each of the 2 colors in stock', $html );
 		$this->assertStringContainsString( 'Add one display of each color in stock', $html );
 		$this->assertStringContainsString( 'class="is-out"', $html, 'The unavailable color keeps a crossed-out swatch.' );

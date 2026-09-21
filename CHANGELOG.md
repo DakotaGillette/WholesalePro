@@ -3,6 +3,14 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.6.3 - 2026-09-21
+
+### Changed
+- The out-of-stock line in "Want every color?" has a soft red "!" instead of
+  yellow, which was hard to see on the light blue, and no longer repeats
+  "It will not be added. The other N colors are added." (the count line and the
+  button already say it).
+
 ## 1.6.2 - 2026-09-21
 
 ### Changed
