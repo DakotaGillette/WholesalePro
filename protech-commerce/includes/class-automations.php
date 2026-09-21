@@ -371,6 +371,101 @@ class Automations {
 	}
 
 	/**
+	 * A copy of a rule to start from, saved switched off under "Copy of ...".
+	 * Returns the new id, or '' when the rule does not exist.
+	 */
+	public static function duplicate( string $id ): string {
+		$rule = self::get( $id );
+
+		if ( null === $rule ) {
+			return '';
+		}
+
+		$rule['id']      = '';
+		$rule['enabled'] = false;
+		/* translators: %s: name of the rule being copied. */
+		$rule['name'] = sprintf( __( 'Copy of %s', 'protech-wholesale' ), (string) $rule['name'] );
+
+		unset( $rule['last_run_at'] );
+
+		return self::save( $rule );
+	}
+
+	/**
+	 * One plain sentence saying when a rule fires, for the Emails list.
+	 *
+	 * @param array<string, mixed> $rule
+	 */
+	public static function describe( array $rule ): string {
+		$params = (array) ( $rule['params'] ?? array() );
+
+		switch ( (string) ( $rule['trigger'] ?? '' ) ) {
+			case self::TRIGGER_REORDER_REMINDER:
+				/* translators: %d: number of days. */
+				return sprintf( _n( '%d day after their last order, if they have not ordered since', '%d days after their last order, if they have not ordered since', (int) ( $params['days'] ?? 30 ), 'protech-wholesale' ), (int) ( $params['days'] ?? 30 ) );
+
+			case self::TRIGGER_WINBACK:
+				/* translators: 1: number of days, 2: number of times. */
+				return sprintf( __( 'After %1$d days with no order, up to %2$d times', 'protech-wholesale' ), (int) ( $params['days'] ?? 45 ), (int) ( $params['max_repeats'] ?? 3 ) );
+
+			case self::TRIGGER_FIRST_ORDER:
+				/* translators: %d: number of days. */
+				return sprintf( _n( '%d day after a wholesale account is approved, if they have not ordered', '%d days after a wholesale account is approved, if they have not ordered', (int) ( $params['days'] ?? 7 ), 'protech-wholesale' ), (int) ( $params['days'] ?? 7 ) );
+
+			case self::TRIGGER_ORDER_STATUS:
+				$statuses = wc_get_order_statuses();
+				$status   = (string) ( $params['status'] ?? 'completed' );
+				$name     = (string) ( $statuses[ 'wc-' . $status ] ?? $status );
+				$delay    = (int) ( $params['delay_minutes'] ?? 0 );
+
+				if ( $delay > 0 ) {
+					/* translators: 1: order status name, 2: number of minutes. */
+					return sprintf( __( 'When an order becomes "%1$s" (%2$d minutes later)', 'protech-wholesale' ), $name, $delay );
+				}
+
+				/* translators: %s: order status name. */
+				return sprintf( __( 'When an order becomes "%s"', 'protech-wholesale' ), $name );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Creates the four standard automations (reorder reminder, win-back,
+	 * first-order nudge, order shipped) from the presets, every one switched
+	 * off, and only into an empty list, so a store that already has rules is
+	 * never touched. The reminder and win-back point at their starter email
+	 * templates when those exist. Returns how many were created.
+	 */
+	public static function seed_standard(): int {
+		if ( ! empty( self::all() ) ) {
+			return 0;
+		}
+
+		$starter_for = array(
+			self::TRIGGER_REORDER_REMINDER => 'restock_reminder',
+			self::TRIGGER_WINBACK          => 'winback',
+		);
+		$created     = 0;
+
+		foreach ( self::presets() as $trigger => $rule ) {
+			$rule['enabled'] = false;
+
+			foreach ( EmailTemplates::all() as $template ) {
+				if ( isset( $starter_for[ $trigger ] ) && $starter_for[ $trigger ] === (string) ( $template['seeded'] ?? '' ) ) {
+					$rule['email']['template_id'] = (string) $template['id'];
+					break;
+				}
+			}
+
+			self::save( $rule );
+			++$created;
+		}
+
+		return $created;
+	}
+
+	/**
 	 * A snapshot of everything the evaluation math needs about one
 	 * customer: their tier, most recent paid order (if any), lifetime
 	 * order count, and approval date.

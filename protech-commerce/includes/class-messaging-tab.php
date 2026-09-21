@@ -148,7 +148,7 @@ class MessagingTab {
 	 */
 	private static function get_views(): array {
 		return array(
-			'automations' => __( 'Automations', 'protech-wholesale' ),
+			'automations' => __( 'Emails', 'protech-wholesale' ),
 			'compose'     => __( 'Compose', 'protech-wholesale' ),
 			'templates'   => __( 'Email templates', 'protech-wholesale' ),
 			'log'         => __( 'Log', 'protech-wholesale' ),
@@ -163,6 +163,15 @@ class MessagingTab {
 
 	private static function stash( string $name, array $data ): void {
 		set_transient( self::stash_key( $name ), $data, self::STASH_TTL );
+	}
+
+	/**
+	 * Fills the next Compose page with an earlier message ("Duplicate and edit").
+	 *
+	 * @param array<string, mixed> $input Compose form shape.
+	 */
+	public static function prefill_compose( array $input ): void {
+		self::stash( 'compose_form', array( 'input' => $input, 'errors' => array() ) );
 	}
 
 	/**
@@ -254,8 +263,13 @@ class MessagingTab {
 			echo '<div class="updated notice"><p>' . esc_html__( 'Automations are running in the background — check the Log in a moment.', 'protech-wholesale' ) . '</p></div>';
 		}
 
+		EmailsScreen::render_lifecycle();
+
 		$rules  = Automations::all();
 		$labels = self::trigger_labels();
+
+		echo '<h2>' . esc_html__( 'Automatic', 'protech-wholesale' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Rules that send on their own when something happens. Each one is switched off until you turn it on.', 'protech-wholesale' ) . '</p>';
 
 		if ( empty( $rules ) ) {
 			echo '<p>' . esc_html__( 'No automation rules yet.', 'protech-wholesale' ) . '</p>';
@@ -279,13 +293,13 @@ class MessagingTab {
 			foreach ( $rules as $rule ) {
 				$counts = MessageLog::counts_for( (string) $rule['id'] );
 				echo '<tr>';
-				echo '<td><a href="' . esc_url( self::url( 'automations', array( 'edit' => $rule['id'] ) ) ) . '"><strong>' . esc_html( $rule['name'] ) . '</strong></a></td>';
+				echo '<td><a href="' . esc_url( self::url( 'automations', array( 'edit' => $rule['id'] ) ) ) . '"><strong>' . esc_html( $rule['name'] ) . '</strong></a><br /><span class="description">' . esc_html( Automations::describe( $rule ) ) . '</span></td>';
 				echo '<td>' . esc_html( $labels[ $rule['trigger'] ] ?? $rule['trigger'] ) . '</td>';
 				echo '<td>' . esc_html( ucfirst( (string) $rule['channel'] ) ) . '</td>';
 				echo '<td>' . esc_html( sprintf( '%d / %d / %d', $counts[ MessageLog::STATUS_SENT ], $counts[ MessageLog::STATUS_FAILED ], $counts[ MessageLog::STATUS_SKIPPED ] ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $rule['last_run_at'] ) ? human_time_diff( (int) $rule['last_run_at'] ) . ' ' . __( 'ago', 'protech-wholesale' ) : '—' ) . '</td>';
 				echo '<td>' . wp_kses_post( self::toggle_link( $rule ) ) . '</td>';
-				echo '<td>' . wp_kses_post( self::delete_link( $rule ) ) . '</td>';
+				echo '<td>' . wp_kses_post( EmailsScreen::duplicate_rule_link( (string) $rule['id'] ) ) . ' | ' . wp_kses_post( self::delete_link( $rule ) ) . '</td>';
 				echo '</tr>';
 			}
 
@@ -297,6 +311,8 @@ class MessagingTab {
 			printf( '<a class="button" href="%s">%s</a> ', esc_url( self::url( 'automations', array( 'new' => $trigger ) ) ), esc_html( $label ) );
 		}
 		echo '</p>';
+
+		EmailsScreen::render_sent();
 
 		self::render_runner_status();
 	}

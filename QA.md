@@ -384,6 +384,15 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 32. The Emails screen (2.7.0)
+
+- [ ] Messaging opens on **Emails** (the first item, formerly Automations). Three groups: "When someone joins", "Automatic", "Sent".
+- [ ] "When someone joins" lists Welcome, Application received, approved and rejected. Each says "Built-in wording" with a **Design this email** button. Press it: the editor opens on the ready-made template, already set as "Sent automatically as" that email. Back on Emails it now reads "Designed: <name>" with Edit design and Use built-in wording. Use built-in wording: back to the built-in.
+- [ ] "Automatic" shows four rules (reorder reminder, win-back, first-order nudge, order shipped), each **Off**, each with a sentence under its name. Turn one on, then off again. Open one: the reminder and win-back show a Design; the others have their own written body.
+- [ ] Duplicate a rule: you land in its editor as "Copy of ...", switched off. The original is unchanged.
+- [ ] Compose and send something to yourself. "Sent" lists it with the audience and counts. **Duplicate and edit** opens Compose with the same audience, channel, design and wording, nothing sent.
+- [ ] A store that already had rules before this update did not get four extra ones.
+
 ## 31. Designed lifecycle emails (2.6.0)
 
 - [ ] Email templates now includes "Application approved" and "Application rejected" among the ready-made ones (added once; delete one and it does not come back on the next update).

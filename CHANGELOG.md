@@ -3,6 +3,25 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.7.0 - 2026-09-21
+
+### Added
+- **The Emails screen.** The first page of Messaging (formerly "Automations") is
+  now one list of every email the shop can send, in three groups:
+  - **When someone joins**: the welcome email and the three application emails.
+    Each shows whether it is the built-in wording or a designed template, with
+    "Design this email" (starts from the ready-made template and opens the
+    editor), "Edit design" and "Use built-in wording".
+  - **Automatic**: your rules, each with a plain sentence saying when it fires
+    ("30 days after their last order, if they have not ordered since"), its
+    on/off switch, and a new **Duplicate**.
+  - **Sent**: past messages from Compose, with who they went to and how they did,
+    and **Duplicate and edit** to open Compose filled in to send one again.
+- **The four standard automations are created for you, switched off:** reorder
+  reminder, win-back, first-order nudge and order shipped, with the wording
+  written. The reminder and win-back use their designed templates. Nothing sends
+  until you turn a rule on. Only added to a store that has no rules yet.
+
 ## 2.6.0 - 2026-09-21
 
 ### Added

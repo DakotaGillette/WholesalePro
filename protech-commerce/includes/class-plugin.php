@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '5';
+	public const DB_VERSION     = '6';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -57,6 +57,7 @@ final class Plugin {
 	private CustomersTab $customers_tab;
 	private WelcomeEmail $welcome_email;
 	private EmailComposer $email_composer;
+	private EmailsScreen $emails_screen;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -105,6 +106,7 @@ final class Plugin {
 		$this->customers_tab          = new CustomersTab();
 		$this->welcome_email          = new WelcomeEmail();
 		$this->email_composer         = new EmailComposer();
+		$this->emails_screen          = new EmailsScreen();
 
 		foreach (
 			array(
@@ -138,6 +140,7 @@ final class Plugin {
 				$this->customers_tab,
 				$this->welcome_email,
 				$this->email_composer,
+				$this->emails_screen,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -241,6 +244,7 @@ final class Plugin {
 	 *     reinstalled (see class-updater.php).
 	 *  4: seed the starter email templates (2.2.0), only into an empty library.
 	 *  5: add the approved and rejected application starters (2.6.0).
+	 *  6: create the four standard automations, switched off (2.7.0).
 	 */
 	public function maybe_upgrade(): void {
 		$current = get_option( self::OPT_DB_VERSION, '0' );
@@ -278,6 +282,12 @@ final class Plugin {
 			// seeding is additive by key, so this only adds what an existing library is missing.
 			$added = EmailTemplates::seed_starters( array( 'application_approved', 'application_rejected' ) );
 			Logger::info( sprintf( 'Upgraded plugin data to version 5 (%d starter email template(s) added).', $added ) );
+		}
+
+		if ( version_compare( $current, '6', '<' ) ) {
+			// The four standard automations, ready to read and switch on: only into a store with no rules of its own.
+			$standard = Automations::seed_standard();
+			Logger::info( sprintf( 'Upgraded plugin data to version 6 (%d standard automation(s) created, all switched off).', $standard ) );
 		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );

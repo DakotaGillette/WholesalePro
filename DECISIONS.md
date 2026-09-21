@@ -1680,6 +1680,28 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## The Emails screen (2026-09-21, 2.7.0)
+
+1. **The landing page changed, the address did not.** The Automations view keeps the
+   top-level Messaging slug and is now labelled Emails, so every bookmark, redirect and
+   link (`?page=protech-messaging&edit=...`) still works. Editing a rule is unchanged.
+2. **One screen, three lists, no new storage.** Lifecycle rows read the template library,
+   automatic rows read the rules, sent rows read the campaign index. `EmailsScreen` only
+   draws and links; rule editing stays in `MessagingTab`.
+3. **"Design this email" starts from a starter, never blank.** It reuses the seeded
+   template for that email if it is still in the library (so one exists rather than
+   duplicates), makes one from the starter if not, binds it and opens the editor.
+4. **Duplicating anything is a copy that cannot send by itself.** A duplicated rule is
+   switched off and forgets its last run; a duplicated message opens Compose filled in
+   and sends nothing until it goes through the review screen again.
+5. **The standard automations are seeded on a DB version 6 step, disabled, into an empty
+   list only.** A release must never start sending on its own, and a store that already
+   built rules is not handed four more. The order-based two keep typed wording because
+   templates deliberately have no order details.
+6. **"Sent" for the welcome email counts customers with a sent stamp**, not log rows,
+   because the log also holds previews. The application emails are not logged, so they
+   show a dash rather than a made-up number.
+
 ## Lifecycle emails from templates (2026-09-21, 2.6.0)
 
 1. **Binding is on the template, and reversible.** A template says which lifecycle
