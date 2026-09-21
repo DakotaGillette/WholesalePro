@@ -49,6 +49,51 @@ class Emails {
 		$mailer->send( $to, $subject, $message, array_merge( array( 'Content-Type: text/html; charset=UTF-8' ), $headers ) );
 	}
 
+	/**
+	 * Sends a lifecycle email from the template bound to $slot, if there is one.
+	 * Returns false when nothing is bound, so the caller sends the built-in email.
+	 * Once a template is bound it is the email: a failed send is logged, not
+	 * retried as the built-in one, which would risk sending two.
+	 *
+	 * @param array<string, string> $extra Tag values only this email has ({set_password_url}, {application_reject_reason}).
+	 */
+	private static function send_from_slot( string $slot, \WP_User $user, array $extra = array() ): bool {
+		$template = EmailTemplates::for_slot( $slot );
+
+		if ( null === $template ) {
+			return false;
+		}
+
+		$context = array_merge( EmailRenderer::context( $user->ID, false ), $extra );
+		$result  = MessageTransport::send_template_email( $user->ID, $user->user_email, EmailRenderer::subject( $template, $context ), $template, $context, MessageLog::CATEGORY_TRANSACTIONAL, array( $slot ) );
+
+		if ( 'sent' !== $result['status'] ) {
+			Logger::warning( sprintf( 'Lifecycle email "%s" to user #%d was not sent: %s', $slot, $user->ID, $result['error'] ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * The link the approval email sends: the store's own password-reset page with a fresh
+	 * key, or, if a key cannot be made, My Account, so the button never goes nowhere.
+	 */
+	private static function set_password_url( \WP_User $user ): string {
+		$reset_key = get_password_reset_key( $user );
+
+		if ( is_wp_error( $reset_key ) ) {
+			return (string) wc_get_page_permalink( 'myaccount' );
+		}
+
+		return add_query_arg(
+			array(
+				'key' => $reset_key,
+				'id'  => $user->ID,
+			),
+			wc_get_endpoint_url( 'lost-password', '', wc_get_page_permalink( 'myaccount' ) )
+		);
+	}
+
 	private static function paragraph( string $text ): string {
 		return '<p>' . esc_html( $text ) . '</p>';
 	}
@@ -124,6 +169,10 @@ class Emails {
 			return;
 		}
 
+		if ( self::send_from_slot( EmailTemplates::SLOT_APPLICATION_RECEIVED, $user ) ) {
+			return;
+		}
+
 		$body  = self::paragraph( __( 'Thanks for applying for a Protech Sleeves wholesale account.', 'protech-wholesale' ) );
 		$body .= self::paragraph( __( 'Our team typically reviews applications within 1–3 business days. We\'ll email you as soon as a decision is made.', 'protech-wholesale' ) );
 
@@ -141,6 +190,10 @@ class Emails {
 		$user = get_userdata( $user_id );
 
 		if ( ! $user ) {
+			return;
+		}
+
+		if ( self::send_from_slot( EmailTemplates::SLOT_APPLICATION_APPROVED, $user, array( 'set_password_url' => self::set_password_url( $user ) ) ) ) {
 			return;
 		}
 
@@ -183,6 +236,17 @@ class Emails {
 		$user = get_userdata( $user_id );
 
 		if ( ! $user ) {
+			return;
+		}
+
+		$reason_line = '';
+
+		if ( '' !== $reason ) {
+			/* translators: %s: rejection reason. */
+			$reason_line = sprintf( __( 'Reason: %s', 'protech-wholesale' ), $reason );
+		}
+
+		if ( self::send_from_slot( EmailTemplates::SLOT_APPLICATION_REJECTED, $user, array( 'application_reject_reason' => $reason_line ) ) ) {
 			return;
 		}
 

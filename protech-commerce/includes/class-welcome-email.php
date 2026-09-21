@@ -151,7 +151,15 @@ class WelcomeEmail {
 			MessageLog::claim( $log_id );
 		}
 
-		$result = MessageTransport::send_email( $user_id, $to, self::subject(), self::heading(), self::body_html( $user_id ), MessageLog::CATEGORY_TRANSACTIONAL, array( 'welcome' ) );
+		// A template bound to the welcome email replaces the built-in one.
+		$template = EmailTemplates::for_slot( EmailTemplates::SLOT_WELCOME );
+
+		if ( null !== $template ) {
+			$context = EmailRenderer::context( $user_id, $preview );
+			$result  = MessageTransport::send_template_email( $user_id, $to, EmailRenderer::subject( $template, $context ), $template, $context, MessageLog::CATEGORY_TRANSACTIONAL, array( 'welcome' ) );
+		} else {
+			$result = MessageTransport::send_email( $user_id, $to, self::subject(), self::heading(), self::body_html( $user_id ), MessageLog::CATEGORY_TRANSACTIONAL, array( 'welcome' ) );
+		}
 
 		if ( $log_id ) {
 			MessageLog::finish(

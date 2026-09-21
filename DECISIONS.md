@@ -1680,6 +1680,33 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Lifecycle emails from templates (2026-09-21, 2.6.0)
+
+1. **Binding is on the template, and reversible.** A template says which lifecycle
+   email it is ("Sent automatically as"); the send paths ask `EmailTemplates::for_slot()`
+   and fall back to the built-in email when nothing is bound. Unbinding restores the old
+   email exactly; nothing is migrated. `validate()` reads `slot` only when the form sends
+   it, so a form without the field cannot unbind a template by accident.
+2. **A bound template is the email.** If sending it fails, the failure is logged and the
+   built-in email is not sent as a fallback, which could send the customer two.
+3. **Lifecycle email is a service email.** Binding forces the template's type to service
+   and the send uses the transactional category: no unsubscribe link, and it reaches
+   someone who unsubscribed from marketing, as the built-in ones always did.
+4. **The one-time set-password link is not part of every context.** Generating a reset
+   key invalidates the previous one, so `context_for_customer()` only carries the plain
+   password-reset page under `{set_password_url}`; the approval send replaces it with a
+   fresh key link, and falls back to My Account when a key cannot be made. That keeps the
+   tag safe in previews, campaigns and any other template.
+5. **`{application_reject_reason}` is the whole "Reason: ..." sentence**, empty when no
+   reason was given. A blank paragraph is skipped by the text block, so an absent reason
+   leaves no gap and no dangling "Reason:".
+6. **Sent through the same sender as everything else** (Brevo when connected, else the
+   store's mailer), which is what the welcome email already used. The built-in application
+   emails always used the store's mailer; a bound template follows the messaging setting.
+7. **Existing libraries get the two new starters once,** on a DB version 5 step that
+   names them, so a starter the owner deleted earlier is not brought back and a new one is
+   not duplicated.
+
 ## Counting versus delivering (2026-09-21, 2.5.1)
 
 Found the first time the review ran against staging's 421 retail customers:

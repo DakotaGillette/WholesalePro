@@ -66,6 +66,11 @@ class EmailRenderer {
 		$context['_wholesale'] = $user_id > 0 && Roles::is_wholesale_customer( $user_id );
 		$context['_preview']   = $preview;
 
+		// A rejection reason exists only when an application is being rejected; a preview shows where it would go.
+		if ( $preview && '' === ( $context['application_reject_reason'] ?? '' ) ) {
+			$context['application_reject_reason'] = __( 'Reason: the reason you type when you reject an application appears here.', 'protech-wholesale' );
+		}
+
 		return $context;
 	}
 

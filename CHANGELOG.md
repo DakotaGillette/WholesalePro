@@ -3,6 +3,29 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.6.0 - 2026-09-21
+
+### Added
+- **Designed versions of the emails the shop sends on its own.** In the template
+  editor, "Sent automatically as" lets one template stand in for the welcome
+  email, "Application received", "Application approved" or "Application
+  rejected". Only one template can have each, and picking "Nothing" goes back to
+  the built-in wording. With none picked, nothing changes: every one of these
+  emails is exactly what it was.
+- Two ready-made templates to start from, "Application approved" and
+  "Application rejected", added to your library on update (deleted ones do not
+  come back). Neither is switched on.
+- Two merge tags for those emails: `{set_password_url}` (the approval email's
+  one-time link to set a password; if a link cannot be made it becomes your My
+  Account page, so the button always goes somewhere) and
+  `{application_reject_reason}` ("Reason: ..." when you typed one, empty
+  otherwise). Anywhere else they are harmless: the first is the ordinary
+  password-reset page and the second is empty.
+
+### Changed
+- A template bound to one of these emails is a service email: it carries no
+  unsubscribe link, and saving it sets its type to Service email.
+
 ## 2.5.1 - 2026-09-21
 
 ### Fixed

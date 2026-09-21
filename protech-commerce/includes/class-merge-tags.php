@@ -28,7 +28,7 @@ class MergeTags {
 		'last_order_number', 'last_order_date', 'last_order_total', 'last_order_url',
 		'days_since_last_order', 'order_count',
 		'shop_url', 'account_url', 'orders_url', 'preferences_url', 'unsubscribe_url',
-		'login_url', 'lost_password_url',
+		'login_url', 'lost_password_url', 'set_password_url', 'application_reject_reason',
 		'site_name', 'brand', 'store_address',
 	);
 
@@ -41,7 +41,7 @@ class MergeTags {
 	/** Tags whose value is a URL, so HTML rendering uses esc_url() rather than esc_html(). */
 	private const URL_TAGS = array(
 		'last_order_url', 'shop_url', 'account_url', 'orders_url', 'preferences_url',
-		'unsubscribe_url', 'order_url', 'tracking_url', 'login_url', 'lost_password_url',
+		'unsubscribe_url', 'order_url', 'tracking_url', 'login_url', 'lost_password_url', 'set_password_url',
 	);
 
 	/**
@@ -66,6 +66,8 @@ class MergeTags {
 			'preferences_url'        => __( 'Notification preferences link', 'protech-wholesale' ),
 			'login_url'              => __( 'Wholesale login link', 'protech-wholesale' ),
 			'lost_password_url'      => __( 'Password reset link', 'protech-wholesale' ),
+			'set_password_url'       => __( 'Set-your-password link (approval email)', 'protech-wholesale' ),
+			'application_reject_reason' => __( 'Reason for rejection (application emails, blank if none)', 'protech-wholesale' ),
 			'unsubscribe_url'        => __( 'Unsubscribe link', 'protech-wholesale' ),
 			'site_name'              => __( 'Site name', 'protech-wholesale' ),
 			'brand'                  => __( 'Brand name', 'protech-wholesale' ),
@@ -122,6 +124,10 @@ class MergeTags {
 			'unsubscribe_url' => Unsubscribe::url( $user_id ),
 			'login_url'         => WelcomeEmail::login_url(),
 			'lost_password_url' => (string) wc_lostpassword_url(),
+			// The approval email replaces this with a one-time link when it sends. Everywhere else it is
+			// the ordinary password-reset page, so it never renders empty and never creates a reset key.
+			'set_password_url'          => (string) wc_lostpassword_url(),
+			'application_reject_reason' => '',
 			'site_name'       => (string) get_bloginfo( 'name' ),
 			'brand'           => MessagingSettings::brand(),
 			'store_address'   => self::store_address(),

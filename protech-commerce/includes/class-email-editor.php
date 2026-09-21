@@ -449,6 +449,17 @@ class EmailEditor {
 		);
 		echo '</div>';
 
+		echo '<div class="protech-panel"><h3>' . esc_html__( 'Sent automatically as', 'protech-wholesale' ) . '</h3>';
+		$slot_choices = '<option value="">' . esc_html__( 'Nothing (I will pick it in a rule or message)', 'protech-wholesale' ) . '</option>';
+
+		foreach ( EmailTemplates::slots() as $slot_key => $slot_label ) {
+			$slot_choices .= '<option value="' . esc_attr( (string) $slot_key ) . '"' . selected( (string) $template['slot'], (string) $slot_key, false ) . '>' . esc_html( (string) $slot_label ) . '</option>';
+		}
+
+		echo $field( __( 'Use this design for', 'protech-wholesale' ), '<select name="slot">' . $slot_choices . '</select>' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo '<p class="description">' . esc_html__( 'Pick one of the emails the shop sends on its own (a welcome, or a reply to an application) and this design is sent in place of the built-in wording. Only one template can have each. Pick "Nothing" to go back to the built-in email. These are service emails, so they carry no unsubscribe link.', 'protech-wholesale' ) . '</p>';
+		echo '</div>';
+
 		echo '<div class="protech-panel"><h3>' . esc_html__( 'Design', 'protech-wholesale' ) . '</h3>';
 		echo '<p class="description">' . esc_html__( 'Leave a color empty to use your Email design settings.', 'protech-wholesale' ) . '</p>';
 

@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '4';
+	public const DB_VERSION     = '5';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -239,6 +239,8 @@ final class Plugin {
 	 *     none of which activation would otherwise do, since this plugin
 	 *     updates itself from GitHub releases rather than being
 	 *     reinstalled (see class-updater.php).
+	 *  4: seed the starter email templates (2.2.0), only into an empty library.
+	 *  5: add the approved and rejected application starters (2.6.0).
 	 */
 	public function maybe_upgrade(): void {
 		$current = get_option( self::OPT_DB_VERSION, '0' );
@@ -269,6 +271,13 @@ final class Plugin {
 		if ( version_compare( $current, '4', '<' ) ) {
 			$seeded = EmailTemplates::seed_starters();
 			Logger::info( sprintf( 'Upgraded plugin data to version 4 (%d starter email template(s) created).', $seeded ) );
+		}
+
+		if ( version_compare( $current, '5', '<' ) ) {
+			// The approved and rejected application starters. A fresh library was just seeded with every starter, and
+			// seeding is additive by key, so this only adds what an existing library is missing.
+			$added = EmailTemplates::seed_starters( array( 'application_approved', 'application_rejected' ) );
+			Logger::info( sprintf( 'Upgraded plugin data to version 5 (%d starter email template(s) added).', $added ) );
 		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );

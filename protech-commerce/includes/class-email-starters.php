@@ -30,6 +30,8 @@ class EmailStarters {
 		return array(
 			'welcome'              => self::welcome(),
 			'application_received' => self::application_received(),
+			'application_approved' => self::application_approved(),
+			'application_rejected' => self::application_rejected(),
 			'restock_reminder'     => self::restock_reminder(),
 			'winback'              => self::winback(),
 			'announcement'         => self::announcement(),
@@ -84,6 +86,36 @@ class EmailStarters {
 			'blocks'    => array(
 				self::block( 'heading', array( 'text' => __( 'Application received', 'protech-wholesale' ), 'pt' => 16 ) ),
 				self::block( 'text', array( 'html' => __( "Thanks for applying for a Protech Sleeves wholesale account.\n\nOur team typically reviews applications within 1 to 3 business days. We will email you as soon as a decision is made.", 'protech-wholesale' ), 'pb' => 16 ) ),
+			),
+		);
+	}
+
+	/** @return array<string, mixed> */
+	private static function application_approved(): array {
+		return array(
+			'name'      => __( 'Application approved', 'protech-wholesale' ),
+			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
+			'subject'   => __( 'Your Protech Sleeves wholesale account is approved', 'protech-wholesale' ),
+			'preheader' => __( 'Set your password and log in.', 'protech-wholesale' ),
+			'blocks'    => array(
+				self::block( 'heading', array( 'text' => __( 'Your account is approved', 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'text', array( 'html' => __( "Good news, your wholesale application has been approved.\n\nUse the button below to set your password and log in. The link is valid for 24 hours. If it has expired, choose Lost your password on the login page with this email address to get a new one.", 'protech-wholesale' ) ) ),
+				self::block( 'button', array( 'label' => __( 'Set your password and log in', 'protech-wholesale' ), 'url' => '{set_password_url}', 'align' => 'left', 'pb' => 20 ) ),
+				self::block( 'text', array( 'html' => __( "Once you are logged in you will see wholesale pricing throughout the shop. Quantity tiers apply to your whole cart combined, and Reorder on any past order adds it straight back to your cart.", 'protech-wholesale' ), 'pb' => 16 ) ),
+			),
+		);
+	}
+
+	/** @return array<string, mixed> */
+	private static function application_rejected(): array {
+		return array(
+			'name'      => __( 'Application rejected', 'protech-wholesale' ),
+			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
+			'subject'   => __( 'Update on your Protech Sleeves wholesale application', 'protech-wholesale' ),
+			'preheader' => __( 'About your wholesale application.', 'protech-wholesale' ),
+			'blocks'    => array(
+				self::block( 'heading', array( 'text' => __( 'Your wholesale application', 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'text', array( 'html' => __( "Thanks for your interest in a Protech Sleeves wholesale account. After review, we are not able to approve your application at this time.\n\n{application_reject_reason}\n\nIf you think this was a mistake, or your business has changed since you applied, just reply to this email.", 'protech-wholesale' ), 'pb' => 16 ) ),
 			),
 		);
 	}

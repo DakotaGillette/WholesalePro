@@ -207,6 +207,17 @@ class EmailTemplates {
 		}
 
 		$template['kind']      = EmailBlocks::pick( $input['kind'] ?? '', array( self::KIND_MARKETING, self::KIND_TRANSACTIONAL ), self::KIND_MARKETING );
+
+		// Which lifecycle email this sends as. Only read when the form sends it, so a form without the field
+		// (a starter, an import) leaves the binding as it was. A lifecycle email is a service email by nature.
+		if ( array_key_exists( 'slot', $input ) ) {
+			$template['slot'] = EmailBlocks::pick( $input['slot'], array_merge( array( '' ), array_keys( self::slots() ) ), '' );
+		}
+
+		if ( '' !== (string) $template['slot'] ) {
+			$template['kind'] = self::KIND_TRANSACTIONAL;
+		}
+
 		$template['subject']   = EmailBlocks::text( $input['subject'] ?? '', 200 );
 		$template['preheader'] = EmailBlocks::text( $input['preheader'] ?? '', 200 );
 

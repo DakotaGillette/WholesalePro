@@ -384,6 +384,17 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 31. Designed lifecycle emails (2.6.0)
+
+- [ ] Email templates now includes "Application approved" and "Application rejected" among the ready-made ones (added once; delete one and it does not come back on the next update).
+- [ ] Open a template: the right-hand column has **Sent automatically as** with Welcome email, Application received, Application approved, Application rejected. Choose one, save: the list's "Used by" column shows it, the template's type is now Service email, and it can no longer be deleted while in use.
+- [ ] Bind the "Application approved" template to Application approved. Approve a test applicant: the email is the designed one, the button opens the store's own set-your-password page and the link works once. With nothing bound, the old built-in email still goes out.
+- [ ] Reject a test applicant with a reason: the designed email shows "Reason: ...". Reject with the reason left blank: no "Reason:" line and no gap.
+- [ ] Bind "Welcome to wholesale" to the Welcome email. Customers tab → Send welcome email to a test wholesale customer: the designed one arrives, and the row still reads "Sent".
+- [ ] Bind a second template to the same email: the first one loses it (only one at a time).
+- [ ] Choose "Nothing" and save: the built-in email is back.
+- [ ] Preview the Application rejected template: it shows a sample "Reason: ..." line so you can see where it goes.
+
 ## 30. Retail audiences (2.5.0)
 
 - [ ] Compose has a **Customers** choice (Wholesale / Retail / Everyone) above "Send to". With Wholesale chosen, everything behaves as before.
