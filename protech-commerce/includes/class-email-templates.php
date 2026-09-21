@@ -383,6 +383,25 @@ class EmailTemplates {
 	}
 
 	/**
+	 * A new template from a starter, under the starter's own name. Returns
+	 * its id, or '' for an unknown key.
+	 */
+	public static function create_from_starter( string $key ): string {
+		$starters = EmailStarters::all();
+
+		if ( ! isset( $starters[ $key ] ) ) {
+			return '';
+		}
+
+		$template           = self::validate( $starters[ $key ] )['template'];
+		$template['id']     = '';
+		$template['seeded'] = '';
+		$template['slot']   = '';
+
+		return self::save( $template );
+	}
+
+	/**
 	 * Fills a stored template out to the current shape, so a template saved
 	 * by an older version is never missing a key.
 	 *

@@ -384,6 +384,22 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 28. Email template editor (2.3.0)
+
+- [ ] Messaging → Email templates → New template: pick "Blank", the editor opens with a name, subject, preview text, a list of blocks (empty), the row of "Add a block" buttons, and the preview on the right.
+- [ ] Add a Heading, a Text and a Button. Each opens with its own settings; the collapsed row shows the first words of what you typed. The preview refreshes a moment after you stop typing.
+- [ ] Click into the Text box, choose "Insert a personal detail" → first name. It appears at the cursor and the preview shows your own name.
+- [ ] Drag a block by the dots to a new place; press the up and down arrows on another. Save, reload: the order held and every setting is as you left it.
+- [ ] Add Columns, set two, add a Text in each, then move the Columns block above the Heading and save. Everything inside came with it. Switch to three: a third column appears.
+- [ ] Add an Image: Choose picture opens the Media Library; the thumbnail shows, the preview shows the picture, Remove clears it.
+- [ ] Add a Products block with two products you chose and one with "The newest in the shop"; both show in the preview, with wholesale prices when you are a wholesaler.
+- [ ] Copy a block: an identical block appears under it and editing it does not change the original.
+- [ ] Phone/Desktop switch the preview width. Refresh redraws it.
+- [ ] Send preview with an address typed, then with it blank: the first arrives at the typed address, the second at yours. Marketing shows unsubscribe links and the store address; a Service email shows neither.
+- [ ] Leave the name empty and Save: an error says so and everything you typed is still there.
+- [ ] Duplicate a template: "Copy of ..." appears. Delete it: gone after confirming. Bind a template to a lifecycle email (once 2.6.0 lands) or use it in a rule and try Delete: it refuses and says where it is used.
+- [ ] At 1280px the editor is two columns; at 360px it is one, and nothing scrolls sideways.
+
 ## 27. Template rendering fixes (2.2.1)
 
 - [ ] Preview "Welcome to wholesale" at phone width: the card fits the screen with nothing cut off, and the diagram text is in the same sans-serif font as the rest.

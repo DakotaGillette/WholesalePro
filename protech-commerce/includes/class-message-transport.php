@@ -110,6 +110,42 @@ class MessageTransport {
 	}
 
 	/**
+	 * Sends an email built from a template. The template owns the whole email,
+	 * so it is not wrapped in WooCommerce's header and footer or run through
+	 * WC_Email::style_inline(); the footer it needs comes from footer_html_for(),
+	 * so a marketing template cannot go out without the unsubscribe link and
+	 * postal address.
+	 *
+	 * @param array<string, mixed> $template
+	 * @param array<string, mixed> $context  From EmailRenderer::context().
+	 * @param string[]             $tags
+	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
+	 */
+	public static function send_template_email( int $user_id, string $to, string $subject, array $template, array $context, string $category, array $tags = array() ): array {
+		if ( ! is_email( $to ) ) {
+			return self::result( 'failed', '', '', $to, $subject, __( 'Not a valid email address.', 'protech-wholesale' ), 'invalid_email', false );
+		}
+
+		if ( '' === trim( $subject ) ) {
+			$subject = (string) get_bloginfo( 'name' );
+		}
+
+		$rendered = EmailRenderer::render( $template, $context, array( 'footer_html' => self::footer_html_for( $user_id, $category ) ) );
+
+		/**
+		 * The finished HTML of a template email, just before it is sent. A hook to
+		 * add WC_Email::style_inline() or anything else that must see the final markup.
+		 *
+		 * @param string               $html
+		 * @param array<string, mixed> $template
+		 * @param array<string, mixed> $context
+		 */
+		$html = (string) apply_filters( 'protech_wholesale_email_template_html', $rendered['html'], $template, $context );
+
+		return self::dispatch( $to, $subject, $html, $rendered['text'], $tags );
+	}
+
+	/**
 	 * The footer a message of this category must carry, or '' for none: the
 	 * one place that decides, so no path can send marketing email without the
 	 * unsubscribe link and postal address by forgetting to ask.

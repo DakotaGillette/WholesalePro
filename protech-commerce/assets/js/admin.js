@@ -237,6 +237,12 @@
 					event.preventDefault();
 				}
 			}
+
+			if ( target && target.classList && target.classList.contains( 'protech-confirm-delete-template' ) ) {
+				if ( ! window.confirm( strings.deleteTemplateConfirm || 'Delete this email template?' ) ) {
+					event.preventDefault();
+				}
+			}
 		} );
 
 		document.querySelectorAll( '.protech-confirm-send' ).forEach( function ( button ) {

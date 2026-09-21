@@ -1680,6 +1680,30 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## The template editor (2026-09-21, 2.3.0)
+
+1. **The form is the state.** Every setting is a real input named by position
+   (`blocks[2][attrs][text]`); the page posts the whole template and the server
+   validates it. There is no JSON in a hidden field and no client-side model. The
+   script only moves cards and renumbers them, rebuilding each name from the input's
+   `data-name-suffix`, which is what makes blocks inside columns safe.
+2. **The preview is the same form posted into an iframe** (`formtarget`), rendered by
+   `EmailRenderer`, so it cannot drift from what sends. Without JavaScript it is a
+   Refresh button.
+3. **The submit buttons carry the action.** The form has a hidden `action` (save),
+   but PHP lets a POST value beat the query string, so a `formaction` alone would
+   make Refresh and Send preview save. Each button has `name="action"` with its own
+   value; the submitter comes later in the form than the hidden input, so it wins.
+   A test pins it.
+4. **Columns print all three lists**, the third hidden when there are two, so
+   switching the count needs no reload and no lost blocks. Blocks cannot be dragged
+   out of their column (the same-list rule) and a column menu never offers Columns.
+5. **Copy, not clone-and-hope.** A copied card gets its typed values written back to
+   attributes first, its id blanked (the server mints a new one) and its product
+   picker returned to a plain select for WooCommerce to enhance again.
+6. **A template in use cannot be deleted**, and the list says where it is used
+   (a lifecycle slot, a rule or a campaign).
+
 ## The template library and renderer (2026-09-21, 2.2.0)
 
 The middle of the email composer: what a template is, how it becomes an email,

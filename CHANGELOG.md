@@ -3,6 +3,26 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.3.0 - 2026-09-21
+
+### Added
+- **The email template editor**, under Messaging → Email templates: New template
+  (or start from a starter), Edit, Duplicate and Delete. Add blocks with the
+  buttons under the email, click a block to open it, drag it by the dots or use
+  the arrows to reorder, Copy or Remove it. Columns hold blocks of their own.
+  Pictures come from the Media Library. "Insert a personal detail" puts a
+  customer's name, shop link and so on into whichever text box you last clicked.
+- A live preview beside the editor, drawn by the same code that sends the
+  email, with Desktop and Phone widths. It fills in your own name.
+- "Send preview" from the editor to any address (blank sends it to you), and a
+  Service email or Marketing type (marketing always carries the unsubscribe
+  links and the store address).
+- A template that is bound to a lifecycle email, or used by an automation or
+  campaign, cannot be deleted; the list says where it is used.
+
+Templates are still not used by any rule, campaign or automatic email. Nothing a
+customer receives has changed.
+
 ## 2.2.1 - 2026-09-21
 
 ### Fixed
