@@ -1567,3 +1567,14 @@ to cart stays the one primary action, and it is hidden when fewer than two
 colors are available. It adds exactly one of each, with no stepper, because
 that is what was asked; pressing it twice adds a second set, and the cart's
 quantity rules and tier pricing apply as for any other line.
+
+**Every-color block: position and out-of-stock (1.6.1):** moved from under
+the add-to-cart form to woocommerce_single_product_summary at 26, directly
+under the price table (25), because it reads as part of choosing what to
+order and the owner wanted it there. The out-of-stock note was one muted line
+of small text; it is now an amber notice with an icon that names the color,
+says it will not be added and how many will be, plus a crossed-out swatch and
+wording that stops claiming "every" color ("each of the 13 colors in stock",
+"Add one display of each color in stock") when one is missing. The
+composition gained out_colors (name and swatch of each out-of-stock color) to
+draw that; the existing unavailable list is unchanged.

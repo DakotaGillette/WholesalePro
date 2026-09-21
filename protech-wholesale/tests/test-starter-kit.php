@@ -343,4 +343,34 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$product = null;
 		wp_set_current_user( 0 );
 	}
+
+	public function test_the_button_block_says_plainly_which_color_is_out_of_stock(): void {
+		global $product;
+
+		$red = wc_get_product( $this->variation( 'red' ) );
+		$red->set_stock_status( 'outofstock' );
+		$red->save();
+
+		$product = $this->sleeves['parent'];
+		wp_set_current_user( $this->customer_id );
+
+		$composition = StarterKit::get_composition( $product->get_id(), $this->customer_id );
+		$this->assertCount( 1, $composition['out_colors'] );
+		$this->assertSame( 2, $composition['displays'] );
+
+		ob_start();
+		( new StarterKit() )->render_every_color();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'protech-everycolor-alert', $html );
+		$this->assertStringContainsString( 'Out of stock: ', $html );
+		$this->assertStringContainsString( 'It will not be added.', $html );
+		$this->assertStringContainsString( 'The other 2 colors are added.', $html );
+		$this->assertStringContainsString( 'each of the 2 colors in stock', $html );
+		$this->assertStringContainsString( 'Add one display of each color in stock', $html );
+		$this->assertStringContainsString( 'class="is-out"', $html, 'The unavailable color keeps a crossed-out swatch.' );
+
+		$product = null;
+		wp_set_current_user( 0 );
+	}
 }

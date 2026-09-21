@@ -74,8 +74,8 @@ class StarterKit {
 		// Where the add-to-cart form would be (30).
 		add_action( 'woocommerce_single_product_summary', array( $this, 'render_on_product_page' ), 30 );
 
-		// "Add one display of every color", under a variable product's own form.
-		add_action( 'woocommerce_after_add_to_cart_form', array( $this, 'render_every_color' ) );
+		// "Add one display of every color", right under the price table (TierLadder is 25).
+		add_action( 'woocommerce_single_product_summary', array( $this, 'render_every_color' ), 26 );
 
 		add_action( 'wp_ajax_protech_kit_quote', array( $this, 'ajax_quote' ) );
 		add_action( 'wp_ajax_' . self::POST_ACTION, array( $this, 'ajax_add' ) );
@@ -128,7 +128,7 @@ class StarterKit {
 	/**
 	 * What one kit contains for this customer, right now.
 	 *
-	 * @return array{lines: array<int, array{variation_id: int, parent_id: int, name: string, color: string, displays: int, packs: int}>, unavailable: string[], displays: int, packs: int, target: int}
+	 * @return array{lines: array<int, array{variation_id: int, parent_id: int, name: string, color: string, displays: int, packs: int}>, unavailable: string[], out_colors?: array<int, array{name: string, color: string}>, displays: int, packs: int, target: int}
 	 */
 	public static function get_composition( int $kit_id, int $user_id ): array {
 		// A variable product used directly ("add one of every color") is its own
@@ -155,6 +155,7 @@ class StarterKit {
 		$displays    = array(); // variation id => displays.
 		$variations  = array(); // variation id => WC_Product_Variation.
 		$unavailable = array();
+		$out_colors  = array(); // name + swatch of each out-of-stock color, for the every-color block.
 
 		foreach ( $source->get_children() as $variation_id ) {
 			$variation_id = (int) $variation_id;
@@ -172,6 +173,10 @@ class StarterKit {
 
 			if ( ! self::can_supply( $variation, 1 ) ) {
 				$unavailable[] = self::variation_label( $variation );
+				$out_colors[]  = array(
+					'name'  => self::variation_label( $variation ),
+					'color' => self::swatch_color( $variation ),
+				);
 				continue;
 			}
 
@@ -234,6 +239,7 @@ class StarterKit {
 		return array(
 			'lines'       => $lines,
 			'unavailable' => $unavailable,
+			'out_colors'  => $out_colors,
 			'displays'    => $total_displays,
 			'packs'       => $total_packs,
 			// In "one of every color" mode there is no fixed target — report
@@ -565,8 +571,8 @@ class StarterKit {
 	}
 
 	/**
-	 * The "Add one display of every color" block under a variable product's
-	 * add-to-cart form, for a wholesale customer, when there is more than one
+	 * The "Add one display of every color" block under the wholesale price
+	 * table on a variable product's page, for a wholesale customer, when there is more than one
 	 * color to add. Computed per page load from the live variations, so a color
 	 * added next month is in it as soon as it has a wholesale price.
 	 */

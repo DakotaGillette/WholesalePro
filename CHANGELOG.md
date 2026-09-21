@@ -3,6 +3,16 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.6.1 - 2026-09-21
+
+### Changed
+- "Add one display of every color" moved to right under the Wholesale pricing
+  table.
+- An out-of-stock color is now hard to miss in that block: an amber "Out of
+  stock: <color>" notice saying it will not be added and how many colors will,
+  a crossed-out swatch, a count that says "in stock", and a button that reads
+  "Add one display of each color in stock".
+
 ## 1.6.0 - 2026-09-21
 
 ### Added

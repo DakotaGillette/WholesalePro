@@ -555,6 +555,62 @@ body .protech-wholesale-portal .protech-button--block {
 	list-style: none;
 	background: var( --protech-blue );
 }
+/* An out-of-stock color: its swatch crossed out, and a clear amber notice. */
+.protech-everycolor .protech-everycolor-swatches li.is-out {
+	position: relative;
+	opacity: 0.75;
+	border-color: var( --protech-warning );
+}
+.protech-everycolor .protech-everycolor-swatches li.is-out::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: -3px;
+	right: -3px;
+	height: 3px;
+	background: var( --protech-danger );
+	box-shadow: 0 0 0 1px #fff;
+	transform: rotate( -45deg );
+}
+.protech-everycolor.has-out-of-stock {
+	border-color: #e6c56a;
+}
+.protech-everycolor .protech-everycolor-alert {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border: 1px solid #e6c56a;
+	border-left: 4px solid var( --protech-warning );
+	border-radius: var( --protech-radius );
+	background: var( --protech-warning-bg );
+}
+.protech-everycolor .protech-everycolor-alert-icon {
+	flex: 0 0 auto;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: var( --protech-warning );
+	color: #fff;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 22px;
+	text-align: center;
+}
+.protech-everycolor .protech-everycolor-alert-text {
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	line-height: 1.45;
+	color: #4a3200;
+}
+.protech-everycolor .protech-everycolor-alert-text strong {
+	display: block;
+	font-size: 15px;
+	font-weight: 700;
+	color: #3a2700;
+}
 .protech-everycolor .protech-everycolor-detail {
 	margin: 0 0 12px;
 	padding: 0;
