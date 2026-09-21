@@ -144,6 +144,7 @@ final class Plugin {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_filter( 'body_class', array( $this, 'add_body_class' ) );
+		add_action( 'wp', array( $this, 'move_short_description_below_add_to_cart' ) );
 		add_filter( 'plugin_action_links_' . PROTECH_WHOLESALE_BASENAME, array( $this, 'plugin_action_links' ) );
 	}
 
@@ -182,6 +183,29 @@ final class Plugin {
 		}
 
 		return $classes;
+	}
+
+	/**
+	 * On a product page, a wholesale customer gets the short description
+	 * (size, count, finish) below the add-to-cart button instead of above the
+	 * pricing: their page leads with how wholesale pricing and ordering work,
+	 * and the buying controls should not be pushed down by retail copy they
+	 * have read before. WooCommerce prints it at 20 and the add-to-cart form
+	 * at 30; this moves it to 35, ahead of the category/brand line (40).
+	 * Everyone else keeps the standard order.
+	 */
+	public function move_short_description_below_add_to_cart(): void {
+		if ( ! function_exists( 'is_product' ) || ! is_product() || ! Roles::is_wholesale_customer() ) {
+			return;
+		}
+
+		// Whatever priority the theme left it at: moving it must never duplicate it.
+		$priority = has_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt' );
+
+		if ( false !== $priority ) {
+			remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt', (int) $priority );
+			add_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt', 35 );
+		}
 	}
 
 	public function settings(): Settings {

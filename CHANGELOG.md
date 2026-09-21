@@ -3,6 +3,20 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.6.2 - 2026-09-21
+
+### Changed
+- On a product page, a wholesale customer sees the short description (size,
+  count, finish) below the Add to cart button instead of above the pricing.
+  Retail visitors and guests are unchanged.
+- The out-of-stock notice in "Want every color?" is quieter: a small icon and a
+  line of text, no colored box.
+
+### Fixed
+- The price line under "Want every color?" and on the starter kit panel showed
+  "&#36;5.00/pack" after the cart changed, because the script printed an HTML
+  entity as text. The quote now carries plain text with a real dollar sign.
+
 ## 1.6.1 - 2026-09-21
 
 ### Changed

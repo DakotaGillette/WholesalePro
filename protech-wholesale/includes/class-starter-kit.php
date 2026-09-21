@@ -349,7 +349,10 @@ class StarterKit {
 		}
 
 		$pack_prices     = array_values( array_unique( $pack_prices ) );
-		$pack_price_html = 1 === count( $pack_prices ) ? wp_strip_all_tags( wc_price( $pack_prices[0] ) ) : '';
+		// Plain text, entities decoded: it goes into a sentence that both the page
+		// (esc_html) and the script (textContent) print as text, so a leftover
+		// &#36; would show up literally as "&#36;5.00".
+		$pack_price_html = 1 === count( $pack_prices ) ? html_entity_decode( wp_strip_all_tags( wc_price( $pack_prices[0] ) ), ENT_QUOTES, 'UTF-8' ) : '';
 		$free_shipping   = VolumePricing::TIER_STANDARD !== $tier;
 		$tier_label      = VolumePricing::get_tier_short_label( $tier );
 

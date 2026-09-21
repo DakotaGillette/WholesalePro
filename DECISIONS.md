@@ -1578,3 +1578,14 @@ wording that stops claiming "every" color ("each of the 13 colors in stock",
 "Add one display of each color in stock") when one is missing. The
 composition gained out_colors (name and swatch of each out-of-stock color) to
 draw that; the existing unavailable list is unchanged.
+
+**Short description below Add to cart (1.6.2):** the owner asked for the
+size/count/finish block under the Add to cart button, for wholesale customers
+only. It is WooCommerce's woocommerce_template_single_excerpt on
+woocommerce_single_product_summary, so the move is a remove at whatever
+priority it currently has and an add at 35 (add to cart is 30, category and
+brand 40), done on the wp action for a wholesale customer on a product page.
+Reading the current priority rather than assuming 20 means a theme that
+already moved it cannot end up with it printed twice. Nothing changes for
+guests or retail customers, so the standard product page and its SEO
+structure are untouched.

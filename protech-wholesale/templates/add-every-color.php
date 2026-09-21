@@ -87,7 +87,7 @@ $protech_out_names = array_column( $protech_out, 'name' );
 		);
 		?>
 		<span class="protech-everycolor-total" data-protech-everycolor-total><?php echo wp_kses_post( $quote['total_html'] ); ?></span>
-		<span class="protech-everycolor-note" data-protech-everycolor-note><?php echo wp_kses_post( $quote['note'] ); ?></span>
+		<span class="protech-everycolor-note" data-protech-everycolor-note><?php echo esc_html( $quote['note'] ); ?></span>
 	</p>
 
 	<form class="protech-everycolor-form" method="post" action="<?php echo esc_url( $post_url ); ?>">

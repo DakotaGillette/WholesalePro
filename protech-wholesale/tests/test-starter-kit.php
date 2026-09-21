@@ -373,4 +373,12 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$product = null;
 		wp_set_current_user( 0 );
 	}
+
+	public function test_the_quote_note_is_plain_text_with_a_real_dollar_sign(): void {
+		$quote = StarterKit::get_quote( $this->sleeves['parent']->get_id(), 1, $this->customer_id );
+
+		$this->assertStringContainsString( '$', $quote['note'] );
+		$this->assertStringNotContainsString( '&#36;', $quote['note'], 'The script prints the note with textContent, which would show the entity literally.' );
+		$this->assertStringNotContainsString( '&', $quote['pack_price_html'] );
+	}
 }

@@ -78,7 +78,7 @@ endif;
 		</div>
 		<p class="protech-kit-summary">
 			<span id="protech-kit-summary"><?php echo esc_html( $quote['summary'] ); ?></span>
-			<span class="protech-kit-tier-note" id="protech-kit-tier-note"><?php echo wp_kses_post( $quote['note'] ); ?></span>
+			<span class="protech-kit-tier-note" id="protech-kit-tier-note"><?php echo esc_html( $quote['note'] ); ?></span>
 		</p>
 	</div>
 
