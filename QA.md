@@ -384,6 +384,14 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 25. Marketing footer (2.1.1)
+
+- [ ] Compose a marketing email (not a service message) and send a preview to yourself: under the body there is "You are receiving this because you have a wholesale account with <site>", Manage preferences, Unsubscribe, and on the next line the store name and postal address.
+- [ ] Clear the store address (WooCommerce → Settings → General) with messaging switched on: the Wholesale screen shows a notice about the postal address. Put it back and the notice goes.
+- [ ] A service message (the checkbox) carries no footer at all.
+- [ ] Merge-tag chips still insert at the caret in the subject, heading and body fields, on Compose and on an automation rule.
+- [ ] The welcome email preview looks exactly as before (same diagram, same steps).
+
 ## 24. Messaging section (2.1.0)
 
 - [ ] The sidebar has a **Messaging** item under WooCommerce and Products, with Automations, Compose, Log, Compliance and Settings under it, and the current page is highlighted.

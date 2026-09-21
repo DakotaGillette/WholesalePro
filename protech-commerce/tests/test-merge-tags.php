@@ -140,4 +140,43 @@ class Test_Merge_Tags extends WP_UnitTestCase {
 
 		remove_filter( 'protech_wholesale_order_tracking', $filter, 10 );
 	}
+
+	public function test_fill_does_not_run_the_template_through_kses(): void {
+		// The regression guard the email composer depends on: wp_kses_post()
+		// deletes CSS properties outside its whitelist (mso- properties among
+		// them), so fill() must leave the surrounding markup exactly as it is.
+		$template = '<td style="mso-line-height-rule:exactly;padding:0;">{first_name}</td>';
+
+		$this->assertNotSame( $template, wp_kses_post( $template ), 'Precondition: kses really does strip this declaration.' );
+
+		$filled = MergeTags::fill( $template, array( 'first_name' => 'Ada' ) );
+
+		$this->assertSame( '<td style="mso-line-height-rule:exactly;padding:0;">Ada</td>', $filled );
+	}
+
+	public function test_fill_escapes_values_for_html_and_leaves_them_alone_for_raw(): void {
+		$context = array(
+			'first_name' => '<b>Ada</b> & Co',
+			'shop_url'   => 'https://example.com/shop/?a=1&b=2',
+		);
+
+		$html = MergeTags::fill( '{first_name} {shop_url}', $context, 'html' );
+		$this->assertStringContainsString( '&lt;b&gt;Ada&lt;/b&gt; &amp; Co', $html );
+		$this->assertStringContainsString( 'a=1&#038;b=2', $html, 'URL tags go through esc_url().' );
+
+		$this->assertSame( '<b>Ada</b> & Co https://example.com/shop/?a=1&b=2', MergeTags::fill( '{first_name} {shop_url}', $context, 'raw' ) );
+	}
+
+	public function test_fill_renders_an_unknown_tag_as_nothing(): void {
+		$this->assertSame( 'Hi !', MergeTags::fill( 'Hi {nope}!', array( 'first_name' => 'Ada' ) ) );
+	}
+
+	public function test_render_and_fill_agree_where_render_adds_nothing(): void {
+		$context = array( 'first_name' => 'Ada' );
+
+		$this->assertSame(
+			MergeTags::render( '<p>Hi {first_name}</p>', $context, 'html' ),
+			MergeTags::fill( '<p>Hi {first_name}</p>', $context, 'html' )
+		);
+	}
 }

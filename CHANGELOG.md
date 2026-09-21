@@ -3,6 +3,23 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.1.1 - 2026-09-21
+
+### Changed
+- **Marketing emails now carry the store's postal address** under the
+  unsubscribe and preferences links, which US law (CAN-SPAM) requires in every
+  marketing message. It comes from WooCommerce → Settings → General; while it
+  is empty and messaging is on, the Wholesale screen's setup notice says so.
+- The footer sentence fits the reader: "because you have a wholesale account
+  with X" for a wholesale customer, "because you have shopped with X" for
+  anyone else.
+- Internal groundwork for the email composer, with no visible effect: merge
+  tag substitution is split out (`MergeTags::fill()`), sending is split into
+  "decide the footer" and "hand to Brevo" (`MessageTransport::footer_html_for()`
+  and `dispatch()`), the welcome email's diagram drawing moved to a shared
+  `EmailBlocks`, and merge-tag insertion now also works on fields added after
+  the page loads.
+
 ## 2.1.0 - 2026-09-21
 
 ### Changed

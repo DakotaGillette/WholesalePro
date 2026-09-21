@@ -218,6 +218,14 @@ class SetupChecks {
 			);
 		}
 
+		if ( MessagingSettings::enabled() && '' === MergeTags::store_address() ) {
+			$problems[] = array(
+				'text' => __( 'Marketing emails must carry your postal address (CAN-SPAM), and the store address is empty, so they go out without one.', 'protech-wholesale' ),
+				'url'  => admin_url( 'admin.php?page=wc-settings&tab=general' ),
+				'link' => __( 'Set the store address', 'protech-wholesale' ),
+			);
+		}
+
 		return $problems;
 	}
 

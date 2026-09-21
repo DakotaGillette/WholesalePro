@@ -240,7 +240,7 @@ class MergeTags {
 		);
 	}
 
-	private static function store_address(): string {
+	public static function store_address(): string {
 		if ( ! function_exists( 'WC' ) || ! WC()->countries ) {
 			return '';
 		}
@@ -257,16 +257,22 @@ class MergeTags {
 	}
 
 	/**
+	 * The token half of render(): replaces {tags} with their values and does
+	 * nothing else. No wp_kses_post, no wpautop, no tag stripping, so a caller
+	 * that assembles its own HTML around the result (the email composer) does
+	 * not have its markup re-filtered. wp_kses_post() runs every inline style
+	 * attribute through safecss_filter_attr(), which silently deletes any
+	 * property outside its whitelist, and email needs a few of those.
+	 *
+	 * `html` escapes each value (esc_url for URL tags, esc_html otherwise);
+	 * any other format (`raw`, `text`, `subject`) inserts values untouched, for
+	 * attribute values the caller escapes itself and for plain text. An unknown
+	 * tag becomes an empty string, never the literal placeholder.
+	 *
 	 * @param array<string, string> $context tag => raw value.
 	 */
-	public static function render( string $template, array $context, string $format = 'html' ): string {
-		if ( 'text' === $format ) {
-			$template = wp_strip_all_tags( $template );
-		} elseif ( 'subject' !== $format ) {
-			$template = wp_kses_post( $template );
-		}
-
-		$rendered = (string) preg_replace_callback(
+	public static function fill( string $template, array $context, string $format = 'html' ): string {
+		return (string) preg_replace_callback(
 			'/\{([a-z_]+)\}/',
 			static function ( array $matches ) use ( $context, $format ): string {
 				$tag = $matches[1];
@@ -285,6 +291,19 @@ class MergeTags {
 			},
 			$template
 		);
+	}
+
+	/**
+	 * @param array<string, string> $context tag => raw value.
+	 */
+	public static function render( string $template, array $context, string $format = 'html' ): string {
+		if ( 'text' === $format ) {
+			$template = wp_strip_all_tags( $template );
+		} elseif ( 'subject' !== $format ) {
+			$template = wp_kses_post( $template );
+		}
+
+		$rendered = self::fill( $template, $context, $format );
 
 		if ( 'subject' === $format ) {
 			return sanitize_text_field( $rendered );

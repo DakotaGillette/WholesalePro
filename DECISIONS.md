@@ -1649,3 +1649,33 @@ visual composer is coming, so it should not sit under a Wholesale tab.
 5. **The page shell and the existing views are untouched.** The 1200-line
    `class-messaging-tab.php` still owns them; splitting it is a separate
    cleanup and not part of this move.
+
+## Groundwork for the composer, and the marketing footer (2026-09-21, 2.1.1)
+
+A release with almost no visible change, so the next ones can be built on it.
+
+1. **`MergeTags::fill()` is the token half of `render()`**, extracted so the
+   composer can substitute tags without `render()`'s `wp_kses_post()`. That
+   filter runs every inline style through `safecss_filter_attr()`, which deletes
+   properties outside a whitelist (the `mso-` ones Outlook needs). `render()`
+   now delegates to it, so escaping is one implementation, and the existing
+   merge tag tests are the specification for both. A new test pins the guard: a
+   declaration kses removes survives `fill()`.
+2. **`MessageTransport::footer_html_for()` is the only place that decides
+   whether a message carries the footer**, and `dispatch()` is the only place
+   that hands finished HTML to Brevo or the site mailer. `send_email()` is the
+   same function it was, built from those two, so nothing about existing sends
+   changed. The composer's path will call the same two, which is what makes it
+   impossible to send marketing without the unsubscribe link and address by
+   forgetting to ask.
+3. **The footer gained the postal address it always claimed to have**, and its
+   sentence now depends on who is reading. The address is read from
+   WooCommerce's store settings, not a plugin setting, so there is one place to
+   keep it. If it is empty the email still goes (an unsent email is a worse
+   outcome than a missing line), and the Wholesale setup notice flags it while
+   messaging is on.
+4. **`EmailBlocks` starts with the two drawing helpers** the welcome email
+   used inline (`swatch_grid`, `step_number`); the welcome template now calls
+   them. The composer's blocks are added to the same class next release.
+5. **Merge-tag insertion is delegated** to the document, so a field or chip
+   added after page load works. The caret behaviour is unchanged.

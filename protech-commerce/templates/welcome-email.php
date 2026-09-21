@@ -36,25 +36,13 @@ $protech_swatch = array( '#42649d', '#d64545', '#e8a33d', '#3f9e63', '#111111', 
 $protech_pack_dots     = min( 10, $case_size );
 $protech_display_tiles = min( 8, $displays_per_case );
 
-/**
- * A grid of small filled squares, as a table: the only drawing an email client is sure to render.
- */
+// The drawing lives in EmailBlocks, shared with the email composer.
 $protech_grid = static function ( int $count, int $columns, int $width, int $height, array $colors, string $outline ): string {
-	$html = '<table role="presentation" cellspacing="3" cellpadding="0" border="0" style="background:#ffffff;border:1px solid ' . esc_attr( $outline ) . ';border-radius:3px;"><tr>';
-
-	for ( $i = 0; $i < $count; $i++ ) {
-		if ( $i > 0 && 0 === $i % $columns ) {
-			$html .= '</tr><tr>';
-		}
-
-		$html .= '<td width="' . (int) $width . '" height="' . (int) $height . '" style="width:' . (int) $width . 'px;height:' . (int) $height . 'px;background:' . esc_attr( $colors[ $i % count( $colors ) ] ) . ';border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>';
-	}
-
-	return $html . '</tr></table>';
+	return \ProtechWholesale\EmailBlocks::swatch_grid( $count, $columns, $width, $height, $colors, $outline );
 };
 
 $protech_step = static function ( string $number ) use ( $protech_blue ): string {
-	return '<span style="display:inline-block;width:22px;height:22px;line-height:22px;margin-right:8px;border-radius:11px;background:' . esc_attr( $protech_blue ) . ';color:#ffffff;font-size:12px;font-weight:bold;text-align:center;">' . esc_html( $number ) . '</span>';
+	return \ProtechWholesale\EmailBlocks::step_number( $number, $protech_blue );
 };
 ?>
 <p style="margin:0 0 16px;"><?php echo esc_html( '' !== $first_name ? sprintf( /* translators: %s: first name. */ __( 'Hi %s,', 'protech-wholesale' ), $first_name ) : __( 'Hi,', 'protech-wholesale' ) ); ?></p>

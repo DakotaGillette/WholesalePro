@@ -195,28 +195,36 @@
 
 		var lastFocused = null;
 
-		document.querySelectorAll( '.protech-tag-target' ).forEach( function ( field ) {
-			field.addEventListener( 'focus', function () {
+		// Delegated on the document, so a field or a tag chip added after the
+		// page loaded (the email composer adds blocks on the fly) works too.
+		document.addEventListener( 'focusin', function ( event ) {
+			var field = event.target;
+
+			if ( field && field.classList && field.classList.contains( 'protech-tag-target' ) ) {
 				lastFocused = field;
-			} );
+			}
 		} );
 
-		document.querySelectorAll( '.protech-insert-tag' ).forEach( function ( button ) {
-			button.addEventListener( 'click', function () {
-				var field = lastFocused;
+		document.addEventListener( 'click', function ( event ) {
+			var button = event.target && event.target.closest ? event.target.closest( '.protech-insert-tag' ) : null;
 
-				if ( ! field ) {
-					return;
-				}
+			if ( ! button ) {
+				return;
+			}
 
-				var tag   = button.dataset.tag || '';
-				var start = field.selectionStart || field.value.length;
-				var end   = field.selectionEnd || field.value.length;
+			var field = lastFocused;
 
-				field.value = field.value.slice( 0, start ) + tag + field.value.slice( end );
-				field.focus();
-				field.selectionStart = field.selectionEnd = start + tag.length;
-			} );
+			if ( ! field ) {
+				return;
+			}
+
+			var tag   = button.dataset.tag || '';
+			var start = field.selectionStart || field.value.length;
+			var end   = field.selectionEnd || field.value.length;
+
+			field.value = field.value.slice( 0, start ) + tag + field.value.slice( end );
+			field.focus();
+			field.selectionStart = field.selectionEnd = start + tag.length;
 		} );
 
 		var strings = window.protechWholesaleAdmin || {};

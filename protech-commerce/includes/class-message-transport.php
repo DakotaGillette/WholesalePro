@@ -102,16 +102,33 @@ class MessageTransport {
 			$subject = (string) get_bloginfo( 'name' );
 		}
 
-		$footer = ( MessageLog::CATEGORY_MARKETING === $category && MessagingSettings::email_footer_enabled() )
+		$full_body = $body_html . self::footer_html_for( $user_id, $category );
+		$wrapped   = WC()->mailer()->wrap_message( $heading, $full_body );
+		$html      = ( new \WC_Email() )->style_inline( $wrapped );
+
+		return self::dispatch( $to, $subject, $html, wp_strip_all_tags( $full_body ), $tags );
+	}
+
+	/**
+	 * The footer a message of this category must carry, or '' for none: the
+	 * one place that decides, so no path can send marketing email without the
+	 * unsubscribe link and postal address by forgetting to ask.
+	 */
+	public static function footer_html_for( int $user_id, string $category ): string {
+		return ( MessageLog::CATEGORY_MARKETING === $category && MessagingSettings::email_footer_enabled() )
 			? self::email_footer_html( $user_id )
 			: '';
+	}
 
-		$full_body = $body_html . $footer;
-		$mailer    = WC()->mailer();
-		$wrapped   = $mailer->wrap_message( $heading, $full_body );
-		$html      = ( new \WC_Email() )->style_inline( $wrapped );
-		$text      = wp_strip_all_tags( $full_body );
-
+	/**
+	 * Hands finished HTML and plain text to Brevo, or to the site's own mailer
+	 * when Brevo is not connected. Knows nothing about templates, wrappers or
+	 * footers: everything upstream has already been decided.
+	 *
+	 * @param string[] $tags
+	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
+	 */
+	public static function dispatch( string $to, string $subject, string $html, string $text, array $tags = array() ): array {
 		if ( BrevoClient::is_configured() ) {
 			$payload = array(
 				'sender'      => array(
@@ -140,7 +157,7 @@ class MessageTransport {
 			return self::result( 'failed', 'brevo', '', $to, $subject, $result['error'], '', $result['retryable'] );
 		}
 
-		$sent = $mailer->send( $to, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
+		$sent = WC()->mailer()->send( $to, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
 
 		return self::result(
 			$sent ? 'sent' : 'failed',
@@ -206,19 +223,33 @@ class MessageTransport {
 		return $text;
 	}
 
-	/** CAN-SPAM-style footer appended to a marketing email: why they're getting it, the store address, and the way out. */
+	/**
+	 * CAN-SPAM footer appended to a marketing email: why they are getting it
+	 * (worded for who they are, a wholesale account or a past customer), the
+	 * store's physical postal address, and the way out. The address is
+	 * required in every marketing message; MergeTags::store_address() reads
+	 * it from WooCommerce -> Settings -> General, and the Messaging setup
+	 * check warns while it is empty.
+	 */
 	public static function email_footer_html( int $user_id ): string {
 		$unsubscribe = Unsubscribe::url( $user_id );
 		$preferences = wc_get_account_endpoint_url( NotificationsEndpoint::ENDPOINT );
+		$site_name   = get_bloginfo( 'name' );
+
+		$reason = Roles::is_wholesale_customer( $user_id )
+			/* translators: %s: site name. */
+			? sprintf( __( 'You are receiving this because you have a wholesale account with %s.', 'protech-wholesale' ), $site_name )
+			/* translators: %s: site name. */
+			: sprintf( __( 'You are receiving this because you have shopped with %s.', 'protech-wholesale' ), $site_name );
+
+		$address = MergeTags::store_address();
 
 		return '<p style="font-size:12px;color:#767676;margin-top:24px;">'
-			. esc_html( sprintf(
-				/* translators: %s: site name. */
-				__( 'You are receiving this because you have a wholesale account with %s.', 'protech-wholesale' ),
-				get_bloginfo( 'name' )
-			) )
+			. esc_html( $reason )
 			. ' <a href="' . esc_url( $preferences ) . '">' . esc_html__( 'Manage preferences', 'protech-wholesale' ) . '</a>'
-			. ' &middot; <a href="' . esc_url( $unsubscribe ) . '">' . esc_html__( 'Unsubscribe', 'protech-wholesale' ) . '</a></p>';
+			. ' &middot; <a href="' . esc_url( $unsubscribe ) . '">' . esc_html__( 'Unsubscribe', 'protech-wholesale' ) . '</a>'
+			. ( '' !== $address ? '<br />' . esc_html( $site_name . ', ' . $address ) : '' )
+			. '</p>';
 	}
 
 	/**
