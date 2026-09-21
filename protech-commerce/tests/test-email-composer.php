@@ -80,7 +80,9 @@ class Test_Email_Composer extends WP_UnitTestCase {
 
 		$html = $this->render_editor( $template );
 
-		$this->assertSame( 3, substr_count( $html, 'class="protech-column"' ) );
+		$saved = substr( $html, 0, (int) strpos( $html, '<script type="text/html"' ) ); // The clone templates after it hold columns of their own.
+
+		$this->assertSame( 3, substr_count( $saved, 'class="protech-column"' ) );
 		$this->assertStringContainsString( 'name="blocks[0][children][0][0][attrs][html]" data-name-suffix="[attrs][html]"', $html );
 		$this->assertMatchesRegularExpression( '/data-column="2" hidden/', $html );
 	}
