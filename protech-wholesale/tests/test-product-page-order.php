@@ -30,13 +30,12 @@ class Test_Product_Page_Order extends WP_UnitTestCase {
 		$this->visit_product_page();
 
 		$this->assertTrue( is_product() );
-		$this->assertSame( 20, has_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt' ), 'WooCommerce prints it at 20 by default.' );
 
-		Plugin::instance()->move_short_description_below_add_to_cart();
-
-		// After add to cart (30), before the category/brand line (40), and only once.
+		// Visiting the page fires the `wp` action the plugin hooks, so by now the
+		// move has happened: after add to cart (30), before category/brand (40).
 		$this->assertSame( 35, has_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt' ) );
 
+		// Running it again must not print the description twice.
 		Plugin::instance()->move_short_description_below_add_to_cart();
 		$this->assertSame( 35, has_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt' ) );
 	}
