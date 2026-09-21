@@ -490,7 +490,7 @@ class MessagingTab {
 
 			<p>
 				<button type="submit" class="button button-primary"><?php esc_html_e( 'Save rule', 'protech-wholesale' ); ?></button>
-				<button type="submit" formaction="<?php echo esc_url( add_query_arg( 'action', 'protech_preview_automation', admin_url( 'admin-post.php' ) ) ); ?>" class="button"><?php esc_html_e( 'Preview recipients', 'protech-wholesale' ); ?></button>
+				<button type="submit" name="action" value="protech_preview_automation" class="button"><?php esc_html_e( 'Preview recipients', 'protech-wholesale' ); ?></button>
 				<a class="button" href="<?php echo esc_url( self::url( 'automations' ) ); ?>"><?php esc_html_e( 'Cancel', 'protech-wholesale' ); ?></a>
 			</p>
 		</form>
@@ -839,7 +839,7 @@ class MessagingTab {
 
 			<p>
 				<button type="submit" class="button button-primary protech-confirm-send"><?php esc_html_e( 'Send', 'protech-wholesale' ); ?></button>
-				<button type="submit" formaction="<?php echo esc_url( add_query_arg( 'action', 'protech_preview_message', admin_url( 'admin-post.php' ) ) ); ?>" class="button"><?php esc_html_e( 'Preview recipients', 'protech-wholesale' ); ?></button>
+				<button type="submit" name="action" value="protech_preview_message" class="button"><?php esc_html_e( 'Preview recipients', 'protech-wholesale' ); ?></button>
 			</p>
 		</form>
 		<?php
@@ -1010,7 +1010,9 @@ class MessagingTab {
 	/**
 	 * The "Send a preview" block, inside a compose or automation form: any
 	 * address to send to, one button. $action is the admin-post action the
-	 * button submits to; the form's own nonce covers it.
+	 * button submits to; the form's own nonce covers it. The button carries the
+	 * action as its own name and value: a `formaction` query string would lose to
+	 * the form's hidden `action` field, because PHP lets POST beat GET.
 	 *
 	 * @param array<string, mixed> $input Last submitted values, so a second preview needs no retyping.
 	 */
@@ -1034,7 +1036,7 @@ class MessagingTab {
 				<input type="tel" id="protech_preview_phone" name="preview_phone" class="regular-text" value="<?php echo esc_attr( (string) ( $input['preview_phone'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Only used when the channel includes SMS', 'protech-wholesale' ); ?>" />
 			</p>
 			<p class="description"><?php esc_html_e( 'Leave the email blank to send to yourself.', 'protech-wholesale' ); ?></p>
-			<button type="submit" formaction="<?php echo esc_url( add_query_arg( 'action', $action, admin_url( 'admin-post.php' ) ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Send preview', 'protech-wholesale' ); ?></button>
+			<button type="submit" name="action" value="<?php echo esc_attr( $action ); ?>" class="button button-secondary"><?php esc_html_e( 'Send preview', 'protech-wholesale' ); ?></button>
 		</div>
 		<?php
 	}

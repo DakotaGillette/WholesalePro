@@ -1680,6 +1680,18 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Buttons carry their own action (2026-09-21, 2.3.1)
+
+A submit button with `formaction="admin-post.php?action=x"` inside a form that has
+a hidden `action` field does not run `x`: admin-post.php reads `$_REQUEST`, where
+the POST value beats the query string, so the button runs the form's own action.
+Compose's Send preview and Preview recipients, and the automation form's Preview
+recipients, were built that way in 1.5.0 and 1.6.0; it was found while building the
+editor, and confirmed against staging with a harmless action pair. The fix is
+`name="action" value="..."` on the button (the submitter comes after the hidden
+input, and PHP keeps the last duplicate). The Customers tab already did this.
+`test_no_button_relies_on_a_query_string_action` scans the includes.
+
 ## The template editor (2026-09-21, 2.3.0)
 
 1. **The form is the state.** Every setting is a real input named by position

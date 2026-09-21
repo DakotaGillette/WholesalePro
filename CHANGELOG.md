@@ -3,6 +3,17 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.3.1 - 2026-09-21
+
+### Fixed
+- **"Send preview" and "Preview recipients" on Compose, and "Preview recipients"
+  on an automation, did not do what they said.** On a live site those buttons ran
+  the form's main action instead: on Compose that is the real send (to the whole
+  audience), on an automation it is Save rule. They now run their own action. If
+  you pressed either of them before this update, check Messaging → Log for
+  messages you did not intend to send. A test now fails if a button is built that
+  way again.
+
 ## 2.3.0 - 2026-09-21
 
 ### Added

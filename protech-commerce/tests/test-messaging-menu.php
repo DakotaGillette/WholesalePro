@@ -107,4 +107,20 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 
 		$this->assertSame( '', $location );
 	}
+
+	/**
+	 * A form that has a hidden `action` field and a button whose `formaction` only adds `?action=` to
+	 * the address is not doing what it looks like: PHP lets the POST value beat the query string, so
+	 * the button runs the form's own action (a real send, say) instead. A button must carry its action
+	 * as its own name and value.
+	 */
+	public function test_no_button_relies_on_a_query_string_action(): void {
+		foreach ( glob( PROTECH_WHOLESALE_DIR . 'includes/*.php' ) as $file ) {
+			$this->assertDoesNotMatchRegularExpression(
+				"/formaction=[^>]*add_query_arg\\(\\s*'action'/s",
+				(string) file_get_contents( $file ),
+				basename( $file ) . " has a button whose action would lose to the form's hidden action field."
+			);
+		}
+	}
 }
