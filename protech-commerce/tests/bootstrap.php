@@ -9,7 +9,7 @@
  *
  * Run it with wp-env (Docker required):
  *   npx wp-env start
- *   npx wp-env run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit
+ *   npx wp-env run tests-cli --env-cwd=wp-content/plugins/protech-commerce vendor/bin/phpunit
  *
  * @package ProtechWholesale
  */
@@ -62,7 +62,7 @@ function _protech_wholesale_manually_load_plugin(): void {
 	}
 
 	require $woocommerce;
-	require dirname( __DIR__ ) . '/protech-wholesale.php';
+	require dirname( __DIR__ ) . '/protech-commerce.php';
 
 	// Cookie-free session so cart operations work under PHPUnit.
 	require_once __DIR__ . '/helpers/class-protech-mock-session-handler.php';

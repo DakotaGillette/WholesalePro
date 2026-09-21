@@ -87,7 +87,7 @@ class Test_Updater extends WP_UnitTestCase {
 
 		$this->assertIsArray( $update );
 		$this->assertSame( '99.0.0', $update['version'], 'The leading "v" of the tag is dropped.' );
-		$this->assertSame( 'protech-wholesale', $update['slug'] );
+		$this->assertSame( 'protech-commerce', $update['slug'] );
 		$this->assertStringEndsWith( '/' . Updater::ASSET_NAME, $update['package'] );
 		$this->assertTrue( Updater::is_update_available( Updater::get_latest() ) );
 
@@ -154,7 +154,7 @@ class Test_Updater extends WP_UnitTestCase {
 	public function test_view_details_uses_the_release_notes(): void {
 		$this->canned = $this->release( 'v99.0.0' );
 
-		$info = ( new Updater() )->details( false, 'plugin_information', (object) array( 'slug' => 'protech-wholesale' ) );
+		$info = ( new Updater() )->details( false, 'plugin_information', (object) array( 'slug' => 'protech-commerce' ) );
 
 		$this->assertIsObject( $info );
 		$this->assertSame( '99.0.0', $info->version );

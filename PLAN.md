@@ -1,4 +1,4 @@
-# PLAN.md — Protech Wholesale
+# PLAN.md — Protech Commerce (formerly Protech Wholesale)
 
 Current file layout and hook map (kept in sync with the code as of 1.1.0).
 History of the decisions behind it: `DECISIONS.md`. Staging checklist: `QA.md`.
@@ -6,8 +6,8 @@ History of the decisions behind it: `DECISIONS.md`. Staging checklist: `QA.md`.
 ## File layout
 
 ```
-protech-wholesale/
-  protech-wholesale.php               Bootstrap: constants, autoloader, activation hooks, HPOS/Blocks compat
+protech-commerce/
+  protech-commerce.php                 Bootstrap: constants, autoloader, activation hooks, HPOS/Blocks compat
   uninstall.php                       Purges data only if "purge on uninstall" is on
   includes/
     class-plugin.php                  Singleton; wires every class; asset enqueue; one-off upgrades (DB_VERSION)

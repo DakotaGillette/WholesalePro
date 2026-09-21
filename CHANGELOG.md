@@ -1,7 +1,23 @@
 # Changelog
 
-All notable changes to the Protech Wholesale plugin. Dates are the day the
+All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
+
+## 2.0.0 - 2026-09-21
+
+### Changed
+- **The plugin is renamed Protech Commerce** (folder and file `protech-commerce`),
+  because it is growing beyond wholesale: a visual email composer and messaging
+  for every customer are coming next. This is a new plugin slug, so WordPress
+  treats it as a different plugin: install the new zip, activate it, then delete
+  the old "Protech Wholesale" one. **Untick "Purge data on uninstall" first**
+  (Settings tab) or deleting the old copy erases the settings. Nothing else
+  moved: options, user meta, roles, the message table, hooks and the text domain
+  all keep their `protech_wholesale_*` / `protech-wholesale` names, so every
+  setting, customer and message log entry carries over as is.
+- Releases now attach `protech-commerce.zip`. An installed 1.x copy looks for
+  the old file name, finds none, and simply reports no update instead of
+  offering a package that would break it.
 
 ## 1.6.3 - 2026-09-21
 

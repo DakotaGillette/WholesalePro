@@ -1595,3 +1595,32 @@ hard to see on the block's light blue and the sentence after the color name
 redundant, since the line below already says "each of the 13 colors in stock"
 and the button says "each color in stock". The icon is now a soft red circle
 with a red mark (the danger color) and the line is just "Out of stock: <name>".
+
+## Rename to Protech Commerce (2026-09-21, 2.0.0)
+
+The owner wants messaging, and its new visual email composer, to serve every
+customer, not just wholesale, so the plugin's name should say so. Decisions:
+
+1. **Slug and folder change, prefixes do not.** Folder, main file and header
+   become `protech-commerce`; every option, meta key, hook, the message table,
+   the `ProtechWholesale` namespace, the `PROTECH_WHOLESALE_*` constants and
+   the `protech-wholesale` text domain stay. The owner never sees them, and
+   changing them would touch every file and migrate every stored value for no
+   gain. Read `protech_wholesale_*` in the code as "the original name", not a
+   mistake.
+2. **A slug change is a different plugin to WordPress**, so it cannot go
+   through the updater: install, activate, then delete the old one. The one
+   hazard is uninstall.php, which wipes all data when "Purge data on uninstall"
+   is ticked, so that box must be unticked before deleting the old copy.
+   Verified unticked on staging before the swap.
+3. **The old plugin is not offered the new zip.** An installed 1.x updater
+   looks for `protech-wholesale.zip` on the latest release, finds only
+   `protech-commerce.zip`, records "no zip attached" and offers nothing. Had
+   both names been attached, its one-click update would have unpacked a
+   folder whose main file it does not know, breaking the site.
+4. **The GitHub repository keeps its name** (`DakotaGillette/WholesalePro`):
+   the updater and the `Update URI` header point at the repository, not the
+   plugin slug, and renaming a repository breaks clone URLs for nothing.
+5. **How the move was done on Windows.** `git mv` of the whole folder was
+   refused (an editor holds handles inside it), so the 105 tracked files were
+   moved one at a time, which git records as pure renames and keeps history.

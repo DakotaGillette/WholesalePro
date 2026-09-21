@@ -1,4 +1,6 @@
-# Protech Wholesale
+# Protech Commerce
+
+> Formerly "Protech Wholesale" (folder `protech-wholesale`, versions up to 1.6.3). Renamed in 2.0.0 because it now covers messaging for every customer, not only wholesale. Settings, roles, tables and hooks kept their `protech_wholesale_*` names, so nothing was migrated.
 
 A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com) that turns approved retailers into a self-service wholesale channel: they apply, get approved, log in, and see wholesale pricing automatically on every ordinary shop/product page — no separate order-taking page and no manual work on the store owner's side. A price table on each product and a sticky bar across the site show live progress toward better quantity-tier pricing and free shipping, and "Reorder" on any past order adds it straight back to the cart.
 
@@ -12,7 +14,7 @@ A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com)
 ## Install
 
 1. Upload the `protech-wholesale` folder to `wp-content/plugins/` (or upload the zip through Plugins → Add New → Upload Plugin).
-2. Activate **Protech Wholesale** from the Plugins screen.
+2. Activate **Protech Commerce** from the Plugins screen.
 3. Activation automatically:
    - creates the `wholesale_pending` and `wholesale_customer` roles,
    - saves default settings (see below),
@@ -144,7 +146,7 @@ The Vendor Starter Kit is sold from a link on the one-sheet to vendors who may n
 
 New versions are published as GitHub releases (`DakotaGillette/WholesalePro`, public). The release job in `.github/workflows/ci.yml` runs on every push to `main` that passes the tests: if the version in the plugin header has no tag yet, it builds `protech-wholesale.zip`, takes that version's section of `CHANGELOG.md` as the notes and creates release `v<version>`. WordPress on each site checks that release twice a day (the plugin's `Update URI` header routes the check to `includes/class-updater.php`) and offers it in the Plugins list like any other update, with View details and one-click Update. "Check for updates" under the plugin's row, or "Check now" on Settings → Updates, asks GitHub immediately.
 
-To ship a release: bump `Version:` in `protech-wholesale.php`, add the section to `CHANGELOG.md`, merge to `main`.
+To ship a release: bump `Version:` in `protech-commerce.php`, add the section to `CHANGELOG.md`, merge to `main`.
 
 ## "Wholesale only" products
 
@@ -176,7 +178,7 @@ composer install                   # phpunit, WPCS, PHPStan (dev only; never dep
 composer lint                      # phpcs (advisory for now)
 composer analyse                   # phpstan
 cd .. && npx wp-env start          # WordPress + WooCommerce + this plugin (Docker)
-npx wp-env run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit
+npx wp-env run tests-cli --env-cwd=wp-content/plugins/protech-commerce vendor/bin/phpunit
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the same on every push. `bin/deploy.sh` rsyncs the plugin to Cloudways staging (excluding tests and tooling) and purges the object and Breeze page caches; see `.env.example`.

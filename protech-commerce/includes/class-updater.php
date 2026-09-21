@@ -7,7 +7,7 @@
  * `update_plugins_github.com` filter — instead of wordpress.org whenever
  * it checks for plugin updates (twice a day, on the Plugins and Updates
  * screens, and on demand). The answer comes from the repository's latest
- * GitHub release: its tag is the version, and its `protech-wholesale.zip`
+ * GitHub release: its tag is the version, and its `protech-commerce.zip`
  * asset (built by the release job in .github/workflows/ci.yml on every
  * push to main, with the plugin folder at the zip's root) is the package.
  * From there core does everything else: the "update available" row in the
@@ -34,8 +34,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Updater {
 
 	public const REPO       = 'DakotaGillette/WholesalePro';
-	public const ASSET_NAME = 'protech-wholesale.zip';
-	public const SLUG       = 'protech-wholesale';
+	public const ASSET_NAME = 'protech-commerce.zip';
+	public const SLUG       = 'protech-commerce';
 
 	public const TRANSIENT    = 'protech_wholesale_latest_release';
 	public const CHECK_ACTION = 'protech_check_updates';
@@ -91,7 +91,7 @@ class Updater {
 				'headers' => array(
 					'Accept'               => 'application/vnd.github+json',
 					'X-GitHub-Api-Version' => '2022-11-28',
-					'User-Agent'           => 'protech-wholesale/' . PROTECH_WHOLESALE_VERSION . '; ' . home_url(),
+					'User-Agent'           => 'protech-commerce/' . PROTECH_WHOLESALE_VERSION . '; ' . home_url(),
 				),
 			)
 		);
@@ -328,14 +328,14 @@ class Updater {
 		if ( '' !== $latest['error'] ) {
 			$class   = 'notice-error';
 			/* translators: %s: error text. */
-			$message = sprintf( __( 'Could not check GitHub for a new Protech Wholesale release: %s', 'protech-wholesale' ), $latest['error'] );
+			$message = sprintf( __( 'Could not check GitHub for a new Protech Commerce release: %s', 'protech-wholesale' ), $latest['error'] );
 		} elseif ( self::is_update_available( $latest ) ) {
 			$class   = 'notice-info';
 			/* translators: 1: new version, 2: installed version. */
-			$message = sprintf( __( 'Protech Wholesale %1$s is available (you have %2$s). Update it from the Plugins list.', 'protech-wholesale' ), $latest['version'], PROTECH_WHOLESALE_VERSION );
+			$message = sprintf( __( 'Protech Commerce %1$s is available (you have %2$s). Update it from the Plugins list.', 'protech-wholesale' ), $latest['version'], PROTECH_WHOLESALE_VERSION );
 		} elseif ( '' === $latest['version'] ) {
 			$class   = 'notice-warning';
-			$message = __( 'No Protech Wholesale release has been published on GitHub yet.', 'protech-wholesale' );
+			$message = __( 'No Protech Commerce release has been published on GitHub yet.', 'protech-wholesale' );
 		} else {
 			$class   = 'notice-success';
 			/* translators: %s: installed version. */

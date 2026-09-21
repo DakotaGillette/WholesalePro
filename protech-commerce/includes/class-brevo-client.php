@@ -67,7 +67,7 @@ class BrevoClient {
 				'api-key'      => $this->api_key,
 				'accept'       => 'application/json',
 				'content-type' => 'application/json',
-				'User-Agent'   => 'protech-wholesale/' . PROTECH_WHOLESALE_VERSION . '; ' . home_url(),
+				'User-Agent'   => 'protech-commerce/' . PROTECH_WHOLESALE_VERSION . '; ' . home_url(),
 			),
 		);
 

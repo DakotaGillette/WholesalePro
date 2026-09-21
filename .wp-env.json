@@ -3,7 +3,7 @@
 	"phpVersion": "8.1",
 	"plugins": [
 		"https://github.com/woocommerce/woocommerce/releases/latest/download/woocommerce.zip",
-		"./protech-wholesale"
+		"./protech-commerce"
 	],
 	"config": {
 		"WP_DEBUG": true,

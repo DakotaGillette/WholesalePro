@@ -22,18 +22,18 @@ jobs:
           coverage: none
 
       - name: Install dev dependencies
-        working-directory: protech-wholesale
+        working-directory: protech-commerce
         run: composer install --no-interaction --prefer-dist --no-progress
 
       # Lint and static analysis are advisory until the existing backlog of
       # WPCS/PHPStan findings has been worked through; the test suite is the gate.
       - name: PHPCS (advisory)
-        working-directory: protech-wholesale
+        working-directory: protech-commerce
         run: composer lint
         continue-on-error: true
 
       - name: PHPStan (advisory)
-        working-directory: protech-wholesale
+        working-directory: protech-commerce
         run: composer analyse
         continue-on-error: true
 
@@ -45,10 +45,10 @@ jobs:
         run: npx --yes @wordpress/env@latest start
 
       - name: PHPUnit (inside the wp-env tests container)
-        run: npx --yes @wordpress/env@latest run tests-cli --env-cwd=wp-content/plugins/protech-wholesale vendor/bin/phpunit
+        run: npx --yes @wordpress/env@latest run tests-cli --env-cwd=wp-content/plugins/protech-commerce vendor/bin/phpunit
 
   # Every push to main that passes the tests becomes a GitHub release, tagged
-  # with the version from the plugin header, with protech-wholesale.zip
+  # with the version from the plugin header, with protech-commerce.zip
   # attached. Sites read that release through the plugin's own updater
   # (includes/class-updater.php) and offer it in the Plugins list. A version
   # that already has a tag is left alone, so pushing docs or CI changes to
@@ -67,7 +67,7 @@ jobs:
       - name: Read the plugin version
         id: version
         run: |
-          version=$(sed -n 's/^ \* Version:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' protech-wholesale/protech-wholesale.php | head -n 1)
+          version=$(sed -n 's/^ \* Version:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' protech-commerce/protech-commerce.php | head -n 1)
           if [ -z "$version" ]; then
             echo "Could not read the Version header." >&2
             exit 1
@@ -80,28 +80,28 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build protech-wholesale.zip
+      - name: Build protech-commerce.zip
         if: steps.version.outputs.exists == 'false'
         run: |
           # Same exclusions as bin/deploy.sh: nothing the plugin loads at
           # runtime is left out, and nothing dev-only goes in. The folder
-          # name inside the zip must be protech-wholesale/ so WordPress
+          # name inside the zip must be protech-commerce/ so WordPress
           # installs it over the existing plugin directory.
-          zip -r protech-wholesale.zip protech-wholesale \
-            -x 'protech-wholesale/.git*' \
-            -x 'protech-wholesale/.DS_Store' \
-            -x 'protech-wholesale/Thumbs.db' \
-            -x 'protech-wholesale/*.log' \
-            -x 'protech-wholesale/.idea/*' \
-            -x 'protech-wholesale/.vscode/*' \
-            -x 'protech-wholesale/vendor/*' \
-            -x 'protech-wholesale/tests/*' \
-            -x 'protech-wholesale/composer.json' \
-            -x 'protech-wholesale/composer.lock' \
-            -x 'protech-wholesale/phpunit.xml.dist' \
-            -x 'protech-wholesale/phpstan.neon.dist' \
-            -x 'protech-wholesale/.phpcs.xml.dist'
-          unzip -l protech-wholesale.zip | tail -n 1
+          zip -r protech-commerce.zip protech-commerce \
+            -x 'protech-commerce/.git*' \
+            -x 'protech-commerce/.DS_Store' \
+            -x 'protech-commerce/Thumbs.db' \
+            -x 'protech-commerce/*.log' \
+            -x 'protech-commerce/.idea/*' \
+            -x 'protech-commerce/.vscode/*' \
+            -x 'protech-commerce/vendor/*' \
+            -x 'protech-commerce/tests/*' \
+            -x 'protech-commerce/composer.json' \
+            -x 'protech-commerce/composer.lock' \
+            -x 'protech-commerce/phpunit.xml.dist' \
+            -x 'protech-commerce/phpstan.neon.dist' \
+            -x 'protech-commerce/.phpcs.xml.dist'
+          unzip -l protech-commerce.zip | tail -n 1
 
       - name: Release notes from CHANGELOG.md
         if: steps.version.outputs.exists == 'false'
@@ -122,7 +122,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" protech-wholesale.zip \
+          gh release create "v${{ steps.version.outputs.version }}" protech-commerce.zip \
             --title "Protech Wholesale ${{ steps.version.outputs.version }}" \
             --notes-file release-notes.md \
             --target "${{ github.sha }}"

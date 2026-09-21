@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploy protech-wholesale/ to the Cloudways STAGING application and
+# Deploy protech-commerce/ to the Cloudways STAGING application and
 # flush its object cache.
 #
 # Safety rules (see the master prompt's Cloudways appendix — do not
@@ -60,10 +60,10 @@ else
 	exit 1
 fi
 
-PLUGIN_SRC="${REPO_ROOT}/protech-wholesale/"
-PLUGIN_DEST="${CW_SSH_USER}@${CW_SSH_HOST}:${CW_APP_PATH}/wp-content/plugins/protech-wholesale/"
+PLUGIN_SRC="${REPO_ROOT}/protech-commerce/"
+PLUGIN_DEST="${CW_SSH_USER}@${CW_SSH_HOST}:${CW_APP_PATH}/wp-content/plugins/protech-commerce/"
 
-echo "Deploying protech-wholesale to staging (${CW_STAGING_URL}) ..."
+echo "Deploying protech-commerce to staging (${CW_STAGING_URL}) ..."
 
 # Dev-only tooling (Composer vendor/, the test suite, lint/analysis
 # configs) never ships to the server — nothing in the plugin's runtime
@@ -95,5 +95,5 @@ echo "Flushing the WordPress object cache and Breeze page cache on staging ..."
 	"cd ${CW_APP_PATH} && wp cache flush && (wp breeze purge --cache=all 2>/dev/null || true)"
 
 echo ""
-echo "Deploy complete: protech-wholesale is live on staging."
+echo "Deploy complete: protech-commerce is live on staging."
 echo "  ${CW_STAGING_URL}"

@@ -9,7 +9,7 @@
  * application, and price override survives a reinstall untouched.
  *
  * Implementation note: this intentionally does NOT `require` the main
- * plugin file (protech-wholesale.php) to reuse its class constants.
+ * plugin file (protech-commerce.php) to reuse its class constants.
  * uninstall.php runs as a standalone script outside the plugin's normal
  * `plugins_loaded` lifecycle — loading the plugin bootstrap here would
  * register its autoloader and activation/deactivation hooks for no
