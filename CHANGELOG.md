@@ -12,6 +12,12 @@ change landed on staging.
   by default), from ticked rows ("Send welcome email"), or from Send / Resend
   on a row. A new Welcome email column shows when each customer got it. It is
   logged like any other message and never touches a password.
+- **"Add one display of every color" button** under a variable product's
+  add-to-cart form (wholesale customers). One click adds one display of every
+  color that has a wholesale price and is in stock, priced at the tier the cart
+  reaches. It reads the product's live colors on each page load, so new colors
+  are included automatically, and shows the color count, displays, packs and
+  price. Needs no kit product.
 - **Send a preview** on Compose, on every automation rule, and for the welcome
   email: type any email address (and a phone number for texts) and the message
   goes there as written. It replaces "Send test to me", which could only reach

@@ -265,4 +265,82 @@ class Test_Starter_Kit extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertCount( 0, WC()->cart->get_cart() );
 	}
+
+	public function test_a_variable_product_is_its_own_one_of_every_color_source(): void {
+		$parent_id = $this->sleeves['parent']->get_id();
+
+		$this->assertTrue( StarterKit::is_every_color_source( $parent_id ) );
+		$this->assertFalse( StarterKit::is_every_color_source( $this->kit_id ), 'A kit product is not.' );
+		$this->assertFalse( StarterKit::is_every_color_source( Protech_Test_Factory::simple_product( '5.50' )->get_id() ), 'A simple product has no colors to add.' );
+
+		$composition = StarterKit::get_composition( $parent_id, $this->customer_id );
+
+		$this->assertSame( 3, $composition['displays'] );
+		$this->assertSame( array( 1, 1, 1 ), array_values( $this->displays_by_variation( $composition ) ), 'One display of each color, no fillers.' );
+	}
+
+	public function test_every_color_picks_up_a_color_added_later(): void {
+		$parent_id = $this->sleeves['parent']->get_id();
+
+		$blue = new WC_Product_Variation();
+		$blue->set_parent_id( $parent_id );
+		$blue->set_attributes( array( 'color' => 'blue' ) );
+		$blue->set_regular_price( '9.99' );
+		$blue->set_status( 'publish' );
+		$blue->set_manage_stock( false );
+		$blue->set_stock_status( 'instock' );
+		$blue->save();
+		update_post_meta( $blue->get_id(), \ProtechWholesale\ProductFields::META_WHOLESALE_PRICE, '5.50' );
+
+		$composition = StarterKit::get_composition( $parent_id, $this->customer_id );
+
+		$this->assertSame( 4, $composition['displays'] );
+		$this->assertArrayHasKey( $blue->get_id(), $this->displays_by_variation( $composition ) );
+	}
+
+	public function test_every_color_adds_one_display_of_each_to_the_cart(): void {
+		wp_set_current_user( $this->customer_id );
+		WC()->cart->empty_cart();
+
+		$result = StarterKit::add_to_cart( $this->sleeves['parent']->get_id(), 1, $this->customer_id );
+
+		$this->assertNotWPError( $result );
+		$this->assertSame( 3, $result['added_lines'] );
+		$this->assertSame( 3, $result['added_displays'] );
+		$this->assertSame( 30, (int) array_sum( wp_list_pluck( WC()->cart->get_cart(), 'quantity' ) ), '3 displays x 10 packs.' );
+	}
+
+	public function test_every_color_is_refused_for_a_retail_customer_and_for_a_simple_product(): void {
+		$retail_id = Protech_Test_Factory::retail_customer();
+		wp_set_current_user( $retail_id );
+
+		$this->assertWPError( StarterKit::add_to_cart( $this->sleeves['parent']->get_id(), 1, $retail_id ) );
+
+		wp_set_current_user( $this->customer_id );
+
+		$this->assertWPError( StarterKit::add_to_cart( Protech_Test_Factory::simple_product( '5.50' )->get_id(), 1, $this->customer_id ) );
+	}
+
+	public function test_the_button_renders_for_wholesale_on_a_variable_product_only(): void {
+		global $product;
+
+		$product = $this->sleeves['parent'];
+		wp_set_current_user( $this->customer_id );
+
+		ob_start();
+		( new StarterKit() )->render_every_color();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'Add one display of every color', $html );
+		$this->assertStringContainsString( 'One display of each of the 3 colors: 3 displays, 30 packs.', $html );
+
+		wp_set_current_user( Protech_Test_Factory::retail_customer() );
+
+		ob_start();
+		( new StarterKit() )->render_every_color();
+		$this->assertSame( '', (string) ob_get_clean(), 'Nothing for a retail customer.' );
+
+		$product = null;
+		wp_set_current_user( 0 );
+	}
 }

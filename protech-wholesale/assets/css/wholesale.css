@@ -510,6 +510,119 @@ body .protech-wholesale-portal .protech-button--block {
 	animation: protech-added-pulse 0.8s var( --protech-ease );
 }
 
+/* -- "Add one display of every color" (variable product page) ------------
+ * A quieter, outlined button under the main Add to cart, so it reads as a
+ * shortcut and not a second primary action. ------------------------------ */
+.protech-everycolor {
+	margin: 1.25em 0 1.5em;
+	padding: 16px 18px;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: var( --protech-radius );
+	background: var( --protech-blue-tint );
+	font-family: var( --protech-font );
+}
+.protech-everycolor-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	margin: 0 0 8px;
+}
+.protech-everycolor .protech-everycolor-title {
+	margin: 0;
+	padding: 0;
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: #111;
+}
+.protech-everycolor .protech-everycolor-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.protech-everycolor .protech-everycolor-swatches li {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	padding: 0;
+	border: 1px solid rgba( 0, 0, 0, 0.15 );
+	border-radius: 50%;
+	list-style: none;
+	background: var( --protech-blue );
+}
+.protech-everycolor .protech-everycolor-detail {
+	margin: 0 0 12px;
+	padding: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #222;
+}
+.protech-everycolor .protech-everycolor-total {
+	font-weight: 700;
+	color: var( --protech-blue-dark );
+}
+.protech-everycolor .protech-everycolor-note {
+	display: block;
+	font-size: 12px;
+	color: var( --protech-muted );
+}
+.protech-everycolor .protech-everycolor-note--stock {
+	margin: -4px 0 12px;
+}
+.protech-everycolor .protech-everycolor-form {
+	margin: 0;
+}
+body .protech-everycolor button.protech-everycolor-add {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 48px;
+	padding: 0 24px !important;
+	border: 2px solid var( --protech-blue ) !important;
+	border-radius: var( --protech-radius ) !important;
+	background-color: #fff !important;
+	color: var( --protech-blue-dark ) !important;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+body .protech-everycolor button.protech-everycolor-add:hover,
+body .protech-everycolor button.protech-everycolor-add:focus {
+	background-color: var( --protech-blue ) !important;
+	color: #fff !important;
+}
+body .protech-everycolor button.protech-everycolor-add.loading {
+	opacity: 0.6;
+	cursor: wait;
+}
+.protech-everycolor .protech-everycolor-message {
+	min-height: 1.45em;
+	margin: 10px 0 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --protech-muted );
+}
+.protech-everycolor .protech-everycolor-message--error {
+	font-weight: 600;
+	color: var( --protech-danger );
+}
+.protech-everycolor .protech-everycolor-message--success {
+	font-weight: 600;
+	color: var( --protech-success );
+}
+.protech-everycolor-add.protech-added {
+	animation: protech-added-pulse 0.8s var( --protech-ease );
+}
+
 /* -- Starter kit panel (kit product page) --------------------------------
  * Replaces the add-to-cart form on a kit product: what the kit holds for
  * this customer, its price at the tier it will land on, and one button.
@@ -2162,6 +2275,8 @@ body .protech-wholesale-portal button.protech-password-toggle:focus {
 	.protech-wholesale-portal *::after,
 	.single_add_to_cart_button.protech-added,
 	.protech-kit *,
+	.protech-everycolor *,
+	.protech-everycolor-add.protech-added,
 	.protech-kit-add.protech-added {
 		animation: none !important;
 		transition: none !important;

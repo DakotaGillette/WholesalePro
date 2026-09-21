@@ -29,6 +29,11 @@
  *
  * Configured per product on the Wholesale tab (simple products).
  *
+ * The same composition powers the "Add one display of every color" button on
+ * a variable product's own page (see is_every_color_source()): there the
+ * "kit" is the product itself, always in one-of-each mode, so it needs no
+ * setup and picks up a newly added color the moment it has a wholesale price.
+ *
  * @package ProtechWholesale
  */
 
@@ -69,6 +74,9 @@ class StarterKit {
 		// Where the add-to-cart form would be (30).
 		add_action( 'woocommerce_single_product_summary', array( $this, 'render_on_product_page' ), 30 );
 
+		// "Add one display of every color", under a variable product's own form.
+		add_action( 'woocommerce_after_add_to_cart_form', array( $this, 'render_every_color' ) );
+
 		add_action( 'wp_ajax_protech_kit_quote', array( $this, 'ajax_quote' ) );
 		add_action( 'wp_ajax_' . self::POST_ACTION, array( $this, 'ajax_add' ) );
 		add_action( 'admin_post_' . self::POST_ACTION, array( $this, 'handle_post' ) );
@@ -76,6 +84,21 @@ class StarterKit {
 
 	public static function is_kit( int $product_id ): bool {
 		return $product_id > 0 && 'yes' === get_post_meta( $product_id, self::META_ENABLED, true );
+	}
+
+	/**
+	 * A variable product that can offer "add one display of every color":
+	 * any variable product that is not itself a kit. Whether it has anything
+	 * to add for a given customer is get_composition()'s call.
+	 */
+	public static function is_every_color_source( int $product_id ): bool {
+		if ( $product_id < 1 || self::is_kit( $product_id ) ) {
+			return false;
+		}
+
+		$product = wc_get_product( $product_id );
+
+		return $product instanceof \WC_Product && $product->is_type( 'variable' );
 	}
 
 	/** True on the single product page of a kit, for a wholesale customer — i.e. when the kit UI renders. */
@@ -108,7 +131,10 @@ class StarterKit {
 	 * @return array{lines: array<int, array{variation_id: int, parent_id: int, name: string, color: string, displays: int, packs: int}>, unavailable: string[], displays: int, packs: int, target: int}
 	 */
 	public static function get_composition( int $kit_id, int $user_id ): array {
-		$one_of_each = self::is_one_of_each( $kit_id );
+		// A variable product used directly ("add one of every color") is its own
+		// source and is always one of each; a kit product points at its source.
+		$direct      = ! self::is_kit( $kit_id );
+		$one_of_each = $direct || self::is_one_of_each( $kit_id );
 
 		$empty = array(
 			'lines'       => array(),
@@ -120,7 +146,7 @@ class StarterKit {
 			'target'      => $one_of_each ? 0 : self::get_target_displays( $kit_id ),
 		);
 
-		$source = wc_get_product( (int) get_post_meta( $kit_id, self::META_SOURCE, true ) );
+		$source = wc_get_product( $direct ? $kit_id : (int) get_post_meta( $kit_id, self::META_SOURCE, true ) );
 
 		if ( ! $source instanceof \WC_Product || ! $source->is_type( 'variable' ) ) {
 			return $empty;
@@ -368,8 +394,8 @@ class StarterKit {
 	 * @return array{added_lines: int, added_displays: int, notes: string[]}|\WP_Error
 	 */
 	public static function add_to_cart( int $kit_id, int $kits, int $user_id ) {
-		if ( ! self::is_kit( $kit_id ) || ! Roles::is_wholesale_customer( $user_id ) ) {
-			return new \WP_Error( 'protech_kit_unavailable', __( 'This starter kit is not available.', 'protech-wholesale' ) );
+		if ( ( ! self::is_kit( $kit_id ) && ! self::is_every_color_source( $kit_id ) ) || ! Roles::is_wholesale_customer( $user_id ) ) {
+			return new \WP_Error( 'protech_kit_unavailable', __( 'This is not available.', 'protech-wholesale' ) );
 		}
 
 		if ( ! function_exists( 'WC' ) || ! WC()->cart instanceof \WC_Cart ) {
@@ -380,7 +406,7 @@ class StarterKit {
 		$composition = self::get_composition( $kit_id, $user_id );
 
 		if ( empty( $composition['lines'] ) ) {
-			return new \WP_Error( 'protech_kit_empty', __( 'Nothing in this starter kit is available right now.', 'protech-wholesale' ) );
+			return new \WP_Error( 'protech_kit_empty', __( 'Nothing is available to add right now.', 'protech-wholesale' ) );
 		}
 
 		$added_lines    = 0;
@@ -449,7 +475,15 @@ class StarterKit {
 		return trim( wp_strip_all_tags( $text ) );
 	}
 
-	private static function added_message( int $displays ): string {
+	private static function added_message( int $displays, int $kit_id = 0 ): string {
+		if ( $kit_id > 0 && ! self::is_kit( $kit_id ) ) {
+			return sprintf(
+				/* translators: %s: number of displays. */
+				_n( 'Added %s display to your cart.', 'Added %s displays to your cart, one of every color.', $displays, 'protech-wholesale' ),
+				number_format_i18n( $displays )
+			);
+		}
+
 		return sprintf(
 			/* translators: %s: number of displays. */
 			_n( 'Starter kit added: %s display is in your cart.', 'Starter kit added: %s displays are in your cart.', $displays, 'protech-wholesale' ),
@@ -530,6 +564,39 @@ class StarterKit {
 		);
 	}
 
+	/**
+	 * The "Add one display of every color" block under a variable product's
+	 * add-to-cart form, for a wholesale customer, when there is more than one
+	 * color to add. Computed per page load from the live variations, so a color
+	 * added next month is in it as soon as it has a wholesale price.
+	 */
+	public function render_every_color(): void {
+		global $product;
+
+		if ( ! $product instanceof \WC_Product || ! Roles::is_wholesale_customer() || ! self::is_every_color_source( $product->get_id() ) ) {
+			return;
+		}
+
+		$user_id     = get_current_user_id();
+		$composition = self::get_composition( $product->get_id(), $user_id );
+
+		if ( count( $composition['lines'] ) < 2 ) {
+			return;
+		}
+
+		wc_get_template(
+			'add-every-color.php',
+			array(
+				'product_id'  => $product->get_id(),
+				'composition' => $composition,
+				'quote'       => self::get_quote( $product->get_id(), 1, $user_id ),
+				'post_url'    => admin_url( 'admin-post.php' ),
+			),
+			'',
+			PROTECH_WHOLESALE_DIR . 'templates/'
+		);
+	}
+
 	private function requested_kit_id(): int {
 		// phpcs:ignore WordPress.Security.NonceVerification -- verified by each caller.
 		return isset( $_REQUEST['kit_id'] ) ? absint( $_REQUEST['kit_id'] ) : 0;
@@ -545,7 +612,7 @@ class StarterKit {
 
 		$kit_id = $this->requested_kit_id();
 
-		if ( ! Roles::is_wholesale_customer() || ! self::is_kit( $kit_id ) ) {
+		if ( ! Roles::is_wholesale_customer() || ( ! self::is_kit( $kit_id ) && ! self::is_every_color_source( $kit_id ) ) ) {
 			wp_send_json_error( array( 'message' => __( 'Not available.', 'protech-wholesale' ) ), 403 );
 		}
 
@@ -565,7 +632,7 @@ class StarterKit {
 		if ( $result['added_lines'] < 1 ) {
 			wp_send_json_error(
 				array(
-					'message' => __( 'Nothing from this starter kit could be added to your cart.', 'protech-wholesale' ),
+					'message' => __( 'Nothing could be added to your cart.', 'protech-wholesale' ),
 					'notes'   => $result['notes'],
 				),
 				400
@@ -574,7 +641,7 @@ class StarterKit {
 
 		wp_send_json_success(
 			array(
-				'message'        => self::added_message( $result['added_displays'] ),
+				'message'        => self::added_message( $result['added_displays'], $kit_id ),
 				'notes'          => $result['notes'],
 				'added_displays' => $result['added_displays'],
 				'quote'          => self::get_quote( $kit_id, 1, get_current_user_id() ),
@@ -611,7 +678,7 @@ class StarterKit {
 			}
 
 			if ( $result['added_lines'] > 0 ) {
-				wc_add_notice( self::added_message( $result['added_displays'] ), 'success' );
+				wc_add_notice( self::added_message( $result['added_displays'], $this->requested_kit_id() ), 'success' );
 			}
 		}
 

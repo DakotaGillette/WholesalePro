@@ -367,6 +367,29 @@ final class Plugin {
 			);
 		}
 
+		// "Add one display of every color" under a variable product's form.
+		if ( $is_wholesale && is_product() && StarterKit::is_every_color_source( (int) get_the_ID() ) ) {
+			wp_enqueue_script(
+				'protech-wholesale-every-color',
+				PROTECH_WHOLESALE_URL . 'assets/js/every-color.js',
+				array( 'jquery' ),
+				$this->asset_version( 'assets/js/every-color.js' ),
+				true
+			);
+
+			wp_localize_script(
+				'protech-wholesale-every-color',
+				'ProtechEveryColor',
+				array(
+					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+					'nonce'   => wp_create_nonce( StarterKit::NONCE_ACTION ),
+					'i18n'    => array(
+						'addFailed' => __( 'Could not add these to your cart.', 'protech-wholesale' ),
+					),
+				)
+			);
+		}
+
 		// A kit page has no add-to-cart form for the unit selector to drive.
 		if ( $is_wholesale && is_product() && ! StarterKit::is_kit_page() ) {
 			$product      = wc_get_product( get_the_ID() );

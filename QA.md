@@ -393,6 +393,12 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] Tick two customers and press "Send welcome email": the notice says how many were sent.
 - [ ] "Add existing customers to wholesale": the box is ticked by default; adding a plain customer with it ticked sends them the welcome email (not the "set your password" one) and adds no reset key.
 
+**Add one display of every color**
+- [ ] On the Premium Matte Sleeves page, under the main Add to cart: "Want every color?" with a swatch per color, the line "One display of each of the N colors: N displays, N0 packs", a price, and the outlined button.
+- [ ] Press it with an empty cart: a green "Added N displays to your cart, one of every color." line, the cart badge, the sticky bar and the mini-cart update, and the cart holds one line per color at one display each.
+- [ ] Mark one color out of stock and reload: it is listed as left out and the count drops by one. Add a color (with a wholesale price) and reload: the count goes up with nothing else changed.
+- [ ] Not shown to a guest or a retail customer, and not on a product with only one color.
+
 **Previews**
 - [ ] Compose: fill in an email, type a friend's address in "Send a preview", press it. They receive it; your own inbox does not.
 - [ ] Compose with the channel set to Both and a phone number typed: two green notices (email and text).

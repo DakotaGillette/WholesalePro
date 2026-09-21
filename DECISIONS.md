@@ -1552,3 +1552,18 @@ own hook, CaseRules::render_quantity_legend(), on
 woocommerce_single_product_summary at 24 (the price table is 25), with the
 same wholesale-priced-product condition, and it drops its 520px cap to match
 the table's width.
+
+**"Add one display of every color" button (same day):** the starter-kit
+engine already computes "one display of every color that is priced and in
+stock" from a variable product's live variations, and its one-of-each mode
+was built precisely so a new color needs no edit. Rather than a second
+implementation, StarterKit::get_composition() treats a variable product that
+is not itself a kit as its own source in one-of-each mode
+(is_every_color_source()), and the existing quote and add endpoints accept
+that product id, so the button is a small template, a small script and no new
+server endpoint. It sits under the variable product's own add-to-cart form
+(woocommerce_after_add_to_cart_form) as an outlined button so the black Add
+to cart stays the one primary action, and it is hidden when fewer than two
+colors are available. It adds exactly one of each, with no stepper, because
+that is what was asked; pressing it twice adds a second set, and the cart's
+quantity rules and tier pricing apply as for any other line.
