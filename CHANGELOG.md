@@ -3,6 +3,17 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.1.0 - 2026-09-21
+
+### Changed
+- **Messaging is now its own menu in the wp-admin sidebar** (Messaging, below
+  WooCommerce and Products), with a sub-page each for Automations, Compose,
+  Log, Compliance and Settings. It moved out from under WooCommerce →
+  Wholesale because it is no longer a wholesale-only feature. Old links and
+  bookmarks to the Wholesale tab redirect to the same view, and the Wholesale
+  screen keeps a Messaging link beside its Log link. Nothing else changed: the
+  same screens, the same settings, the same data.
+
 ## 2.0.0 - 2026-09-21
 
 ### Changed

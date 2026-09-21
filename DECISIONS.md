@@ -1624,3 +1624,28 @@ customer, not just wholesale, so the plugin's name should say so. Decisions:
 5. **How the move was done on Windows.** `git mv` of the whole folder was
    refused (an editor holds handles inside it), so the 105 tracked files were
    moved one at a time, which git records as pure renames and keeps history.
+
+## Messaging becomes its own menu (2026-09-21, 2.1.0)
+
+Messaging is going to serve retail customers as well as wholesale, and a
+visual composer is coming, so it should not sit under a Wholesale tab.
+
+1. **One page slug per view, not one page plus a `view` argument.** Each
+   view (Automations, Compose, Log, Compliance, Settings) is its own sub-menu
+   page (`protech-messaging`, `protech-messaging-compose`, ...), so WordPress
+   highlights the right sidebar item and the browser title is right. The
+   landing view owns the top-level slug. All of them share one render callback
+   and pick the view from the page slug.
+2. **`MessagingTab::url()` is the single URL builder**, and it already was:
+   the Customers tab, the setup checks and every admin-post handler redirect
+   through it, so the move was a change in that one method.
+3. **Old URLs redirect, and nothing else changes.** An `admin_init` hook maps
+   `page=protech-wholesale&tab=messaging&view=X` to the new page, carrying
+   every other query argument (a Compose link's `ids`, a Log filter), so
+   bookmarks, emailed links and the previous release's own links keep working.
+4. **The Wholesale screen loses the Messaging tab** and gains a link beside
+   its Log link. Admin assets (`admin.js`, `admin.css`, the enhanced select)
+   now load on the new pages too, gated on the `protech-messaging` page ids.
+5. **The page shell and the existing views are untouched.** The 1200-line
+   `class-messaging-tab.php` still owns them; splitting it is a separate
+   cleanup and not part of this move.

@@ -384,6 +384,15 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 24. Messaging section (2.1.0)
+
+- [ ] The sidebar has a **Messaging** item under WooCommerce and Products, with Automations, Compose, Log, Compliance and Settings under it, and the current page is highlighted.
+- [ ] Each sub-page shows the same screen it did under Wholesale, with the same data (rules, past sends, Brevo settings).
+- [ ] Open an old link such as `wp-admin/admin.php?page=protech-wholesale&tab=messaging&view=log`: it lands on Messaging → Log.
+- [ ] WooCommerce → Wholesale no longer has a Messaging tab; the line under its heading has a Messaging link.
+- [ ] Customers tab → a row's Message link, and "Send message to selected", both land on Compose.
+- [ ] The Log filters (channel, status) and pagination still work, and Compose's preview and send still redirect back to the right page.
+
 ## 23. Welcome email and previews (1.6.0)
 
 **Welcome email**

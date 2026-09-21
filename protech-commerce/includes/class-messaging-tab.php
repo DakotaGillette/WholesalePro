@@ -1,10 +1,11 @@
 <?php
 /**
- * The "Messaging" tab of the WooCommerce → Wholesale admin screen — five
- * views (Automations, Compose, Log, Compliance, Settings). Every action
+ * The top-level "Messaging" section of wp-admin (it lived under
+ * WooCommerce → Wholesale until 2.1.0) — five views (Automations, Compose,
+ * Log, Compliance, Settings), each its own sub-menu page. Every action
  * that changes something goes through admin-post.php and comes back as
- * a redirect: Approval::render_page() has already echoed the page's
- * <h1> by the time a tab's body renders, so nothing in here can send its
+ * a redirect: render_page() has already echoed the page's <h1> by the
+ * time a view's body renders, so nothing in here can send its
  * own redirect header. A brief per-admin transient ("stash") carries
  * validation errors and dry-run results across that redirect, the same
  * way WordPress core carries settings-saved state.
@@ -27,7 +28,12 @@ class MessagingTab {
 
 	private const STASH_TTL = 5 * MINUTE_IN_SECONDS;
 
+	/** The top-level menu page; the first view (Automations) is its landing page. */
+	public const PAGE = 'protech-messaging';
+
 	public function register_hooks(): void {
+		add_action( 'admin_menu', array( $this, 'register_menu' ), 20 );
+		add_action( 'admin_init', array( $this, 'redirect_legacy_url' ) );
 		add_action( 'admin_post_protech_save_automation', array( $this, 'handle_save_automation' ) );
 		add_action( 'admin_post_protech_preview_automation', array( $this, 'handle_preview_automation' ) );
 		add_action( 'admin_post_protech_send_test_automation', array( $this, 'handle_send_test_automation' ) );
@@ -44,8 +50,96 @@ class MessagingTab {
 		add_action( 'admin_post_protech_test_brevo_connection', array( $this, 'handle_test_brevo_connection' ) );
 	}
 
+	/** The admin page slug of a view: the landing view owns the top-level slug, the rest hang off it. */
+	public static function page_slug( string $view ): string {
+		return 'automations' === $view ? self::PAGE : self::PAGE . '-' . $view;
+	}
+
+	/**
+	 * The one place that builds a Messaging URL, so moving the section was a
+	 * change here and nowhere else.
+	 *
+	 * @param array<string, scalar> $args
+	 */
 	public static function url( string $view, array $args = array() ): string {
-		return add_query_arg( array_merge( array( 'page' => 'protech-wholesale', 'tab' => 'messaging', 'view' => $view ), $args ), admin_url( 'admin.php' ) );
+		return add_query_arg( array_merge( array( 'page' => self::page_slug( $view ) ), $args ), admin_url( 'admin.php' ) );
+	}
+
+	/** Which view the current request is for, from the admin page slug. */
+	private static function current_view(): string {
+		$page = sanitize_key( $_GET['page'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+
+		foreach ( array_keys( self::get_views() ) as $view ) {
+			if ( self::page_slug( $view ) === $page ) {
+				return $view;
+			}
+		}
+
+		return 'automations';
+	}
+
+	/** The top-level menu and one sub-menu page per view. */
+	public function register_menu(): void {
+		add_menu_page(
+			__( 'Messaging', 'protech-wholesale' ),
+			__( 'Messaging', 'protech-wholesale' ),
+			'manage_woocommerce',
+			self::PAGE,
+			array( __CLASS__, 'render_page' ),
+			'dashicons-email-alt',
+			56
+		);
+
+		foreach ( self::get_views() as $view => $label ) {
+			add_submenu_page(
+				self::PAGE,
+				$label,
+				$label,
+				'manage_woocommerce',
+				self::page_slug( $view ),
+				array( __CLASS__, 'render_page' )
+			);
+		}
+	}
+
+	/** The page shell: the heading, then the current view. */
+	public static function render_page(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
+		}
+
+		echo '<div class="wrap"><h1>' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</h1>';
+		self::render();
+		echo '</div>';
+	}
+
+	/**
+	 * Bookmarks and old links (WooCommerce → Wholesale → Messaging, with its
+	 * `&tab=messaging&view=…`) go to the same view in the new section, with
+	 * every other query argument carried across.
+	 */
+	public function redirect_legacy_url(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- a read-only redirect of a GET URL.
+		if ( 'protech-wholesale' !== sanitize_key( $_GET['page'] ?? '' ) || 'messaging' !== sanitize_key( $_GET['tab'] ?? '' ) ) {
+			return;
+		}
+
+		$view = sanitize_key( $_GET['view'] ?? 'automations' );
+		$args = array();
+
+		foreach ( $_GET as $key => $value ) {
+			if ( ! in_array( $key, array( 'page', 'tab', 'view' ), true ) && is_scalar( $value ) ) {
+				$args[ sanitize_key( (string) $key ) ] = sanitize_text_field( wp_unslash( (string) $value ) );
+			}
+		}
+		// phpcs:enable
+
+		if ( ! array_key_exists( $view, self::get_views() ) ) {
+			$view = 'automations';
+		}
+
+		wp_safe_redirect( self::url( $view, $args ) );
+		exit;
 	}
 
 	/**
@@ -89,12 +183,8 @@ class MessagingTab {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
-		$view  = sanitize_key( $_GET['view'] ?? 'automations' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$view  = self::current_view();
 		$views = self::get_views();
-
-		if ( ! isset( $views[ $view ] ) ) {
-			$view = 'automations';
-		}
 
 		echo '<p>' . esc_html__( 'Send emails and texts to wholesale customers — automatically, on a rule, or on demand — through Brevo.', 'protech-wholesale' ) . '</p>';
 
@@ -1007,7 +1097,7 @@ class MessagingTab {
 		$result = MessageLog::query( $filters, $page, $per_page );
 
 		echo '<form method="get" style="margin-bottom:1em;">';
-		echo '<input type="hidden" name="page" value="protech-wholesale" /><input type="hidden" name="tab" value="messaging" /><input type="hidden" name="view" value="log" />';
+		echo '<input type="hidden" name="page" value="' . esc_attr( self::page_slug( 'log' ) ) . '" />';
 		echo '<select name="channel"><option value="">' . esc_html__( 'All channels', 'protech-wholesale' ) . '</option>';
 		foreach ( array( 'email' => __( 'Email', 'protech-wholesale' ), 'sms' => __( 'SMS', 'protech-wholesale' ) ) as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['channel'] ?? '', $value, false ) . '>' . esc_html( $label ) . '</option>';

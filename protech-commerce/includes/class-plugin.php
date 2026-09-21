@@ -486,7 +486,9 @@ final class Plugin {
 		$screen = get_current_screen();
 
 		$is_product_screen = $screen && in_array( $screen->id, array( 'product', 'edit-product' ), true );
-		$is_wholesale_screen = $screen && str_contains( (string) $screen->id, 'wholesale' );
+		// The wholesale screens and the top-level Messaging section (whose
+		// page ids contain `protech-messaging`) share one set of admin assets.
+		$is_wholesale_screen = $screen && ( str_contains( (string) $screen->id, 'wholesale' ) || str_contains( (string) $screen->id, MessagingTab::PAGE ) );
 		$is_user_screen     = in_array( $hook, array( 'profile.php', 'user-edit.php' ), true );
 
 		if ( ! $is_product_screen && ! $is_wholesale_screen && ! $is_user_screen ) {

@@ -175,7 +175,7 @@ class Approval {
 					'<p><strong>' . esc_html__( 'Products', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'everything priced or flagged for wholesale, for reference. Prices themselves are set on each product\'s Wholesale tab.', 'protech-wholesale' ) . '</p>' .
 					'<p><strong>' . esc_html__( 'Pricing & Shipping', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'the Standard / Volume / Bulk ladder, the display and case defaults, and the wholesale shipping rate.', 'protech-wholesale' ) . '</p>' .
 					'<p><strong>' . esc_html__( 'Tiers', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'hidden per-customer discount levels (Bronze to Platinum), on top of the ladder.', 'protech-wholesale' ) . '</p>' .
-					'<p><strong>' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'automated and one-off emails/texts to wholesale customers, through Brevo, with a full send log and SMS consent records.', 'protech-wholesale' ) . '</p>' .
+					'<p><strong>' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'moved to its own Messaging menu in the sidebar (automated and one-off emails and texts, a send log and SMS consent records).', 'protech-wholesale' ) . '</p>' .
 					'<p><strong>' . esc_html__( 'Settings', 'protech-wholesale' ) . '</strong> — ' . esc_html__( 'what wholesale customers see for unpriced products, coupons, which form takes applications, notifications, updates and uninstall.', 'protech-wholesale' ) . '</p>',
 			)
 		);
@@ -201,7 +201,6 @@ class Approval {
 			'products'   => __( 'Products', 'protech-wholesale' ),
 			'pricing'    => __( 'Pricing & Shipping', 'protech-wholesale' ),
 			'tiers'      => __( 'Tiers', 'protech-wholesale' ),
-			'messaging'  => __( 'Messaging', 'protech-wholesale' ),
 			'settings'   => __( 'Settings', 'protech-wholesale' ),
 		);
 	}
@@ -231,6 +230,7 @@ class Approval {
 
 		$links[] = '<a href="' . esc_url( home_url( '/wholesale-application' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Application form', 'protech-wholesale' ) . '</a>';
 		$links[] = '<a href="' . esc_url( admin_url( 'admin.php?page=wc-status&tab=logs&source=protech-wholesale' ) ) . '">' . esc_html__( 'Log', 'protech-wholesale' ) . '</a>';
+		$links[] = '<a href="' . esc_url( MessagingTab::url( 'automations' ) ) . '">' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</a>';
 
 		echo '<p class="description" style="margin:-6px 0 12px;">' . wp_kses_post( implode( ' &middot; ', $links ) ) . '</p>';
 
@@ -257,8 +257,6 @@ class Approval {
 			VolumePricing::render_pricing_tab();
 		} elseif ( 'tiers' === $tab ) {
 			Tiers::render_tiers_tab();
-		} elseif ( 'messaging' === $tab ) {
-			MessagingTab::render();
 		} else {
 			$this->render_applicants_tab();
 		}
