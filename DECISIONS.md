@@ -1679,3 +1679,59 @@ A release with almost no visible change, so the next ones can be built on it.
    them. The composer's blocks are added to the same class next release.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
+
+## The template library and renderer (2026-09-21, 2.2.0)
+
+The middle of the email composer: what a template is, how it becomes an email,
+and six starters. No editor yet and nothing sends through it yet, on purpose,
+so the hard part is tested on its own.
+
+1. **Templates live in one non-autoloaded option, not a post type.**
+   `wp_insert_post()` passes content through `wp_filter_post_kses` for any user
+   without `unfiltered_html`, which would mangle stored block data, the exact
+   failure the renderer exists to avoid. An option also matches
+   `Automations::OPTION` and `Campaigns::OPTION`, makes uninstall one string, and
+   costs nothing per request. Capped at 200.
+2. **The renderer never filters what it builds.** Blocks are nested tables with
+   inline styles; merge tags are substituted per field with `MergeTags::fill()`,
+   each value escaped as it goes in; text an admin typed is sanitized once on
+   save (a small allowlist with no `style` attribute, so nothing needs
+   filtering again). A test pins it: the document keeps `mso-hide:all`, and
+   `wp_kses_post()` of the same document is different. Composed templates also
+   skip `WC_Email::style_inline()`, which would inline WooCommerce's stylesheet
+   onto our elements and undo the point of owning the design.
+   One known consequence: when Brevo is not connected the fallback path sends
+   through `WC_Emails::send()`, which runs `style_inline` itself. Our own inline
+   styles win over its rules, so the result is right, but it is not identical to
+   the Brevo path.
+3. **The footer is passed in, not built by the renderer.** The caller supplies
+   `MessageTransport::footer_html_for()`, so a template cannot be rendered for
+   marketing without the unsubscribe link and postal address by omission. A
+   template's own "show store address" option applies only when no marketing
+   footer is supplied, so the address is never printed twice.
+3a. **A group that was not submitted keeps its value.** `validate()` treats
+   missing `style`, `header` or `footer` as "leave alone" and a submitted group
+   as complete (an unticked checkbox is absent from a form post, so absent
+   inside a submitted group means off). Without that, saving from a form that
+   omitted a group would silently reset it.
+4. **Columns nest one level, enforced when saving.** Columns inside columns are
+   dropped and reported. It bounds the renderer and the editor, and deeper
+   layouts are where table-based email breaks.
+5. **Wholesale-only blocks vanish for a retail reader** instead of leaving an
+   empty frame, and show in a preview so the admin can see them. Product
+   grids price per recipient (`Pricing::get_wholesale_price()` for a wholesale
+   reader, the shop price otherwise), skip wholesale-only products for retail,
+   and print a real dollar sign (the `&#36;` bug of 1.6.2 has a test).
+6. **The welcome email's picture and pricing lines moved into two shared
+   templates** (`email-quantity-diagram.php`, `email-pricing-ladder.php`) by
+   moving the exact lines rather than retyping them, so the welcome email and
+   the blocks share one implementation and the welcome email is unchanged.
+7. **Seeding is once, and additive by key.** Starters are created on the
+   `DB_VERSION` 4 step only while the library is empty, so a deleted starter
+   never returns, and a later release adds new ones by naming their keys. They
+   are never bound to a lifecycle email, so a release cannot change what a
+   customer receives. The two application starters (approved, rejected) wait
+   for the `{set_password_url}` tag, which must not be part of every recipient's
+   context: generating a reset key invalidates the previous one.
+8. **Two new tags**, `{login_url}` and `{lost_password_url}`. The login URL is
+   cached for the request because a campaign now asks for it once per recipient.

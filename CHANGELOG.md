@@ -3,6 +3,23 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.2.0 - 2026-09-21
+
+### Added
+- **Email templates**, under Messaging → Email templates: a library of designed
+  emails built from blocks (heading, text, button, image, products, quantity
+  explainers, columns, divider, space) with their own header and footer. This
+  release adds the library, six starter templates (Welcome to wholesale,
+  Application received, Restock reminder, Win-back offer, New arrivals
+  announcement, Blank) and a Preview for each. Previews use your own name and
+  show marketing templates with the footer a real send adds. Templates are not
+  used by any rule, campaign or automatic email yet, and none is switched on:
+  nothing a customer receives has changed.
+- **Email design** settings (Messaging → Settings): logo, brand color, email
+  width and footer text, which every template inherits.
+- Two merge tags, `{login_url}` (the wholesale login page) and
+  `{lost_password_url}`.
+
 ## 2.1.1 - 2026-09-21
 
 ### Changed

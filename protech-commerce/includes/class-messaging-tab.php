@@ -149,6 +149,7 @@ class MessagingTab {
 		return array(
 			'automations' => __( 'Automations', 'protech-wholesale' ),
 			'compose'     => __( 'Compose', 'protech-wholesale' ),
+			'templates'   => __( 'Email templates', 'protech-wholesale' ),
 			'log'         => __( 'Log', 'protech-wholesale' ),
 			'compliance'  => __( 'Compliance', 'protech-wholesale' ),
 			'settings'    => __( 'Settings', 'protech-wholesale' ),
@@ -215,6 +216,9 @@ class MessagingTab {
 		switch ( $view ) {
 			case 'compose':
 				self::render_compose();
+				break;
+			case 'templates':
+				EmailComposer::render();
 				break;
 			case 'log':
 				self::render_log();

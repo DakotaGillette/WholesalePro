@@ -28,6 +28,7 @@ class MergeTags {
 		'last_order_number', 'last_order_date', 'last_order_total', 'last_order_url',
 		'days_since_last_order', 'order_count',
 		'shop_url', 'account_url', 'orders_url', 'preferences_url', 'unsubscribe_url',
+		'login_url', 'lost_password_url',
 		'site_name', 'brand', 'store_address',
 	);
 
@@ -40,7 +41,7 @@ class MergeTags {
 	/** Tags whose value is a URL, so HTML rendering uses esc_url() rather than esc_html(). */
 	private const URL_TAGS = array(
 		'last_order_url', 'shop_url', 'account_url', 'orders_url', 'preferences_url',
-		'unsubscribe_url', 'order_url', 'tracking_url',
+		'unsubscribe_url', 'order_url', 'tracking_url', 'login_url', 'lost_password_url',
 	);
 
 	/**
@@ -63,6 +64,8 @@ class MergeTags {
 			'account_url'            => __( 'My Account link', 'protech-wholesale' ),
 			'orders_url'             => __( 'Order history link', 'protech-wholesale' ),
 			'preferences_url'        => __( 'Notification preferences link', 'protech-wholesale' ),
+			'login_url'              => __( 'Wholesale login link', 'protech-wholesale' ),
+			'lost_password_url'      => __( 'Password reset link', 'protech-wholesale' ),
 			'unsubscribe_url'        => __( 'Unsubscribe link', 'protech-wholesale' ),
 			'site_name'              => __( 'Site name', 'protech-wholesale' ),
 			'brand'                  => __( 'Brand name', 'protech-wholesale' ),
@@ -117,6 +120,8 @@ class MergeTags {
 			'orders_url'      => (string) wc_get_account_endpoint_url( 'orders' ),
 			'preferences_url' => (string) wc_get_account_endpoint_url( NotificationsEndpoint::ENDPOINT ),
 			'unsubscribe_url' => Unsubscribe::url( $user_id ),
+			'login_url'         => WelcomeEmail::login_url(),
+			'lost_password_url' => (string) wc_lostpassword_url(),
 			'site_name'       => (string) get_bloginfo( 'name' ),
 			'brand'           => MessagingSettings::brand(),
 			'store_address'   => self::store_address(),

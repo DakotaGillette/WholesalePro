@@ -115,6 +115,15 @@ A Protech Blue dock floating at the bottom of the viewport (full width on phones
 
 On the user's profile under **Protech Wholesale → Per-customer price overrides**, click **"+ Add price override"**, pick the product or variation with the search box, and enter the **price per pack**. It beats the group price and every quantity tier for that one customer and product only.
 
+## Email templates
+
+Messaging → **Email templates** is a library of designed emails. A template is a header (logo or store name), a stack of blocks, and a footer; the blocks are heading, text, button, image, products (picked, or the newest, with the reader's own price), "Quantities explained" and "Quantity levels" (drawn from the live store settings, shown to wholesale customers only), columns (up to three, one level deep), divider and space. Six starters ship: Welcome to wholesale, Application received, Restock reminder, Win-back offer, New arrivals announcement, Blank. **A release never switches a template on**: starters are created once and are not bound to anything.
+
+- **Design defaults** live under Messaging → Settings → Email design (logo, brand color, width, footer text); a template can override each.
+- **Rendering** is `EmailRenderer`, the same code for a preview and a send. A template owns the whole email, so it is not wrapped in WooCommerce's email header and footer. Marketing templates always get the unsubscribe and preferences links and the store's postal address, added by the sender rather than the template, so they cannot be left out.
+- **Merge tags** are the usual set plus `{login_url}` and `{lost_password_url}`.
+- Stored in one option (`protech_wholesale_email_templates`), not as posts.
+
 ## Welcome email for upgraded accounts
 
 Customers who already had an ordinary account and are moved to wholesale never went through the application, so they never got the "approved" email. **WooCommerce → Wholesale → Customers** has a "Welcome to Protech Wholesale" email for them: how to log in (the wholesale page, the email they already use, a password reset link), the pack, display and case picture from the product page, and what each quantity level unlocks. Every number comes from the store settings.

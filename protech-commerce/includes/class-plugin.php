@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '3';
+	public const DB_VERSION     = '4';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -56,6 +56,7 @@ final class Plugin {
 	private MessagingTab $messaging_tab;
 	private CustomersTab $customers_tab;
 	private WelcomeEmail $welcome_email;
+	private EmailComposer $email_composer;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -103,6 +104,7 @@ final class Plugin {
 		$this->messaging_tab          = new MessagingTab();
 		$this->customers_tab          = new CustomersTab();
 		$this->welcome_email          = new WelcomeEmail();
+		$this->email_composer         = new EmailComposer();
 
 		foreach (
 			array(
@@ -135,6 +137,7 @@ final class Plugin {
 				$this->messaging_tab,
 				$this->customers_tab,
 				$this->welcome_email,
+				$this->email_composer,
 			) as $component
 		) {
 			$component->register_hooks();
@@ -261,6 +264,11 @@ final class Plugin {
 			$backfilled = Automations::backfill_approved_at();
 			flush_rewrite_rules();
 			Logger::info( sprintf( 'Upgraded plugin data to version 3 (message log created, %d customer(s) backfilled with an approval date).', $backfilled ) );
+		}
+
+		if ( version_compare( $current, '4', '<' ) ) {
+			$seeded = EmailTemplates::seed_starters();
+			Logger::info( sprintf( 'Upgraded plugin data to version 4 (%d starter email template(s) created).', $seeded ) );
 		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );

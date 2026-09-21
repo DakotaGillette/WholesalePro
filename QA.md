@@ -384,6 +384,17 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 26. Email templates library (2.2.0)
+
+- [ ] Messaging → **Email templates** lists six starters: Welcome to wholesale, Application received, Restock reminder, Win-back offer, New arrivals announcement, Blank. Each shows its type, block count and a Preview link; "Used for" is empty for all of them.
+- [ ] Preview **Welcome to wholesale**: a centered white card with the store name (or logo, if set), your first name, the three login steps with working links, a blue Log in button, the pack / display / case picture ("8 displays = 1 case"), the quantity levels, and a footer.
+- [ ] Preview **Restock reminder**: a heading, text, a row of three newest products with prices, a button, and under it the unsubscribe and preferences links and the store's postal address.
+- [ ] Preview **Application received**: no unsubscribe footer (it is a service email).
+- [ ] Open one preview on a phone-width window: nothing overflows.
+- [ ] Messaging → Settings → **Email design**: change the brand color and the width, Save, and reload a preview: buttons, links and headings use the new color and the card is the new width.
+- [ ] Put a Media Library image's number in **Logo image**: the logo replaces the store name at the top of every preview.
+- [ ] Nothing changes for real email: the Welcome, approval and automation emails a customer gets are exactly what they were.
+
 ## 25. Marketing footer (2.1.1)
 
 - [ ] Compose a marketing email (not a service message) and send a preview to yourself: under the body there is "You are receiving this because you have a wholesale account with <site>", Manage preferences, Unsubscribe, and on the next line the store name and postal address.

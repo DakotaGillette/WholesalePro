@@ -57,6 +57,13 @@ $protech_option_keys = array(
 	'protech_wholesale_purge_on_uninstall',
 	'protech_wholesale_notification_email',
 	'protech_wholesale_login_landing_url',
+	// Email composer, 2.2.0. The templates are stored in ONE option (no post
+	// type, no table, no user meta), so this is all there is to remove.
+	'protech_wholesale_email_templates',        // EmailTemplates::OPTION.
+	'protech_wholesale_msg_email_logo_id',      // MessagingSettings::OPT_EMAIL_LOGO_ID.
+	'protech_wholesale_msg_email_brand_color',  // MessagingSettings::OPT_EMAIL_BRAND_COLOR.
+	'protech_wholesale_msg_email_footer_text',  // MessagingSettings::OPT_EMAIL_FOOTER_TEXT.
+	'protech_wholesale_msg_email_width',        // MessagingSettings::OPT_EMAIL_WIDTH.
 	'protech_wholesale_tier_settings', // Tiers::OPT_TIER_SETTINGS.
 	'protech_wholesale_db_version',    // Plugin::OPT_DB_VERSION.
 	// Messaging & automations, 1.5.0 (mirrors MessagingSettings::get_defaults() keys).

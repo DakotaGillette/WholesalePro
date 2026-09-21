@@ -44,6 +44,10 @@ class MessagingSettings {
 	public const OPT_TERMS_URL    = 'protech_wholesale_msg_terms_url';
 	public const OPT_CONSENT_WORDING = 'protech_wholesale_msg_consent_wording';
 	public const OPT_LOG_RETENTION_DAYS = 'protech_wholesale_msg_log_retention_days';
+	public const OPT_EMAIL_LOGO_ID      = 'protech_wholesale_msg_email_logo_id';
+	public const OPT_EMAIL_BRAND_COLOR  = 'protech_wholesale_msg_email_brand_color';
+	public const OPT_EMAIL_FOOTER_TEXT  = 'protech_wholesale_msg_email_footer_text';
+	public const OPT_EMAIL_WIDTH        = 'protech_wholesale_msg_email_width';
 	/** Not a user-facing setting; status only. */
 	public const OPT_LAST_DAILY_RUN = 'protech_wholesale_msg_last_daily_run';
 
@@ -72,6 +76,10 @@ class MessagingSettings {
 			self::OPT_TERMS_URL             => '',
 			self::OPT_CONSENT_WORDING       => self::DEFAULT_CONSENT_WORDING,
 			self::OPT_LOG_RETENTION_DAYS    => '365',
+			self::OPT_EMAIL_LOGO_ID         => '0',
+			self::OPT_EMAIL_BRAND_COLOR     => '#42649d',
+			self::OPT_EMAIL_FOOTER_TEXT     => '',
+			self::OPT_EMAIL_WIDTH           => '600',
 			self::OPT_LAST_DAILY_RUN        => '0',
 		);
 	}
@@ -252,6 +260,51 @@ class MessagingSettings {
 			),
 
 			array(
+				'title' => __( 'Email design', 'protech-wholesale' ),
+				'desc'  => __( 'The look every email template starts from. A template can override any of it.', 'protech-wholesale' ),
+				'type'  => 'title',
+				'id'    => 'protech_wholesale_msg_settings_design',
+			),
+			array(
+				'title'    => __( 'Logo image', 'protech-wholesale' ),
+				'desc'     => __( 'The ID of an image in your Media Library (its number in the address bar when you open it). Shown at the top of every email; leave 0 to show the store name instead.', 'protech-wholesale' ),
+				'id'       => self::OPT_EMAIL_LOGO_ID,
+				'type'     => 'number',
+				'default'  => '0',
+				'custom_attributes' => array( 'min' => '0' ),
+				'css'      => 'width:100px;',
+			),
+			array(
+				'title'   => __( 'Brand color', 'protech-wholesale' ),
+				'desc'    => __( 'Buttons, links and headings.', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_BRAND_COLOR,
+				'type'    => 'color',
+				'default' => '#42649d',
+				'css'     => 'width:6em;',
+			),
+			array(
+				'title'   => __( 'Email width', 'protech-wholesale' ),
+				'desc'    => __( 'pixels (480 to 700). 600 suits most inboxes.', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_WIDTH,
+				'type'    => 'number',
+				'default' => '600',
+				'custom_attributes' => array( 'min' => '480', 'max' => '700' ),
+				'css'     => 'width:80px;',
+			),
+			array(
+				'title'   => __( 'Footer text', 'protech-wholesale' ),
+				'desc'    => __( 'A line above the unsubscribe links, such as your store name and a tagline. Optional.', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_FOOTER_TEXT,
+				'type'    => 'textarea',
+				'default' => '',
+				'css'     => 'width:100%;max-width:480px;height:70px;',
+			),
+			array(
+				'type' => 'sectionend',
+				'id'   => 'protech_wholesale_msg_settings_design_end',
+			),
+
+			array(
 				'title' => __( 'Compliance text', 'protech-wholesale' ),
 				'desc'  => __( 'What a customer sees next to the SMS opt-in checkbox. {kind} becomes "order update" or "marketing and reorder reminder"; {brand}, {privacy_url} and {terms_url} are filled in automatically.', 'protech-wholesale' ),
 				'type'  => 'title',
@@ -357,6 +410,25 @@ class MessagingSettings {
 
 	public static function email_footer_enabled(): bool {
 		return 'yes' === get_option( self::OPT_EMAIL_FOOTER, 'yes' );
+	}
+
+	/** The site-wide email logo (a Media Library attachment id), or 0 for none. */
+	public static function email_logo_id(): int {
+		return max( 0, (int) get_option( self::OPT_EMAIL_LOGO_ID, 0 ) );
+	}
+
+	/** The site-wide brand color, a #rrggbb value. */
+	public static function email_brand_color(): string {
+		return EmailBlocks::hex( get_option( self::OPT_EMAIL_BRAND_COLOR, '#42649d' ), '#42649d' );
+	}
+
+	public static function email_footer_text(): string {
+		return sanitize_textarea_field( (string) get_option( self::OPT_EMAIL_FOOTER_TEXT, '' ) );
+	}
+
+	/** The email width in pixels, kept inside 480 to 700. */
+	public static function email_width(): int {
+		return EmailBlocks::num( get_option( self::OPT_EMAIL_WIDTH, 600 ), 480, 700, 600 );
 	}
 
 	public static function privacy_url(): string {

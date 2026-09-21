@@ -53,10 +53,20 @@ class WelcomeEmail {
 
 	/** The wholesale login page: the portal page if there is one, else /wholesale/. */
 	public static function login_url(): string {
+		// Cached for the request: it is now a merge tag, so a campaign asks for it once per recipient.
+		$cached = wp_cache_get( 'login_url', 'protech_wholesale' );
+
+		if ( is_string( $cached ) ) {
+			return $cached;
+		}
+
 		$page_id = SetupChecks::portal_page_id();
 		$url     = $page_id ? get_permalink( $page_id ) : '';
+		$url     = $url ? (string) $url : home_url( '/wholesale/' );
 
-		return $url ? (string) $url : home_url( '/wholesale/' );
+		wp_cache_set( 'login_url', $url, 'protech_wholesale' );
+
+		return $url;
 	}
 
 	/** The HTML body for $user_id (their name, their login email), before the WooCommerce header and footer. */

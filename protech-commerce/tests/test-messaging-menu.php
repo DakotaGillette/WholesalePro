@@ -49,7 +49,7 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 		$slugs = array_column( $submenu['protech-messaging'] ?? array(), 2 );
 
 		$this->assertSame(
-			array( 'protech-messaging', 'protech-messaging-compose', 'protech-messaging-log', 'protech-messaging-compliance', 'protech-messaging-settings' ),
+			array( 'protech-messaging', 'protech-messaging-compose', 'protech-messaging-templates', 'protech-messaging-log', 'protech-messaging-compliance', 'protech-messaging-settings' ),
 			$slugs
 		);
 	}
