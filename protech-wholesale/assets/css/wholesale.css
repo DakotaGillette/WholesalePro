@@ -154,16 +154,16 @@ body .protech-wholesale-portal .protech-button--block {
 
 /* -- How wholesale quantities work (single product page) ----------------- */
 .protech-legend {
-	max-width: 440px;
-	margin: 0 0 18px;
-	padding: 14px 16px 12px;
+	max-width: 520px;
+	margin: 0 0 24px;
+	padding: 22px 24px 20px;
 	border: 1px solid var( --protech-blue-border );
 	border-radius: var( --protech-radius );
 	background: var( --protech-blue-tint );
 	font-family: var( --protech-font );
 }
 .protech-legend .protech-legend-title {
-	margin: 0 0 12px;
+	margin: 0 0 20px;
 	padding: 0;
 	font-size: 12px;
 	font-weight: 700;
@@ -174,76 +174,77 @@ body .protech-wholesale-portal .protech-button--block {
 }
 .protech-legend .protech-legend-units {
 	display: grid;
-	grid-template-columns: 1fr 1.15fr 1.35fr;
-	gap: 0 6px;
+	grid-template-columns: minmax( 0, 1fr ) auto minmax( 0, 1.15fr ) auto minmax( 0, 1.35fr );
+	align-items: start;
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 .protech-legend .protech-legend-unit {
-	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 2px;
+	gap: 4px;
 	margin: 0;
-	padding: 0 0 0 4px;
+	padding: 0;
 	list-style: none;
 }
-.protech-legend-times {
-	position: absolute;
-	top: 12px;
-	left: -14px;
-	font-size: 11px;
+/* The "x10" / "x8" between two tiles, centred on the art. */
+.protech-legend .protech-legend-times {
+	margin: 0;
+	padding: 0 12px;
+	list-style: none;
+	font-size: 13px;
 	font-weight: 700;
+	line-height: 56px;
 	color: var( --protech-blue );
 }
 .protech-legend-art {
 	display: flex;
 	align-items: center;
-	height: 40px;
-	margin-bottom: 4px;
+	height: 56px;
+	margin-bottom: 8px;
 }
 .protech-legend-pack {
 	display: block;
-	width: 22px;
-	height: 30px;
-	border-radius: 3px;
+	width: 30px;
+	height: 40px;
+	border-radius: 4px;
 	background: var( --protech-blue );
-	box-shadow: inset 0 -8px 0 rgba( 0, 0, 0, 0.14 );
+	box-shadow: inset 0 -10px 0 rgba( 0, 0, 0, 0.14 );
 }
 .protech-legend-pack--small {
-	width: 7px;
-	height: 10px;
-	border-radius: 1px;
+	width: 9px;
+	height: 13px;
+	border-radius: 2px;
 	box-shadow: none;
 }
 .protech-legend-display {
 	display: grid;
-	grid-template-columns: repeat( 5, 7px );
-	gap: 3px;
-	padding: 5px;
+	grid-template-columns: repeat( 5, 9px );
+	gap: 5px;
+	padding: 8px;
 	border: 1.5px solid var( --protech-blue );
-	border-radius: 3px;
+	border-radius: 4px;
 	background: #fff;
 }
 .protech-legend-case {
 	display: grid;
-	grid-template-columns: repeat( 4, 12px );
-	gap: 3px;
-	padding: 5px;
+	grid-template-columns: repeat( 4, 15px );
+	gap: 5px;
+	padding: 8px;
 	border: 1.5px solid var( --protech-blue-dark );
-	border-radius: 3px;
+	border-radius: 4px;
 	background: #fff;
 }
 .protech-legend-swatch {
 	display: block;
-	width: 12px;
-	height: 10px;
+	width: 15px;
+	height: 12px;
 	border-radius: 2px;
 	background: var( --protech-blue );
 }
-/* A case is any mix of colours: every display in it a different one. */
+/* A case is any mix of colors: every display in it a different one. */
 .protech-legend-swatch:nth-child(8n+1) { background: #42649d; }
 .protech-legend-swatch:nth-child(8n+2) { background: #d64545; }
 .protech-legend-swatch:nth-child(8n+3) { background: #e8a33d; }
@@ -253,37 +254,44 @@ body .protech-wholesale-portal .protech-button--block {
 .protech-legend-swatch:nth-child(8n+7) { background: #e77ab0; }
 .protech-legend-swatch:nth-child(8n+8) { background: #d9d9d9; }
 .protech-legend-name {
-	font-size: 14px;
+	font-size: 16px;
 	font-weight: 700;
 	line-height: 1.25;
 	color: #111;
 }
 .protech-legend-meta {
-	font-size: 11px;
+	font-size: 12px;
 	font-weight: 500;
-	line-height: 1.3;
+	line-height: 1.45;
 	color: var( --protech-muted );
 }
 .protech-legend .protech-legend-rule {
-	margin: 12px 0 0;
-	padding: 10px 0 0;
+	margin: 20px 0 0;
+	padding: 18px 0 0;
 	border-top: 1px solid var( --protech-blue-border );
-	font-size: 13px;
-	line-height: 1.45;
+	font-size: 15px;
+	line-height: 1.5;
 	color: #222;
 }
 .protech-legend .protech-legend-rule strong {
 	color: var( --protech-blue-dark );
 }
-@media screen and ( max-width: 420px ) {
+.protech-legend .protech-legend-shipping {
+	margin: 8px 0 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --protech-muted );
+}
+@media screen and ( max-width: 480px ) {
+	.protech-legend {
+		padding: 18px 18px 16px;
+	}
 	.protech-legend .protech-legend-units {
 		grid-template-columns: 1fr;
-		gap: 10px;
+		gap: 18px;
 	}
-	.protech-legend .protech-legend-unit {
-		padding-left: 0;
-	}
-	.protech-legend-times {
+	.protech-legend .protech-legend-times {
 		display: none;
 	}
 }
@@ -1493,21 +1501,14 @@ body.protech-wholesale #header-outer #mobile-cart-link .cart-wrap span {
 	align-items: baseline;
 	gap: 0 0.4em;
 }
-.protech-price .protech-price-msrp-tag {
-	font-size: 0.55em;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var( --protech-muted );
-}
 .protech-price del {
 	font-size: 0.78em;
 	font-weight: 400;
+	/* Same grey and stroke as the crossed-out MSRP in the price table. */
 	color: var( --protech-muted );
 	opacity: 1;
 	text-decoration: line-through;
-	text-decoration-thickness: 2px;
-	text-decoration-color: var( --protech-danger );
+	text-decoration-color: var( --protech-muted );
 }
 .protech-price ins {
 	font-weight: 700;

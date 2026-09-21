@@ -3,6 +3,16 @@
 All notable changes to the Protech Wholesale plugin. Dates are the day the
 change landed on staging.
 
+## 1.5.1 - 2026-09-21
+
+### Changed
+- The crossed-out MSRP in the main price is the same grey as the one in the
+  price table, and the "MSRP" tag in front of it is gone.
+- The quantity legend has more room (wider, larger tiles, more spacing), says
+  "8 displays = 1 case", puts the free-shipping line on its own, and uses US
+  spelling ("color") on the legend, the price table footnote and the
+  `/wholesale` page.
+
 ## 1.5.0 — 2026-09-18
 
 ### Added
@@ -37,7 +47,7 @@ change landed on staging.
     `DB_VERSION` 3.
 - **MSRP crossed out next to the wholesale price** everywhere a price
   shows to a wholesale customer (product page, shop grid, the per-colour
-  price swap): "MSRP ~~$9.99~~ $5.00 Save 50%", using WooCommerce's own
+  price swap): "~~$9.99~~ $5.00 Save 50%", using WooCommerce's own
   del/ins sale markup so the theme's price styles still apply. The MSRP
   is the store's regular price; a product whose MSRP isn't above the
   wholesale price shows the plain price. `Pricing::get_msrp_range()`.
@@ -47,9 +57,9 @@ change landed on staging.
   to the shop. `Settings::login_landing_url()`.
 - **"How wholesale quantities work" legend** above the Display/Case
   control on every wholesale product page: pack → display → case tiles
-  drawn from the product's own composition, then "1 case = 8 displays.
+  drawn from the product's own composition, then "8 displays = 1 case.
   Mix and match your displays however you'd like. Free shipping from 16
-  displays (2 cases), any combination of colours." Every number comes
+  displays (2 cases), any combination of colors." Every number comes
   from the settings. `templates/quantity-legend.php`.
 
 ### Changed

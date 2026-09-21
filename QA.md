@@ -365,7 +365,7 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 Log in as the wholesale customer (djg10212) for everything below.
 
 **MSRP price**
-- [ ] Product page for Protech Premium Matte Sleeves: the price line reads "MSRP ~~$9.99~~ $5.50 Save 45% Wholesale price" (or $5.00 / Save 50% once the cart is at 16+ displays). Picking a colour keeps the strikethrough.
+- [ ] Product page for Protech Premium Matte Sleeves: the price line reads "~~$9.99~~ $5.50 Save 45% Wholesale price" (the crossed-out amount is the same grey as in the price table below) (or $5.00 / Save 50% once the cart is at 16+ displays). Picking a colour keeps the strikethrough.
 - [ ] Shop grid: every wholesale-priced product shows the same crossed-out MSRP; the Vendor Starter Kit (no wholesale price) shows its plain $800.
 - [ ] Logged out or as a retail customer: no strikethrough anywhere, plain $9.99.
 
@@ -380,6 +380,6 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] Admin: Pricing & Shipping rows read Base / Standard / Volume; a variation's fields read "Standard price override" and "Volume price override"; the Products tab columns "Standard override" / "Volume override". Existing override values are unchanged.
 
 **Legend**
-- [ ] Above "Order by" on the product page: "How wholesale quantities work" with the three tiles (1 pack, ×10, 1 display = 10 packs, ×8, 1 case = 8 displays (80 packs)) and the line "1 case = 8 displays. Mix and match your displays however you'd like. Free shipping from 16 displays (2 cases), any combination of colours."
+- [ ] Above "Order by" on the product page: "How wholesale quantities work" with the three tiles (1 pack, ×10, 1 display = 10 packs, ×8, 1 case = 8 displays (80 packs), all in US spelling (color)) and the line "1 case = 8 displays. Mix and match your displays however you'd like. Free shipping from 16 displays (2 cases), any combination of colours."
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.

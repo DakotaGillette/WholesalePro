@@ -58,7 +58,7 @@ class TierLadder {
 			array(
 				'rows'        => $rows,
 				'active_tier' => Pricing::get_current_tier( $user_id ),
-				'footnote'    => __( 'Tiers are based on the combined Display/Case quantity across your whole cart, every product and colour together — not per item.', 'protech-wholesale' ),
+				'footnote'    => __( 'Tiers are based on the combined Display/Case quantity across your whole cart, every product and color together — not per item.', 'protech-wholesale' ),
 			),
 			'',
 			PROTECH_WHOLESALE_DIR . 'templates/'

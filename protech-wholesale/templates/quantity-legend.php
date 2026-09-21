@@ -35,8 +35,8 @@ $protech_display_tiles = min( 12, $displays_per_case );
 			<span class="protech-legend-name"><?php esc_html_e( '1 pack', 'protech-wholesale' ); ?></span>
 			<span class="protech-legend-meta"><?php esc_html_e( 'What your customer buys', 'protech-wholesale' ); ?></span>
 		</li>
+		<li class="protech-legend-times" aria-hidden="true"><?php echo esc_html( sprintf( /* translators: %d: packs per display. */ __( '×%d', 'protech-wholesale' ), $case_size ) ); ?></li>
 		<li class="protech-legend-unit">
-			<span class="protech-legend-times" aria-hidden="true"><?php echo esc_html( sprintf( /* translators: %d: packs per display. */ __( '×%d', 'protech-wholesale' ), $case_size ) ); ?></span>
 			<span class="protech-legend-art" aria-hidden="true">
 				<span class="protech-legend-display">
 					<?php for ( $protech_i = 0; $protech_i < $protech_pack_dots; $protech_i++ ) : ?>
@@ -45,10 +45,10 @@ $protech_display_tiles = min( 12, $displays_per_case );
 				</span>
 			</span>
 			<span class="protech-legend-name"><?php esc_html_e( '1 display', 'protech-wholesale' ); ?></span>
-			<span class="protech-legend-meta"><?php echo esc_html( sprintf( /* translators: %d: packs per display. */ _n( '= %d pack, one colour', '= %d packs, one colour', $case_size, 'protech-wholesale' ), $case_size ) ); ?></span>
+			<span class="protech-legend-meta"><?php echo esc_html( sprintf( /* translators: %d: packs per display. */ _n( '= %d pack, one color', '= %d packs, one color', $case_size, 'protech-wholesale' ), $case_size ) ); ?></span>
 		</li>
+		<li class="protech-legend-times" aria-hidden="true"><?php echo esc_html( sprintf( /* translators: %d: displays per case. */ __( '×%d', 'protech-wholesale' ), $displays_per_case ) ); ?></li>
 		<li class="protech-legend-unit">
-			<span class="protech-legend-times" aria-hidden="true"><?php echo esc_html( sprintf( /* translators: %d: displays per case. */ __( '×%d', 'protech-wholesale' ), $displays_per_case ) ); ?></span>
 			<span class="protech-legend-art" aria-hidden="true">
 				<span class="protech-legend-case">
 					<?php for ( $protech_i = 0; $protech_i < $protech_display_tiles; $protech_i++ ) : ?>
@@ -57,13 +57,13 @@ $protech_display_tiles = min( 12, $displays_per_case );
 				</span>
 			</span>
 			<span class="protech-legend-name"><?php esc_html_e( '1 case', 'protech-wholesale' ); ?></span>
-			<span class="protech-legend-meta"><?php echo esc_html( sprintf( /* translators: 1: displays per case, 2: packs per case. */ __( '= %1$d displays (%2$d packs), any colours', 'protech-wholesale' ), $displays_per_case, $case_packs ) ); ?></span>
+			<span class="protech-legend-meta"><?php echo esc_html( sprintf( /* translators: 1: displays per case, 2: packs per case. */ __( '= %1$d displays (%2$d packs), any colors', 'protech-wholesale' ), $displays_per_case, $case_packs ) ); ?></span>
 		</li>
 	</ol>
 
 	<p class="protech-legend-rule">
-		<strong><?php echo esc_html( sprintf( /* translators: %d: displays per case. */ __( '1 case = %d displays.', 'protech-wholesale' ), $displays_per_case ) ); ?></strong>
+		<strong><?php echo esc_html( sprintf( /* translators: %d: displays per case. */ __( '%d displays = 1 case.', 'protech-wholesale' ), $displays_per_case ) ); ?></strong>
 		<?php esc_html_e( 'Mix and match your displays however you\'d like.', 'protech-wholesale' ); ?>
-		<?php echo esc_html( sprintf( /* translators: 1: number of displays, 2: the same quantity in cases. */ __( 'Free shipping from %1$d displays (%2$s cases), any combination of colours.', 'protech-wholesale' ), $volume_threshold, $threshold_cases ) ); ?>
 	</p>
+	<p class="protech-legend-shipping"><?php echo esc_html( sprintf( /* translators: 1: number of displays, 2: the same quantity in cases. */ __( 'Free shipping from %1$d displays (%2$s cases), any combination of colors.', 'protech-wholesale' ), $volume_threshold, $threshold_cases ) ); ?></p>
 </aside>

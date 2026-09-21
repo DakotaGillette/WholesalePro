@@ -1435,7 +1435,7 @@ Four owner asks in one message, after the header banner shipped:
    every wholesale price already passed through, by wrapping the price
    in WooCommerce's own `wc_format_sale_price()` markup (del/ins plus
    the screen-reader "Original price was / Current price is" text) with
-   an "MSRP" tag in front and a "Save N%" chip after. Reusing the sale
+   a "Save N%" chip after (an "MSRP" tag in front was tried and dropped, the strikethrough says it). Reusing the sale
    markup rather than inventing a strikethrough means Salient's own
    `.price del/ins` rules apply, and the accessibility text comes free.
    `filter_sale_price()` still blanks WooCommerce's real sale price for
@@ -1485,9 +1485,10 @@ Four owner asks in one message, after the header banner shipped:
    customers on priced products only. Three tiles, pack, display (a
    grid of pack dots), case (a grid of differently-coloured display
    swatches, because a case is any mix of colours), with "×10" / "×8"
-   between them, then the owner's line verbatim-ish: "1 case = 8
-   displays. Mix and match your displays however you'd like. Free
-   shipping from 16 displays (2 cases), any combination of colours."
+   between them, then the owner's line verbatim-ish: "8 displays = 1 case.
+   Mix and match your displays however you'd like." (the owner asked for
+   this order after seeing the first version), then free shipping on its
+   own muted line. US spelling ("color") on every storefront string.
    Every number is the product's own composition and the live threshold,
    so it can't go stale. It is not on the cart page: the Blocks cart has
    no server hook for it, and the sticky bar already restates the totals

@@ -212,7 +212,7 @@ class Test_CaseRules extends WP_UnitTestCase {
 		$html = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'How wholesale quantities work', $html );
-		$this->assertStringContainsString( '1 case = 8 displays.', $html );
+		$this->assertStringContainsString( '8 displays = 1 case.', $html );
 		$this->assertStringContainsString( 'Free shipping from 16 displays (2 cases)', $html );
 		$this->assertStringContainsString( 'protech-unit-selector', $html );
 

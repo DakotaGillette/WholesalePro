@@ -170,7 +170,7 @@ class Portal {
 			),
 			array(
 				'title'  => __( 'Tiered pricing and free shipping', 'protech-wholesale' ),
-				'detail' => __( 'Order more, save more, with free shipping at higher tiers. Mix any products and colours.', 'protech-wholesale' ),
+				'detail' => __( 'Order more, save more, with free shipping at higher tiers. Mix any products and colors.', 'protech-wholesale' ),
 			),
 			array(
 				'title'  => __( 'Order by the display or the case', 'protech-wholesale' ),

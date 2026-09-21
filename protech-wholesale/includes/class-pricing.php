@@ -467,7 +467,6 @@ class Pricing {
 		$saving    = (int) round( ( 1 - $current / $msrp['min'] ) * 100 );
 
 		return '<span class="protech-price">' .
-			'<span class="protech-price-msrp-tag" aria-hidden="true">' . esc_html__( 'MSRP', 'protech-wholesale' ) . '</span>' .
 			wc_format_sale_price( $msrp_html, $price_html ) .
 			( $saving > 0 ? ' <span class="protech-price-save">' . esc_html( sprintf( /* translators: %d: percentage off MSRP. */ __( 'Save %d%%', 'protech-wholesale' ), $saving ) ) . '</span>' : '' ) .
 			'</span>';
