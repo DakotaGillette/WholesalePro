@@ -37,6 +37,7 @@ class Settings {
 	public const OPT_APPLICATION_FORM_ID    = 'protech_wholesale_application_form_id'; // '' = accept any form from that plugin.
 	public const OPT_PURGE_ON_UNINSTALL     = 'protech_wholesale_purge_on_uninstall'; // 'no' | 'yes'.
 	public const OPT_NOTIFICATION_EMAIL     = 'protech_wholesale_notification_email'; // '' = site admin email.
+	public const OPT_LOGIN_LANDING_URL      = 'protech_wholesale_login_landing_url'; // '' = the shop page.
 
 	public const SETTINGS_UPDATED_QUERY_ARG = 'protech-wholesale-settings-updated';
 
@@ -61,6 +62,7 @@ class Settings {
 			self::OPT_APPLICATION_FORM_ID    => '4',
 			self::OPT_PURGE_ON_UNINSTALL     => 'no',
 			self::OPT_NOTIFICATION_EMAIL     => '',
+			self::OPT_LOGIN_LANDING_URL      => '',
 		);
 	}
 
@@ -91,6 +93,16 @@ class Settings {
 					'hide'     => __( 'Hide from wholesale views (recommended)', 'protech-wholesale' ),
 					'fallback' => __( 'Show retail price with a "retail only" note', 'protech-wholesale' ),
 				),
+			),
+			array(
+				'title'       => __( 'After a wholesale login, go to', 'protech-wholesale' ),
+				'desc'        => __( 'Where an approved wholesale customer lands after logging in on the wholesale page or My Account: usually the product they order most. Leave empty for the shop page.', 'protech-wholesale' ),
+				'id'          => self::OPT_LOGIN_LANDING_URL,
+				'type'        => 'url',
+				'default'     => '',
+				'placeholder' => wc_get_page_permalink( 'shop' ),
+				'desc_tip'    => true,
+				'css'         => 'width:400px;',
 			),
 			array(
 				'title'   => __( 'Coupons', 'protech-wholesale' ),
@@ -206,6 +218,17 @@ class Settings {
 	}
 
 	/** Editable under WooCommerce → Wholesale → Pricing & Shipping, not this Settings tab. */
+	/**
+	 * Where an approved wholesale customer is sent after logging in:
+	 * the configured landing URL if it is on this site, else the shop.
+	 */
+	public static function login_landing_url(): string {
+		$shop = wc_get_page_permalink( 'shop' );
+		$url  = trim( (string) get_option( self::OPT_LOGIN_LANDING_URL, '' ) );
+
+		return '' === $url ? $shop : wp_validate_redirect( $url, $shop );
+	}
+
 	public static function get_default_case_size(): int {
 		$value = (int) get_option( self::OPT_DEFAULT_CASE_SIZE, ProductFields::DEFAULT_CASE_SIZE );
 

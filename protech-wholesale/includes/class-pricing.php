@@ -191,6 +191,40 @@ class Pricing {
 	}
 
 	/**
+	 * The MSRP across a product, or across the wholesale-priced variations
+	 * of a variable product, for the crossed-out retail price shown next
+	 * to the wholesale price (see filter_price_html()). Null when nothing
+	 * priced for this user carries a regular price.
+	 *
+	 * @return array{min: float, max: float}|null
+	 */
+	public static function get_msrp_range( \WC_Product $product, int $user_id ): ?array {
+		$ids = $product->is_type( 'variable' ) ? array_map( 'intval', $product->get_children() ) : array( $product->get_id() );
+		$msrps = array();
+
+		foreach ( $ids as $id ) {
+			if ( ! self::is_available_at_wholesale( $id, $user_id ) ) {
+				continue;
+			}
+
+			$msrp = self::get_msrp( $id );
+
+			if ( null !== $msrp && $msrp > 0 ) {
+				$msrps[] = $msrp;
+			}
+		}
+
+		if ( empty( $msrps ) ) {
+			return null;
+		}
+
+		return array(
+			'min' => min( $msrps ),
+			'max' => max( $msrps ),
+		);
+	}
+
+	/**
 	 * Whether $product_id is available at wholesale, OR — if it's a
 	 * variable product — whether ANY of its variations are. Cart/order
 	 * line pricing (get_wholesale_price(), is_available_at_wholesale())
@@ -389,7 +423,7 @@ class Pricing {
 		}
 
 		if ( self::is_available_at_wholesale_including_variations( $product->get_id(), $user_id ) ) {
-			return $price_html . ' <span class="protech-wholesale-label">' . esc_html__( 'Wholesale price', 'protech-wholesale' ) . '</span>';
+			return $this->msrp_price_html( $price_html, $product, $user_id ) . ' <span class="protech-wholesale-label">' . esc_html__( 'Wholesale price', 'protech-wholesale' ) . '</span>';
 		}
 
 		if ( 'fallback' === Settings::empty_price_behavior() && is_product() ) {
@@ -397,6 +431,46 @@ class Pricing {
 		}
 
 		return $price_html;
+	}
+
+	/**
+	 * The wholesale price with the retail MSRP crossed out in front of it
+	 * and a "Save N%" chip after it, so the discount is visible at a
+	 * glance everywhere a price shows — the product page, the shop grid,
+	 * a variable product's per-colour price swap. filter_sale_price()
+	 * blanks WooCommerce's own sale markup for wholesale customers, so
+	 * this is the only strikethrough they ever see. The MSRP is the
+	 * store's regular price (Pricing::get_msrp()); a product whose MSRP
+	 * isn't above the wholesale price shows the plain price.
+	 *
+	 * @param string      $price_html The wholesale price, as WooCommerce already formatted it.
+	 * @param \WC_Product $product
+	 */
+	private function msrp_price_html( string $price_html, $product, int $user_id ): string {
+		$msrp = self::get_msrp_range( $product, $user_id );
+
+		if ( null === $msrp ) {
+			return $price_html;
+		}
+
+		// Both already run through this plugin's price filters, so they are
+		// the wholesale figures at the cart's current tier.
+		$current = $product->is_type( 'variable' )
+			? (float) $product->get_variation_price( 'min' )
+			: (float) $product->get_price();
+
+		if ( $current <= 0 || $msrp['min'] <= $current ) {
+			return $price_html;
+		}
+
+		$msrp_html = $msrp['min'] === $msrp['max'] ? wc_price( $msrp['min'] ) : wc_format_price_range( $msrp['min'], $msrp['max'] );
+		$saving    = (int) round( ( 1 - $current / $msrp['min'] ) * 100 );
+
+		return '<span class="protech-price">' .
+			'<span class="protech-price-msrp-tag" aria-hidden="true">' . esc_html__( 'MSRP', 'protech-wholesale' ) . '</span>' .
+			wc_format_sale_price( $msrp_html, $price_html ) .
+			( $saving > 0 ? ' <span class="protech-price-save">' . esc_html( sprintf( /* translators: %d: percentage off MSRP. */ __( 'Save %d%%', 'protech-wholesale' ), $saving ) ) . '</span>' : '' ) .
+			'</span>';
 	}
 
 	/**

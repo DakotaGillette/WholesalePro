@@ -321,6 +321,10 @@ class StarterKit {
 		$free_shipping   = VolumePricing::TIER_STANDARD !== $tier;
 		$tier_label      = VolumePricing::get_tier_short_label( $tier );
 
+		if ( '' === $tier_label ) {
+			$tier_label = __( 'Wholesale', 'protech-wholesale' ); // The base tier has no name of its own.
+		}
+
 		$summary = sprintf(
 			/* translators: 1: number of displays, 2: number of packs. */
 			__( '%1$s displays · %2$s packs', 'protech-wholesale' ),
@@ -661,8 +665,8 @@ class StarterKit {
 			array(
 				'id'                => self::META_TARGET_DISPLAYS,
 				'label'             => __( 'Displays in a kit', 'protech-wholesale' ),
-				/* translators: %d: the Volume threshold, in displays. */
-				'description'       => sprintf( __( 'If there are fewer colours than this, the difference is made up with the colours below. Leave empty to use the Volume threshold (%d), which is what earns the kit Volume pricing and free shipping.', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ),
+				/* translators: %d: the Standard threshold, in displays. */
+				'description'       => sprintf( __( 'If there are fewer colours than this, the difference is made up with the colours below. Leave empty to use the Standard threshold (%d), which is what earns the kit Standard pricing and free shipping.', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ),
 				'desc_tip'          => true,
 				'type'              => 'number',
 				'custom_attributes' => array(

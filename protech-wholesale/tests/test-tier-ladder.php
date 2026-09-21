@@ -35,6 +35,9 @@ class Test_Tier_Ladder extends WP_UnitTestCase {
 		$this->assertCount( 3, $rows );
 		$this->assertSame( array( VolumePricing::TIER_STANDARD, VolumePricing::TIER_VOLUME, VolumePricing::TIER_BULK ), array_column( $rows, 'tier' ) );
 		$this->assertSame( array( 5.5, 5.0, 4.5 ), array_column( $rows, 'min' ) );
+		// The base tier has no name, only its range; the named tiers follow.
+		$this->assertSame( array( '', 'Standard', 'Volume' ), array_column( $rows, 'label' ) );
+		$this->assertSame( 'Under 16 displays', $rows[0]['threshold'] );
 		$this->assertSame( '16+ displays', $rows[1]['threshold'] );
 		$this->assertSame( '16+ cases (128 displays)', $rows[2]['threshold'] );
 		$this->assertSame( 'Free shipping', $rows[1]['note'] );

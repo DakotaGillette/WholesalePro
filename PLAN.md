@@ -25,7 +25,7 @@ protech-wholesale/
     class-catalog-query.php           pre_get_posts exclusions (wholesale-only; no-wholesale-price under "hide")
     class-case-rules.php              Packs-per-display rules, unit selector, Store API quantity limits, shipping-rate hiding
     class-wholesale-shipping-method.php  WC_Shipping_Method: flat rate below Volume threshold, free at/above
-    class-tier-ladder.php             Product-page Standard/Volume/Bulk price table
+    class-tier-ladder.php             Product-page quantity-tier price table (un-named base, Standard, Volume)
     class-starter-kit.php             Starter kits: one display of every colour of a source product, admin fields, quote + add endpoints
     class-setup-checks.php            Shipping zone / priced product / portal page / form ID checks behind the setup notice
     class-updater.php                 Updates from GitHub releases (Update URI header, plugins_api details, check-now)
@@ -53,7 +53,7 @@ protech-wholesale/
     class-messaging-tab.php           Messaging admin tab: Automations / Compose / Log / Compliance / Settings views
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
-                                      account-notifications
+                                      account-notifications, quantity-legend
   assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI — portal, bar, ladder, selector, account, cart badge
   assets/css/admin.css                Messaging tab admin styling (merge-tag chips, form layout) — wholesale screens only
   assets/js/unit-selector.js          Display/Case → packs, Store API add-to-cart, protech:cart-changed + protech:qty-preview events

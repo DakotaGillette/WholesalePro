@@ -138,4 +138,59 @@ class Test_Pricing extends WP_UnitTestCase {
 
 		$this->assertNull( Pricing::get_msrp( $product->get_id() ) );
 	}
+
+	public function test_price_html_crosses_out_the_msrp_for_a_wholesale_customer(): void {
+		$product     = Protech_Test_Factory::simple_product( '5.50' ); // regular_price 20.00.
+		$customer_id = $this->create_wholesale_customer();
+		wp_set_current_user( $customer_id );
+
+		$pricing = new Pricing();
+		$pricing->register_hooks();
+
+		$html = wc_get_product( $product->get_id() )->get_price_html();
+
+		$this->assertStringContainsString( '<del', $html );
+		$this->assertStringContainsString( '20.00', $html );
+		$this->assertStringContainsString( '<ins', $html );
+		$this->assertStringContainsString( '5.50', $html );
+		$this->assertStringContainsString( 'Save 73%', $html ); // 1 - 5.50 / 20.00.
+		$this->assertStringContainsString( 'Wholesale price', $html );
+
+		wp_set_current_user( 0 );
+	}
+
+	public function test_price_html_for_a_variable_product_uses_the_variations_msrp(): void {
+		$built       = Protech_Test_Factory::variable_product( array( 'blue', 'red' ), array( 'blue' => '5.00', 'red' => '5.00' ) ); // regular_price 9.99 each.
+		$customer_id = $this->create_wholesale_customer();
+
+		$this->assertSame( array( 'min' => 9.99, 'max' => 9.99 ), Pricing::get_msrp_range( $built['parent'], $customer_id ) );
+
+		wp_set_current_user( $customer_id );
+
+		$pricing = new Pricing();
+		$pricing->register_hooks();
+
+		$html = wc_get_product( $built['parent']->get_id() )->get_price_html();
+
+		$this->assertStringContainsString( '<del', $html );
+		$this->assertStringContainsString( '9.99', $html );
+		$this->assertStringContainsString( 'Save 50%', $html );
+
+		wp_set_current_user( 0 );
+	}
+
+	public function test_price_html_is_untouched_for_a_retail_customer(): void {
+		$product = Protech_Test_Factory::simple_product( '5.50' );
+		wp_set_current_user( $this->create_retail_customer() );
+
+		$pricing = new Pricing();
+		$pricing->register_hooks();
+
+		$html = wc_get_product( $product->get_id() )->get_price_html();
+
+		$this->assertStringNotContainsString( '<del', $html );
+		$this->assertStringContainsString( '20.00', $html );
+
+		wp_set_current_user( 0 );
+	}
 }

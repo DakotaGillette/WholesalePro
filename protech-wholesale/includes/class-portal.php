@@ -66,7 +66,7 @@ class Portal {
 		wp_set_current_user( $user->ID );
 
 		if ( Roles::is_wholesale_customer( $user->ID ) ) {
-			wp_safe_redirect( wc_get_page_permalink( 'shop' ) );
+			wp_safe_redirect( Settings::login_landing_url() );
 		} else {
 			wp_safe_redirect( home_url( '/wholesale' ) );
 		}
@@ -90,7 +90,7 @@ class Portal {
 		$post = get_post();
 
 		if ( $post && has_shortcode( (string) $post->post_content, 'protech_wholesale_portal' ) ) {
-			wp_safe_redirect( wc_get_page_permalink( 'shop' ) );
+			wp_safe_redirect( Settings::login_landing_url() );
 			exit;
 		}
 	}
@@ -107,15 +107,15 @@ class Portal {
 			if ( $unsubscribed ) {
 				return $this->unsubscribed_notice() . sprintf(
 					'<p><a href="%s">%s</a></p>',
-					esc_url( wc_get_page_permalink( 'shop' ) ),
-					esc_html__( 'Continue to the shop', 'protech-wholesale' )
+					esc_url( Settings::login_landing_url() ),
+					esc_html__( 'Continue shopping', 'protech-wholesale' )
 				);
 			}
 
 			return sprintf(
 				'<p><a href="%s">%s</a></p>',
-				esc_url( wc_get_page_permalink( 'shop' ) ),
-				esc_html__( 'Continue to the shop', 'protech-wholesale' )
+				esc_url( Settings::login_landing_url() ),
+				esc_html__( 'Continue shopping', 'protech-wholesale' )
 			);
 		}
 

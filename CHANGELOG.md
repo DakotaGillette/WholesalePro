@@ -35,6 +35,35 @@ change landed on staging.
     from a checkout or admin request. First custom database table in
     this plugin (`{prefix}protech_wholesale_messages`), created via
     `DB_VERSION` 3.
+- **MSRP crossed out next to the wholesale price** everywhere a price
+  shows to a wholesale customer (product page, shop grid, the per-colour
+  price swap): "MSRP ~~$9.99~~ $5.00 Save 50%", using WooCommerce's own
+  del/ins sale markup so the theme's price styles still apply. The MSRP
+  is the store's regular price; a product whose MSRP isn't above the
+  wholesale price shows the plain price. `Pricing::get_msrp_range()`.
+- **"After a wholesale login, go to"** (Settings → Catalog): where an
+  approved wholesale customer lands after logging in on `/wholesale` or
+  My Account. Empty = the shop page, as before. Off-site URLs fall back
+  to the shop. `Settings::login_landing_url()`.
+- **"How wholesale quantities work" legend** above the Display/Case
+  control on every wholesale product page: pack → display → case tiles
+  drawn from the product's own composition, then "1 case = 8 displays.
+  Mix and match your displays however you'd like. Free shipping from 16
+  displays (2 cases), any combination of colours." Every number comes
+  from the settings. `templates/quantity-legend.php`.
+
+### Changed
+- **Tier names.** The first wholesale tier no longer has a name on the
+  storefront: it is shown by its range ("Under 16 displays") in the
+  price table, the sticky bar's marker and the My Account card, and the
+  bar's chip reads just "Wholesale" while a cart is in it. What was
+  called Volume is now **Standard** and what was called Bulk is now
+  **Volume**; the message reads "Add N more displays to unlock free
+  shipping and Standard pricing." In admin the three rows are Base /
+  Standard / Volume, and the product-field labels follow ("Standard
+  price override", "Volume price override"). Slugs, option names and
+  meta keys are unchanged (`standard`/`volume`/`bulk`), so nothing
+  migrates and every existing override keeps working.
 
 ## 1.4.0 — 2026-09-18
 

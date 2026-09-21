@@ -85,9 +85,9 @@ class MyAccount {
 		}
 
 		$labels = array(
-			VolumePricing::TIER_STANDARD => __( 'Standard pricing', 'protech-wholesale' ),
-			VolumePricing::TIER_VOLUME   => __( 'Volume pricing', 'protech-wholesale' ),
-			VolumePricing::TIER_BULK     => __( 'Bulk pricing', 'protech-wholesale' ),
+			VolumePricing::TIER_STANDARD => __( 'Wholesale pricing', 'protech-wholesale' ),
+			VolumePricing::TIER_VOLUME   => __( 'Standard pricing', 'protech-wholesale' ),
+			VolumePricing::TIER_BULK     => __( 'Volume pricing', 'protech-wholesale' ),
 		);
 
 		$state = VolumePricing::get_tier_bar_state( get_current_user_id() );
@@ -126,7 +126,7 @@ class MyAccount {
 		}
 
 		if ( Roles::is_wholesale_customer( $user->ID ) ) {
-			return wc_get_page_permalink( 'shop' );
+			return Settings::login_landing_url();
 		}
 
 		if ( Roles::is_wholesale_pending( $user->ID ) ) {

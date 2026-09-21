@@ -359,3 +359,27 @@ For **the per-customer-override variation**, repeat the same checks and confirm 
 **SMS itself** (only once a toll-free number is registered with Brevo)
 - [ ] "Send test to me" over SMS reaches a real phone with the brand prefix and, for a marketing message, "Reply STOP to opt out."
 - [ ] Reply STOP on a real phone, then try sending another marketing text to that number — the Log shows it skipped as unsubscribed, not sent.
+
+## 22. MSRP price, login landing, tier names, quantity legend (1.5.0)
+
+Log in as the wholesale customer (djg10212) for everything below.
+
+**MSRP price**
+- [ ] Product page for Protech Premium Matte Sleeves: the price line reads "MSRP ~~$9.99~~ $5.50 Save 45% Wholesale price" (or $5.00 / Save 50% once the cart is at 16+ displays). Picking a colour keeps the strikethrough.
+- [ ] Shop grid: every wholesale-priced product shows the same crossed-out MSRP; the Vendor Starter Kit (no wholesale price) shows its plain $800.
+- [ ] Logged out or as a retail customer: no strikethrough anywhere, plain $9.99.
+
+**Login landing**
+- [ ] WooCommerce → Wholesale → Settings → "After a wholesale login, go to" shows the Premium Matte Sleeves URL. Save with it empty, log out, log in on `/wholesale`: lands on the shop. Put the URL back, log in again: lands on the product page. Same from My Account's login form.
+- [ ] Visiting `/wholesale` while already logged in bounces to the same page.
+
+**Tier names**
+- [ ] Product page price table: first row "Under 16 displays" with no name, then "Standard, 16+ displays, Free shipping", then "Volume, 16+ cases (128 displays), Best price". "Your cart" sits on the right row.
+- [ ] Sticky bar with an empty cart: chip reads just "WHOLESALE", message "Add 16 displays to unlock free shipping and Standard pricing.", first marker "Under 16 displays / Wholesale price". At 16 displays the chip reads "WHOLESALE · STANDARD"; at 16 cases "WHOLESALE · VOLUME".
+- [ ] My Account dashboard card: badge "Wholesale pricing" / "Standard pricing" / "Volume pricing"; the tier list starts with "Under 16 displays".
+- [ ] Admin: Pricing & Shipping rows read Base / Standard / Volume; a variation's fields read "Standard price override" and "Volume price override"; the Products tab columns "Standard override" / "Volume override". Existing override values are unchanged.
+
+**Legend**
+- [ ] Above "Order by" on the product page: "How wholesale quantities work" with the three tiles (1 pack, ×10, 1 display = 10 packs, ×8, 1 case = 8 displays (80 packs)) and the line "1 case = 8 displays. Mix and match your displays however you'd like. Free shipping from 16 displays (2 cases), any combination of colours."
+- [ ] On a phone the three tiles stack and nothing overflows.
+- [ ] Not shown logged out, and not on the Vendor Starter Kit page.

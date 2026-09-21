@@ -200,4 +200,23 @@ class Test_CaseRules extends WP_UnitTestCase {
 
 		WC()->cart->empty_cart();
 	}
+
+	public function test_unit_selector_opens_with_the_quantity_legend(): void {
+		global $product;
+
+		$product = Protech_Test_Factory::simple_product( '5.50' ); // Store defaults: 10 packs/display, 8 displays/case, 16 displays for free shipping.
+		wp_set_current_user( $this->create_wholesale_customer() );
+
+		ob_start();
+		( new CaseRules() )->render_unit_selector();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'How wholesale quantities work', $html );
+		$this->assertStringContainsString( '1 case = 8 displays.', $html );
+		$this->assertStringContainsString( 'Free shipping from 16 displays (2 cases)', $html );
+		$this->assertStringContainsString( 'protech-unit-selector', $html );
+
+		wp_set_current_user( 0 );
+		$product = null;
+	}
 }

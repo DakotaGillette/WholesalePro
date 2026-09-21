@@ -126,7 +126,7 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 		// not at 16/128 = 12.5% of one linear scale.
 		$this->assertSame( VolumePricing::VOLUME_MARKER_PERCENT, $state['volume_marker_percent'] );
 		$this->assertStringContainsString( '16', $state['message'] );
-		$this->assertSame( 'Standard', $state['tier_label'] );
+		$this->assertSame( '', $state['tier_label'] ); // The base tier has no customer-facing name.
 		$this->assertSame( '', $state['savings_html'] );
 		$this->assertStringContainsString( '<strong>16</strong>', $state['message_html'] );
 		$this->assertSame( 16, $state['scale']['volume_displays'] );
@@ -160,7 +160,7 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 		$state = VolumePricing::get_tier_bar_state( $customer_id );
 
 		$this->assertSame( VolumePricing::TIER_VOLUME, $state['tier'] );
-		$this->assertSame( 'Volume', $state['tier_label'] );
+		$this->assertSame( 'Standard', $state['tier_label'] );
 		$this->assertSame( VolumePricing::VOLUME_MARKER_PERCENT, $state['fill_percent'] );
 		// 160 packs x ( 20.00 MSRP - 5.00 Volume ).
 		$this->assertSame( 2400.0, $state['savings'] );

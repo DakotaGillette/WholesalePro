@@ -1,6 +1,7 @@
 <?php
 /**
- * Quantity-break wholesale pricing — Standard/Volume/Bulk, based on the
+ * Quantity-break wholesale pricing — an un-named base tier, then Standard
+ * and Volume (slugs standard/volume/bulk, see get_tier_labels()), based on the
  * combined Display+Case quantity across every wholesale-eligible item in
  * the cart (not per product/color). Unlike the hidden Bronze/Silver/
  * Gold/Platinum customer tiers (class-tiers.php), this ladder is meant
@@ -46,13 +47,19 @@ class VolumePricing {
 	}
 
 	/**
+	 * Admin labels. The slugs (and the TIER_* constants, meta keys and
+	 * option names built on them) predate the current names: 'standard'
+	 * is the un-named base tier, 'volume' is what customers see as
+	 * Standard, 'bulk' is Volume. Renaming the slugs would mean migrating
+	 * every product's override meta for no customer-visible gain.
+	 *
 	 * @return array<string, string> tier slug => label.
 	 */
 	public static function get_tier_labels(): array {
 		return array(
-			self::TIER_STANDARD => __( 'Standard', 'protech-wholesale' ),
-			self::TIER_VOLUME   => __( 'Volume', 'protech-wholesale' ),
-			self::TIER_BULK     => __( 'Bulk', 'protech-wholesale' ),
+			self::TIER_STANDARD => __( 'Base', 'protech-wholesale' ),
+			self::TIER_VOLUME   => __( 'Standard', 'protech-wholesale' ),
+			self::TIER_BULK     => __( 'Volume', 'protech-wholesale' ),
 		);
 	}
 
@@ -143,12 +150,17 @@ class VolumePricing {
 	 */
 	public const VOLUME_MARKER_PERCENT = 40.0;
 
-	/** Short, customer-facing tier name ("Volume"), as opposed to the admin labels above. */
+	/**
+	 * Customer-facing tier name, as opposed to the admin labels above.
+	 * The base tier deliberately has none: it is the tier nobody is meant
+	 * to stay in, so the UI describes it by its quantity range instead
+	 * ("Under 16 displays") and never gives it a name to aim for.
+	 */
 	public static function get_tier_short_label( string $tier ): string {
 		$labels = array(
-			self::TIER_STANDARD => __( 'Standard', 'protech-wholesale' ),
-			self::TIER_VOLUME   => __( 'Volume', 'protech-wholesale' ),
-			self::TIER_BULK     => __( 'Bulk', 'protech-wholesale' ),
+			self::TIER_STANDARD => '',
+			self::TIER_VOLUME   => __( 'Standard', 'protech-wholesale' ),
+			self::TIER_BULK     => __( 'Volume', 'protech-wholesale' ),
 		);
 
 		return $labels[ $tier ] ?? $labels[ self::TIER_STANDARD ];
@@ -267,13 +279,13 @@ class VolumePricing {
 
 			if ( $totals['displays'] <= 0 ) {
 				/* translators: %s: number of displays. */
-				$template = __( 'Add %s displays to unlock Volume pricing and free shipping.', 'protech-wholesale' );
+				$template = __( 'Add %s displays to unlock free shipping and Standard pricing.', 'protech-wholesale' );
 			} elseif ( 1.0 === round( $displays_remaining, 2 ) ) {
 				/* translators: %s: number of displays, always "1" here. */
-				$template = __( 'Add %s more display to unlock Volume pricing and free shipping.', 'protech-wholesale' );
+				$template = __( 'Add %s more display to unlock free shipping and Standard pricing.', 'protech-wholesale' );
 			} else {
 				/* translators: %s: number of displays (e.g. "3"). */
-				$template = __( 'Add %s more displays to unlock Volume pricing and free shipping.', 'protech-wholesale' );
+				$template = __( 'Add %s more displays to unlock free shipping and Standard pricing.', 'protech-wholesale' );
 			}
 		}
 
@@ -441,7 +453,7 @@ class VolumePricing {
 
 		// -- 1. Quantity pricing --------------------------------------------
 		echo '<h2>' . esc_html__( 'Quantity pricing', 'protech-wholesale' ) . '</h2>';
-		echo '<p>' . esc_html__( 'The price ladder every wholesale customer sees. It is based on the combined display and case quantity across their whole cart, every product and colour together. Standard is always a product\'s own wholesale price; a product can override its Volume or Bulk price on its own edit screen.', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'The price ladder every wholesale customer sees. It is based on the combined display and case quantity across their whole cart, every product and colour together. Base is always a product\'s own wholesale price and has no name on the storefront, so nobody is encouraged to stay there; a product can override its Standard or Volume price on its own edit screen.', 'protech-wholesale' ) . '</p>';
 
 		echo '<table class="widefat striped" style="max-width:760px;"><thead><tr>';
 		foreach (
@@ -456,15 +468,15 @@ class VolumePricing {
 		}
 		echo '</tr></thead><tbody>';
 
-		echo '<tr><td><strong>' . esc_html__( 'Standard', 'protech-wholesale' ) . '</strong></td>';
+		echo '<tr><td><strong>' . esc_html__( 'Base', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Un-named on the storefront', 'protech-wholesale' ) . '</span></td>';
 		echo '<td>' . esc_html__( 'Every wholesale order', 'protech-wholesale' ) . '</td>';
 		echo '<td>' . esc_html__( "Each product's own wholesale price", 'protech-wholesale' ) . '</td></tr>';
 
-		echo '<tr><td><strong>' . esc_html__( 'Volume', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Also unlocks free shipping', 'protech-wholesale' ) . '</span></td>';
+		echo '<tr><td><strong>' . esc_html__( 'Standard', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Also unlocks free shipping', 'protech-wholesale' ) . '</span></td>';
 		echo '<td><input type="number" step="1" min="1" name="protech_volume_threshold_displays" value="' . esc_attr( (string) Settings::get_volume_threshold_displays() ) . '" style="width:80px;" /> ' . esc_html__( 'combined displays', 'protech-wholesale' ) . '</td>';
 		echo '<td><input type="number" step="0.01" min="0" name="protech_volume_price" value="' . esc_attr( (string) Settings::get_volume_price() ) . '" style="width:100px;" /></td></tr>';
 
-		echo '<tr><td><strong>' . esc_html__( 'Bulk', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Best price', 'protech-wholesale' ) . '</span></td>';
+		echo '<tr><td><strong>' . esc_html__( 'Volume', 'protech-wholesale' ) . '</strong><br /><span class="description">' . esc_html__( 'Best price', 'protech-wholesale' ) . '</span></td>';
 		echo '<td><input type="number" step="1" min="1" name="protech_bulk_threshold_cases" value="' . esc_attr( (string) Settings::get_bulk_threshold_cases() ) . '" style="width:80px;" /> ' . esc_html__( 'combined cases', 'protech-wholesale' ) . '</td>';
 		echo '<td><input type="number" step="0.01" min="0" name="protech_bulk_price" value="' . esc_attr( (string) Settings::get_bulk_price() ) . '" style="width:100px;" /></td></tr>';
 
@@ -480,7 +492,7 @@ class VolumePricing {
 
 		// -- 3. Shipping -------------------------------------------------------
 		echo '<h2>' . esc_html__( 'Wholesale shipping', 'protech-wholesale' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Wholesale orders ship on their own rate: a flat fee below the Volume threshold, free at or above it. Retail customers never see it.', 'protech-wholesale' ) . '</p>';
+		echo '<p>' . esc_html__( 'Wholesale orders ship on their own rate: a flat fee below the Standard threshold, free at or above it. Retail customers never see it.', 'protech-wholesale' ) . '</p>';
 
 		$zones_with_method = SetupChecks::zones_with_wholesale_shipping();
 		$shipping_url      = admin_url( 'admin.php?page=wc-settings&tab=shipping' );
@@ -506,8 +518,8 @@ class VolumePricing {
 
 		echo '<table class="form-table" role="presentation"><tbody>';
 		/* translators: %s: currency symbol. */
-		echo '<tr><th><label for="protech_shipping_flat_rate">' . esc_html( sprintf( __( 'Flat rate below the Volume threshold (%s)', 'protech-wholesale' ), $currency ) ) . '</label></th><td><input type="number" step="0.01" min="0" id="protech_shipping_flat_rate" name="protech_shipping_flat_rate" value="' . esc_attr( (string) Settings::get_shipping_flat_rate() ) . '" style="width:100px;" /> <p class="description">' . esc_html( sprintf( /* translators: %d: number of displays. */ __( 'Free from %d combined displays (the Volume threshold above).', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ) ) . '</p></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Retail free shipping', 'protech-wholesale' ) . '</th><td><label><input type="checkbox" name="protech_exclude_free_shipping" value="yes" ' . checked( Settings::exclude_free_shipping(), true, false ) . ' /> ' . esc_html__( 'Never give wholesale orders the retail free-shipping rule', 'protech-wholesale' ) . '</label><p class="description">' . esc_html__( 'Applies in zones where the wholesale method has not been added. Wholesale orders pay their own rate or earn free shipping at the Volume threshold, never through the retail "free over $30" rule.', 'protech-wholesale' ) . '</p></td></tr>';
+		echo '<tr><th><label for="protech_shipping_flat_rate">' . esc_html( sprintf( __( 'Flat rate below the Standard threshold (%s)', 'protech-wholesale' ), $currency ) ) . '</label></th><td><input type="number" step="0.01" min="0" id="protech_shipping_flat_rate" name="protech_shipping_flat_rate" value="' . esc_attr( (string) Settings::get_shipping_flat_rate() ) . '" style="width:100px;" /> <p class="description">' . esc_html( sprintf( /* translators: %d: number of displays. */ __( 'Free from %d combined displays (the Standard threshold above).', 'protech-wholesale' ), Settings::get_volume_threshold_displays() ) ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Retail free shipping', 'protech-wholesale' ) . '</th><td><label><input type="checkbox" name="protech_exclude_free_shipping" value="yes" ' . checked( Settings::exclude_free_shipping(), true, false ) . ' /> ' . esc_html__( 'Never give wholesale orders the retail free-shipping rule', 'protech-wholesale' ) . '</label><p class="description">' . esc_html__( 'Applies in zones where the wholesale method has not been added. Wholesale orders pay their own rate or earn free shipping at the Standard threshold, never through the retail "free over $30" rule.', 'protech-wholesale' ) . '</p></td></tr>';
 		echo '</tbody></table>';
 
 		submit_button();

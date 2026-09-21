@@ -27,18 +27,20 @@ $protech_reached_bulk   = 'bulk' === $state['tier'];
 $protech_tiers = array(
 	array(
 		'reached' => true,
-		'name'    => __( 'Standard', 'protech-wholesale' ),
-		'detail'  => __( 'Your wholesale price on every order, any quantity.', 'protech-wholesale' ),
+		// The base tier has no name; it is described by its range.
+		/* translators: %d: number of displays. */
+		'name'    => sprintf( __( 'Under %d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ),
+		'detail'  => __( 'Your wholesale price on every order, plus shipping.', 'protech-wholesale' ),
 	),
 	array(
 		'reached' => $protech_reached_volume,
-		'name'    => __( 'Volume', 'protech-wholesale' ),
+		'name'    => __( 'Standard', 'protech-wholesale' ),
 		/* translators: %d: number of displays. */
 		'detail'  => sprintf( __( 'Better pricing and free shipping from %d combined displays.', 'protech-wholesale' ), $state['volume_threshold_displays'] ),
 	),
 	array(
 		'reached' => $protech_reached_bulk,
-		'name'    => __( 'Bulk', 'protech-wholesale' ),
+		'name'    => __( 'Volume', 'protech-wholesale' ),
 		/* translators: %d: number of cases. */
 		'detail'  => sprintf( __( 'Our best price from %d combined cases.', 'protech-wholesale' ), $state['bulk_threshold_cases'] ),
 	),

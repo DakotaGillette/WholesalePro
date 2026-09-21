@@ -25,7 +25,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<table class="protech-tier-ladder-table">
 		<thead>
 			<tr>
-				<th scope="col"><?php esc_html_e( 'Tier', 'protech-wholesale' ); ?></th>
 				<th scope="col"><?php esc_html_e( 'Cart quantity', 'protech-wholesale' ); ?></th>
 				<th scope="col"><?php esc_html_e( 'MSRP', 'protech-wholesale' ); ?></th>
 				<th scope="col"><?php esc_html_e( 'Price per pack', 'protech-wholesale' ); ?></th>
@@ -46,11 +45,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 				?>
 				<tr class="protech-tier-ladder-row<?php echo $is_active ? ' is-active' : ''; ?>" data-tier="<?php echo esc_attr( $row['tier'] ); ?>">
 					<td>
-						<?php echo esc_html( $row['label'] ); ?>
-						<span class="protech-tier-ladder-badge"><?php esc_html_e( 'Your cart', 'protech-wholesale' ); ?></span>
-					</td>
-					<td>
+						<?php // The base tier has no name: its row is the quantity range alone. ?>
+						<?php if ( '' !== $row['label'] ) : ?>
+							<span class="protech-tier-ladder-label"><?php echo esc_html( $row['label'] ); ?></span>
+						<?php endif; ?>
 						<?php echo esc_html( $row['threshold'] ); ?>
+						<span class="protech-tier-ladder-badge"><?php esc_html_e( 'Your cart', 'protech-wholesale' ); ?></span>
 						<?php if ( '' !== $row['note'] ) : ?>
 							<span class="protech-tier-ladder-note"><?php echo esc_html( $row['note'] ); ?></span>
 						<?php endif; ?>

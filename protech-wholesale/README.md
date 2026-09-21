@@ -29,11 +29,11 @@ Everything lives under **WooCommerce → Wholesale**. The menu item shows a coun
 |---|---|
 | Applicants | Pending / Approved / Rejected applications with Approve and Reject (with an optional reason) actions, search, pagination. |
 | Customers | Every wholesale customer: store, tier (change it here and Save), override count, orders, last order, lifetime spend. |
-| Products | Every product priced or flagged for wholesale: price, Volume and Bulk overrides, packs per display, flags. The same summary is a "Wholesale" column on Products → All Products. |
-| Pricing & Shipping | Quantity pricing (the Standard/Volume/Bulk ladder), display and case defaults, and wholesale shipping: the flat rate, which zones have the method, and the retail free-shipping exclusion. |
+| Products | Every product priced or flagged for wholesale: price, Standard and Volume overrides, packs per display, flags. The same summary is a "Wholesale" column on Products → All Products. |
+| Pricing & Shipping | Quantity pricing (the Base/Standard/Volume ladder), display and case defaults, and wholesale shipping: the flat rate, which zones have the method, and the retail free-shipping exclusion. |
 | Tiers | Bronze/Silver/Gold/Platinum discount percentages (internal, never shown to customers). |
 | Messaging | Automated and one-off emails/texts to wholesale customers through Brevo — Automations (rules), Compose (manual sends), Log, Compliance (SMS opt-in proof for Brevo), Settings. See "Messaging & automations" below. |
-| Settings | Catalog (empty-price behaviour, coupons), Applications (form plugin, form ID, notification email), Updates (installed and latest release, check now), Uninstall. |
+| Settings | Catalog (empty-price behaviour, where a wholesale login lands, coupons), Applications (form plugin, form ID, notification email), Updates (installed and latest release, check now), Uninstall. |
 
 Per-customer price overrides, the wholesale flag and the customer's submitted application are on their **user profile** (Users → Edit); the tier is there too.
 
@@ -60,7 +60,7 @@ Pricing a product happens on the product's own **Wholesale** tab. A variable pro
 For any product or variation, a wholesale customer's per-pack price is resolved in this order:
 
 1. **Per-customer override** — set on their user profile with the product picker. Always wins, regardless of cart quantity.
-2. **The Standard/Volume/Bulk quantity tier the cart has reached** — see "Quantity-tier pricing and shipping" below. Standard is the product's own "Wholesale price"; Volume/Bulk are store defaults, overridable per product/variation.
+2. **The quantity tier the cart has reached** (an un-named base tier, then Standard, then Volume) — see "Quantity-tier pricing and shipping" below. The base tier is the product's own "Wholesale price"; Standard/Volume are store defaults, overridable per product/variation.
 3. **The customer's tier discount** (Silver/Gold/Platinum percentage, Bronze = none) — applied on top of #2.
 4. **Not available at wholesale** — no "Wholesale price" set at all. Depending on the empty-price setting the product is hidden from wholesale views or shown at retail with a note.
 
@@ -70,8 +70,8 @@ Retail customers and guests never see a wholesale price under any circumstance �
 
 Wholesale sells sleeves by two units, both built on the "pack" WooCommerce tracks stock in: a **Display** (10 packs by default — "Packs per display", per product; a variation inherits its parent's) and a **Case** (8 Displays by default — "Displays per case"). Customers pick Display or Case and a quantity on the product page; it always submits a real pack count.
 
-- **Ladder** (WooCommerce → Wholesale → Pricing & Shipping): $5.50/pack under 16 combined Displays (Standard, the product's own price), $5.00/pack at 16+ Displays (Volume), $4.50/pack at 16+ Cases (Bulk). Thresholds are **combined across the whole cart** (every product and colour together). Each product page shows the customer their own three prices in a small table, with the cart's current tier marked.
-- **Shipping**: a flat $19.95 below the Volume threshold, free at or above it — a real WooCommerce shipping method (`Wholesale Shipping`), only shown to wholesale customers whose cart holds wholesale-eligible items, and only once it's been added to a zone. When present it hides the zone's retail Flat rate / Free shipping methods (list filterable via `protech_wholesale_retail_shipping_methods`).
+- **Ladder** (WooCommerce → Wholesale → Pricing & Shipping): $5.50/pack under 16 combined Displays (the base tier: the product's own price, deliberately un-named on the storefront so nobody aims for it), $5.00/pack at 16+ Displays (Standard), $4.50/pack at 16+ Cases (Volume). The slugs and meta keys keep their original `standard`/`volume`/`bulk` names; see `VolumePricing::get_tier_labels()`. Thresholds are **combined across the whole cart** (every product and colour together). Each product page shows the customer their own three prices in a small table, with the cart's current tier marked, and the main price shows the retail MSRP crossed out next to the wholesale price with a "Save N%" chip.
+- **Shipping**: a flat $19.95 below the Standard threshold, free at or above it — a real WooCommerce shipping method (`Wholesale Shipping`), only shown to wholesale customers whose cart holds wholesale-eligible items, and only once it's been added to a zone. When present it hides the zone's retail Flat rate / Free shipping methods (list filterable via `protech_wholesale_retail_shipping_methods`).
 - Wholesale quantities must be multiples of the packs-per-display: enforced at add-to-cart (classic and Store API), on the Blocks cart's own quantity controls, and again at checkout.
 - Cart/checkout lines carry a "Displays: N" annotation; it is saved on the order line item.
 - There is **no dollar-based order minimum**; the fields from an earlier design were removed in 1.3.0.
@@ -79,22 +79,22 @@ Wholesale sells sleeves by two units, both built on the "pack" WooCommerce track
 
 ## The sticky tier bar
 
-A Protech Blue dock floating at the bottom of the viewport (full width on phones) on every front-end page except checkout, for logged-in wholesale customers only: a tier chip and message ("Add 3 more displays to unlock Volume pricing and free shipping"), a track with Standard / Volume / Bulk markers, the live cart subtotal, Display/Case count and — once a tier is reached — what that tier is saving the order. It updates without a page reload after any add-to-cart anywhere on the site, previews where the quantity being dialled in on a product page would land, celebrates a newly reached tier once, and is deliberately not dismissible. All motion is disabled under `prefers-reduced-motion`. See `class-global-tier-bar.php`.
+A Protech Blue dock floating at the bottom of the viewport (full width on phones) on every front-end page except checkout, for logged-in wholesale customers only: a tier chip and message ("Add 3 more displays to unlock free shipping and Standard pricing"), a track with a marker per tier, the live cart subtotal, Display/Case count and — once a tier is reached — what that tier is saving the order. It updates without a page reload after any add-to-cart anywhere on the site, previews where the quantity being dialled in on a product page would land, celebrates a newly reached tier once, and is deliberately not dismissible. All motion is disabled under `prefers-reduced-motion`. See `class-global-tier-bar.php`.
 
-- The track is two segments (Volume marker at 40%), not one linear scale — see `VolumePricing::scale_percent()`.
-- The per-pack prices on the Volume/Bulk markers are the **store defaults** from the Pricing tab with the customer's tier discount applied. If most products carry their own Volume/Bulk overrides, remove them with `add_filter( 'protech_wholesale_tier_bar_show_prices', '__return_false' );`.
+- The track is two segments (Standard marker at 40%), not one linear scale — see `VolumePricing::scale_percent()`.
+- The per-pack prices on the Standard/Volume markers are the **store defaults** from the Pricing tab with the customer's tier discount applied. If most products carry their own Standard/Volume overrides, remove them with `add_filter( 'protech_wholesale_tier_bar_show_prices', '__return_false' );`.
 - Every new state is re-broadcast as a `protech:tier-state` DOM event (`event.detail` is the state) for theme code that wants to react to it.
 - The dock matches the width of the site header: a header that is a floating card (as on this site) is matched edge for edge, a full-width header on the content inside it. Point it at a different element with the `protech_wholesale_tier_bar_align_selector` filter (a CSS selector; return `''` for a centred 1180px dock).
 - The room it reserves at the end of each page takes the colour of whatever the page ends with, so it blends into the footer. If that guess is ever wrong, set it with the `protech_wholesale_tier_bar_spacer_color` filter (any CSS colour).
 
 ## Other customer-facing pieces
 
-- **Product page order control**: Display / Case cards, a −/+ stepper and a live read-back ("3 displays · 30 packs") replace the theme's pack stepper; the Add to cart button restates what it will add. See `CaseRules::render_unit_selector()` and `assets/js/unit-selector.js`.
+- **Product page order control**: Display / Case cards, a −/+ stepper and a live read-back ("3 displays · 30 packs") replace the theme's pack stepper; the Add to cart button restates what it will add. Above them, a "How wholesale quantities work" legend (pack → display → case, drawn from the product's own composition, and "1 case = 8 displays. Mix and match your displays however you'd like"), from `templates/quantity-legend.php`. See `CaseRules::render_unit_selector()` and `assets/js/unit-selector.js`.
 - **Header cart badge** counts displays, not packs, for wholesale customers (it also drives the Blocks mini-cart count). Switch back with `add_filter( 'protech_wholesale_cart_count_in_displays', '__return_false' );`.
 - **My Account**: a "Wholesale Partner" strip with the business name on every account page (amber "Application under review" for pending applicants), and a dashboard card with the cart's tier, progress and savings.
-- **`/wholesale`**: a two-panel login page whose benefit list is built from the live thresholds (`protech_wholesale_portal_benefits` filter), and a status card for pending / rejected / retail-only visitors.
+- **`/wholesale`**: a two-panel login page whose benefit list is built from the live thresholds (`protech_wholesale_portal_benefits` filter), and a status card for pending / rejected / retail-only visitors. An approved customer who logs in there (or on My Account) lands on the page set under Settings → "After a wholesale login, go to" (the flagship product on staging), or the shop when that is empty.
 - All of it is styled in Protech Blue (`--protech-blue` in `assets/css/wholesale.css`); the theme's own buttons keep the theme's colour.
-- **Header banner** ("FREE SHIPPING WITH $30+ ORDERS"): Salient's own "Text To Display In Header" field already runs `do_shortcode()`, so wrapping its text in `[protech_header_notice]...[/protech_header_notice]` shows that text unchanged to everyone except a logged-in wholesale customer, who sees a wholesale line instead — by default "FREE SHIPPING ON WHOLESALE ORDERS OF 2+ CASES", generated from the live Volume threshold (converted to cases, rounded up) so it can't go stale. Pass `wholesale="…"` for fixed text, or use the `protech_wholesale_header_notice` filter. No theme edit. See `class-header-notice.php`.
+- **Header banner** ("FREE SHIPPING WITH $30+ ORDERS"): Salient's own "Text To Display In Header" field already runs `do_shortcode()`, so wrapping its text in `[protech_header_notice]...[/protech_header_notice]` shows that text unchanged to everyone except a logged-in wholesale customer, who sees a wholesale line instead — by default "FREE SHIPPING ON WHOLESALE ORDERS OF 2+ CASES", generated from the live Standard threshold (converted to cases, rounded up) so it can't go stale. Pass `wholesale="…"` for fixed text, or use the `protech_wholesale_header_notice` filter. No theme edit. See `class-header-notice.php`.
 
 ## How to approve a customer
 
@@ -119,7 +119,7 @@ Set one up on any simple product's **Wholesale** tab:
 
 1. Tick **Starter kit**.
 2. **Kit is built from**: search for the variable product whose colours make up the kit (the flagship sleeves).
-3. **Displays in a kit**: leave empty to use the Volume threshold (16). If there are fewer colours than this, the difference is made up with extra displays of the colours in the next field.
+3. **Displays in a kit**: leave empty to use the Standard threshold (16). If there are fewer colours than this, the difference is made up with extra displays of the colours in the next field.
 4. **Make up the difference with**: the filler colours, in order, e.g. Black then White. With 14 colours that gives one of each plus a second Black and a second White; once there are 16 colours the fillers are no longer used. Nothing to edit when a colour is added.
 5. Usually also tick **Wholesale only**. The kit's own prices and pack sizes are ignored, so they can stay empty.
 

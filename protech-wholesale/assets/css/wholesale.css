@@ -152,6 +152,142 @@ body .protech-wholesale-portal .protech-button--block {
 	outline-offset: 2px;
 }
 
+/* -- How wholesale quantities work (single product page) ----------------- */
+.protech-legend {
+	max-width: 440px;
+	margin: 0 0 18px;
+	padding: 14px 16px 12px;
+	border: 1px solid var( --protech-blue-border );
+	border-radius: var( --protech-radius );
+	background: var( --protech-blue-tint );
+	font-family: var( --protech-font );
+}
+.protech-legend .protech-legend-title {
+	margin: 0 0 12px;
+	padding: 0;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	line-height: 1.3;
+	text-transform: uppercase;
+	color: var( --protech-blue );
+}
+.protech-legend .protech-legend-units {
+	display: grid;
+	grid-template-columns: 1fr 1.15fr 1.35fr;
+	gap: 0 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.protech-legend .protech-legend-unit {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	margin: 0;
+	padding: 0 0 0 4px;
+	list-style: none;
+}
+.protech-legend-times {
+	position: absolute;
+	top: 12px;
+	left: -14px;
+	font-size: 11px;
+	font-weight: 700;
+	color: var( --protech-blue );
+}
+.protech-legend-art {
+	display: flex;
+	align-items: center;
+	height: 40px;
+	margin-bottom: 4px;
+}
+.protech-legend-pack {
+	display: block;
+	width: 22px;
+	height: 30px;
+	border-radius: 3px;
+	background: var( --protech-blue );
+	box-shadow: inset 0 -8px 0 rgba( 0, 0, 0, 0.14 );
+}
+.protech-legend-pack--small {
+	width: 7px;
+	height: 10px;
+	border-radius: 1px;
+	box-shadow: none;
+}
+.protech-legend-display {
+	display: grid;
+	grid-template-columns: repeat( 5, 7px );
+	gap: 3px;
+	padding: 5px;
+	border: 1.5px solid var( --protech-blue );
+	border-radius: 3px;
+	background: #fff;
+}
+.protech-legend-case {
+	display: grid;
+	grid-template-columns: repeat( 4, 12px );
+	gap: 3px;
+	padding: 5px;
+	border: 1.5px solid var( --protech-blue-dark );
+	border-radius: 3px;
+	background: #fff;
+}
+.protech-legend-swatch {
+	display: block;
+	width: 12px;
+	height: 10px;
+	border-radius: 2px;
+	background: var( --protech-blue );
+}
+/* A case is any mix of colours: every display in it a different one. */
+.protech-legend-swatch:nth-child(8n+1) { background: #42649d; }
+.protech-legend-swatch:nth-child(8n+2) { background: #d64545; }
+.protech-legend-swatch:nth-child(8n+3) { background: #e8a33d; }
+.protech-legend-swatch:nth-child(8n+4) { background: #3f9e63; }
+.protech-legend-swatch:nth-child(8n+5) { background: #111111; }
+.protech-legend-swatch:nth-child(8n+6) { background: #8e5bd1; }
+.protech-legend-swatch:nth-child(8n+7) { background: #e77ab0; }
+.protech-legend-swatch:nth-child(8n+8) { background: #d9d9d9; }
+.protech-legend-name {
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: #111;
+}
+.protech-legend-meta {
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.3;
+	color: var( --protech-muted );
+}
+.protech-legend .protech-legend-rule {
+	margin: 12px 0 0;
+	padding: 10px 0 0;
+	border-top: 1px solid var( --protech-blue-border );
+	font-size: 13px;
+	line-height: 1.45;
+	color: #222;
+}
+.protech-legend .protech-legend-rule strong {
+	color: var( --protech-blue-dark );
+}
+@media screen and ( max-width: 420px ) {
+	.protech-legend .protech-legend-units {
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+	.protech-legend .protech-legend-unit {
+		padding-left: 0;
+	}
+	.protech-legend-times {
+		display: none;
+	}
+}
+
 /* -- Display/Case order control (single product page) -------------------- */
 .protech-unit-selector {
 	display: block;
@@ -625,6 +761,13 @@ body .protech-kit button.protech-kit-add.loading {
 	font-weight: 600;
 	color: var( --protech-blue-dark );
 }
+/* The named tiers carry their name above the quantity range; the
+ * un-named base tier is the range alone. */
+.protech-tier-ladder-label {
+	display: block;
+	font-weight: 700;
+	color: #111;
+}
 .protech-tier-ladder-saving {
 	display: inline-block;
 	margin-left: 0.4em;
@@ -974,6 +1117,13 @@ body.protech-wholesale #header-outer #mobile-cart-link .cart-wrap span {
 .protech-tier-bar-chip-prefix::after {
 	content: "\00b7";
 	margin-left: 6px;
+}
+/* The base tier has no name: the chip reads "Wholesale" alone. */
+.protech-tier-bar-chip-tier:empty {
+	display: none;
+}
+.protech-tier-bar-chip-prefix:has( + .protech-tier-bar-chip-tier:empty )::after {
+	content: none;
 }
 .protech-tier-bar[data-active-tier="volume"] .protech-tier-bar-chip {
 	background: rgba( 255, 255, 255, 0.3 );
@@ -1333,6 +1483,47 @@ body.protech-wholesale #header-outer #mobile-cart-link .cart-wrap span {
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 	vertical-align: middle;
+}
+/* MSRP crossed out in front of the wholesale price, then the saving.
+ * Produced by Pricing::msrp_price_html() with WooCommerce's own del/ins
+ * sale markup inside, so the theme's price styles still apply. */
+.protech-price {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 0.4em;
+}
+.protech-price .protech-price-msrp-tag {
+	font-size: 0.55em;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var( --protech-muted );
+}
+.protech-price del {
+	font-size: 0.78em;
+	font-weight: 400;
+	color: var( --protech-muted );
+	opacity: 1;
+	text-decoration: line-through;
+	text-decoration-thickness: 2px;
+	text-decoration-color: var( --protech-danger );
+}
+.protech-price ins {
+	font-weight: 700;
+	color: var( --protech-blue );
+	text-decoration: none;
+}
+.protech-price .protech-price-save {
+	display: inline-block;
+	padding: 0.15em 0.6em;
+	border-radius: 999px;
+	background: var( --protech-success-bg );
+	color: var( --protech-success );
+	font-size: 0.5em;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
 }
 .protech-wholesale-retail-note {
 	display: block;

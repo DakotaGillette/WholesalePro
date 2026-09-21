@@ -291,6 +291,23 @@ class CaseRules {
 		$case_size         = self::get_case_size( $product->get_id() );
 		$displays_per_case = max( 1, VolumePricing::get_displays_per_case( $product->get_id() ) );
 		$case_packs        = $case_size * $displays_per_case;
+		$volume_threshold  = Settings::get_volume_threshold_displays();
+
+		// First, what a display and a case even are (templates/quantity-
+		// legend.php): most wholesale buyers meet these words here for the
+		// first time, and the control below assumes they know them.
+		wc_get_template(
+			'quantity-legend.php',
+			array(
+				'case_size'         => $case_size,
+				'displays_per_case' => $displays_per_case,
+				'case_packs'        => $case_packs,
+				'volume_threshold'  => $volume_threshold,
+				'threshold_cases'   => VolumePricing::format_quantity( $volume_threshold / $displays_per_case ),
+			),
+			'',
+			PROTECH_WHOLESALE_DIR . 'templates/'
+		);
 
 		// One control, top to bottom: pick the unit (two big radio cards),
 		// dial in how many, read back exactly what that means in packs.

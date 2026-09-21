@@ -94,7 +94,7 @@ class ProductFields {
 			array(
 				'id'          => self::META_WHOLESALE_PRICE,
 				'label'       => sprintf( __( 'Wholesale price (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
-				'description' => __( 'Per pack. This is the Tier 1 (Standard) price — see WooCommerce → Wholesale → Pricing for the Volume/Bulk tiers. Leave empty to keep this product unavailable at wholesale.', 'protech-wholesale' ),
+				'description' => __( 'Per pack. This is the base price, below the Standard threshold — see WooCommerce → Wholesale → Pricing for the Standard/Volume tiers. Leave empty to keep this product unavailable at wholesale.', 'protech-wholesale' ),
 				'desc_tip'    => true,
 				'data_type'   => 'price',
 				'value'       => $meta( self::META_WHOLESALE_PRICE ),
@@ -104,7 +104,7 @@ class ProductFields {
 		woocommerce_wp_text_input(
 			array(
 				'id'          => self::META_VOLUME_PRICE,
-				'label'       => sprintf( __( 'Volume price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'label'       => sprintf( __( 'Standard price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
 				/* translators: %d: displays, %s: price. Both are the store defaults set under WooCommerce -> Wholesale -> Pricing. */
 				'description' => sprintf( __( 'Per pack, once the cart reaches %1$d combined displays. Leave empty to use the store default (%2$s).', 'protech-wholesale' ), Settings::get_volume_threshold_displays(), wp_strip_all_tags( wc_price( Settings::get_volume_price() ) ) ),
 				'desc_tip'    => true,
@@ -116,7 +116,7 @@ class ProductFields {
 		woocommerce_wp_text_input(
 			array(
 				'id'          => self::META_BULK_PRICE,
-				'label'       => sprintf( __( 'Bulk price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'label'       => sprintf( __( 'Volume price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
 				/* translators: %d: cases, %s: price. Both are the store defaults set under WooCommerce -> Wholesale -> Pricing. */
 				'description' => sprintf( __( 'Per pack, once the cart reaches %1$d combined cases. Leave empty to use the store default (%2$s).', 'protech-wholesale' ), Settings::get_bulk_threshold_cases(), wp_strip_all_tags( wc_price( Settings::get_bulk_price() ) ) ),
 				'desc_tip'    => true,
@@ -232,13 +232,13 @@ class ProductFields {
 				'meta_key'    => self::META_WHOLESALE_PRICE,
 			),
 			'_protech_apply_all_volume_price'    => array(
-				'label'       => __( 'Volume price override (%s)', 'protech-wholesale' ),
-				'description' => __( 'Per pack at the Volume level; empty variations use the store default.', 'protech-wholesale' ),
+				'label'       => __( 'Standard price override (%s)', 'protech-wholesale' ),
+				'description' => __( 'Per pack at the Standard level; empty variations use the store default.', 'protech-wholesale' ),
 				'meta_key'    => self::META_VOLUME_PRICE,
 			),
 			'_protech_apply_all_bulk_price'      => array(
-				'label'       => __( 'Bulk price override (%s)', 'protech-wholesale' ),
-				'description' => __( 'Per pack at the Bulk level; empty variations use the store default.', 'protech-wholesale' ),
+				'label'       => __( 'Volume price override (%s)', 'protech-wholesale' ),
+				'description' => __( 'Per pack at the Volume level; empty variations use the store default.', 'protech-wholesale' ),
 				'meta_key'    => self::META_BULK_PRICE,
 			),
 		);
@@ -491,7 +491,7 @@ class ProductFields {
 			array(
 				'id'                => self::META_VOLUME_PRICE . "_{$loop}",
 				'name'              => self::META_VOLUME_PRICE . "[{$loop}]",
-				'label'             => sprintf( __( 'Volume price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'label'             => sprintf( __( 'Standard price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
 				'data_type'         => 'price',
 				'value'             => $product->get_meta( self::META_VOLUME_PRICE ),
 				'wrapper_class'     => 'form-row form-row-first',
@@ -502,7 +502,7 @@ class ProductFields {
 			array(
 				'id'                => self::META_BULK_PRICE . "_{$loop}",
 				'name'              => self::META_BULK_PRICE . "[{$loop}]",
-				'label'             => sprintf( __( 'Bulk price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
+				'label'             => sprintf( __( 'Volume price override (%s)', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
 				'data_type'         => 'price',
 				'value'             => $product->get_meta( self::META_BULK_PRICE ),
 				'wrapper_class'     => 'form-row form-row-last',
@@ -604,8 +604,8 @@ class ProductFields {
 	public function render_bulk_edit_action(): void {
 		echo '<optgroup label="' . esc_attr__( 'Wholesale', 'protech-wholesale' ) . '">';
 		echo '<option value="protech_set_wholesale_price">' . esc_html__( 'Set wholesale prices', 'protech-wholesale' ) . '</option>';
-		echo '<option value="protech_set_volume_price">' . esc_html__( 'Set Volume price overrides', 'protech-wholesale' ) . '</option>';
-		echo '<option value="protech_set_bulk_price">' . esc_html__( 'Set Bulk price overrides', 'protech-wholesale' ) . '</option>';
+		echo '<option value="protech_set_volume_price">' . esc_html__( 'Set Standard price overrides', 'protech-wholesale' ) . '</option>';
+		echo '<option value="protech_set_bulk_price">' . esc_html__( 'Set Volume price overrides', 'protech-wholesale' ) . '</option>';
 		echo '</optgroup>';
 	}
 
@@ -691,8 +691,8 @@ class ProductFields {
 				__( 'Product', 'protech-wholesale' ),
 				__( 'Type', 'protech-wholesale' ),
 				__( 'Wholesale price', 'protech-wholesale' ),
+				__( 'Standard override', 'protech-wholesale' ),
 				__( 'Volume override', 'protech-wholesale' ),
-				__( 'Bulk override', 'protech-wholesale' ),
 				__( 'Packs/display', 'protech-wholesale' ),
 				__( 'Flags', 'protech-wholesale' ),
 			) as $heading

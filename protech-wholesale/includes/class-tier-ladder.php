@@ -83,20 +83,23 @@ class TierLadder {
 		$volume_threshold  = Settings::get_volume_threshold_displays();
 		$bulk_threshold    = Settings::get_bulk_threshold_cases();
 
+		// The base tier has no name (VolumePricing::get_tier_short_label());
+		// its row is described by the quantity range alone.
 		$definitions = array(
 			VolumePricing::TIER_STANDARD => array(
-				'label'     => __( 'Standard', 'protech-wholesale' ),
-				'threshold' => __( 'Any quantity', 'protech-wholesale' ),
+				'label'     => '',
+				/* translators: %d: number of displays. */
+				'threshold' => sprintf( _n( 'Under %d display', 'Under %d displays', $volume_threshold, 'protech-wholesale' ), $volume_threshold ),
 				'note'      => '',
 			),
 			VolumePricing::TIER_VOLUME   => array(
-				'label'     => __( 'Volume', 'protech-wholesale' ),
+				'label'     => __( 'Standard', 'protech-wholesale' ),
 				/* translators: %d: number of displays. */
 				'threshold' => sprintf( _n( '%d+ display', '%d+ displays', $volume_threshold, 'protech-wholesale' ), $volume_threshold ),
 				'note'      => __( 'Free shipping', 'protech-wholesale' ),
 			),
 			VolumePricing::TIER_BULK     => array(
-				'label'     => __( 'Bulk', 'protech-wholesale' ),
+				'label'     => __( 'Volume', 'protech-wholesale' ),
 				/* translators: 1: number of cases, 2: the same quantity in displays. */
 				'threshold' => sprintf( __( '%1$d+ cases (%2$d displays)', 'protech-wholesale' ), $bulk_threshold, $bulk_threshold * $displays_per_case ),
 				'note'      => __( 'Best price', 'protech-wholesale' ),

@@ -1425,3 +1425,77 @@ machine has no PHP, so nothing here has run outside PHPUnit in GitHub
 Actions. SMS cannot be verified at all until the owner registers a
 toll-free number with Brevo — the Compliance view's CSV/wording/
 suggested privacy text is what that registration needs. See QA.md §21.
+
+## MSRP strikethrough, login landing, tier names, quantity legend (2026-09-21, in 1.5.0)
+
+Four owner asks in one message, after the header banner shipped:
+
+1. **The main price shows the MSRP crossed out next to the wholesale
+   price.** Done inside `Pricing::filter_price_html()`, the one place
+   every wholesale price already passed through, by wrapping the price
+   in WooCommerce's own `wc_format_sale_price()` markup (del/ins plus
+   the screen-reader "Original price was / Current price is" text) with
+   an "MSRP" tag in front and a "Save N%" chip after. Reusing the sale
+   markup rather than inventing a strikethrough means Salient's own
+   `.price del/ins` rules apply, and the accessibility text comes free.
+   `filter_sale_price()` still blanks WooCommerce's real sale price for
+   wholesale customers, so this is the only strikethrough they see; the
+   two never stack. The MSRP is `get_msrp()` (the raw `_regular_price`
+   meta, since `get_regular_price()` is already rewritten to the
+   wholesale price on the same request), ranged across a variable
+   product's priced variations. A product whose MSRP isn't above the
+   wholesale price shows the plain price rather than a "Save 0%".
+
+2. **Log in on `/wholesale`, land on the product page.** A setting, not
+   a hard-coded product: "After a wholesale login, go to" (a URL; empty
+   = the shop, exactly the old behaviour). All four places that sent an
+   approved customer to the shop (the portal's own login form, the
+   approved-customer bounce off the portal page, the "Continue" link,
+   and the WordPress/WooCommerce `login_redirect` filters) read it, so
+   My Account logins land in the same place as portal logins. Off-site
+   URLs fall back to the shop via `wp_validate_redirect()`. On staging
+   it is set to the Premium Matte Sleeves page. A product picker was
+   considered and rejected: the WooCommerce enhanced select needs the
+   screen registered as a WooCommerce screen for its scripts, and a URL
+   also lets the owner pick a category or landing page later.
+
+3. **Tier names: un-named, then Standard, then Volume.** The owner's
+   reasoning: nobody should be *aiming* for the first tier, so it gets
+   no name to aim for. Customer-facing surfaces describe it by its range
+   ("Under 16 displays"), the ladder's first column now merges name and
+   range, the sticky bar's first marker is labelled with the range, the
+   chip reads just "Wholesale" while a cart is there, and the My Account
+   card's tier list does the same. Admin needs *some* word for the row,
+   so it is "Base" there (Pricing tab, bulk prompts, product-field
+   descriptions). Suggested alternatives if "Base" grates: "Entry",
+   "Opening", "Starter" (avoided: "Starter" collides with starter kits).
+   **Slugs and meta keys stay `standard`/`volume`/`bulk`** and so do the
+   `TIER_*` constants: renaming them would mean migrating
+   `_protech_volume_price`/`_protech_bulk_price` on every variation and
+   the four option names, for no customer-visible gain. The mapping is
+   documented once, on `VolumePricing::get_tier_labels()`, and the
+   customer/admin split lives in `get_tier_short_label()` (returns `''`
+   for the base tier) versus `get_tier_labels()`. The starter-kit quote
+   substitutes "Wholesale" when the short label is empty.
+
+4. **A legend for buyers who don't know what a display or a case is.**
+   `templates/quantity-legend.php`, rendered by
+   `CaseRules::render_unit_selector()` directly above the Display/Case
+   control (the place the words are first needed), for wholesale
+   customers on priced products only. Three tiles, pack, display (a
+   grid of pack dots), case (a grid of differently-coloured display
+   swatches, because a case is any mix of colours), with "×10" / "×8"
+   between them, then the owner's line verbatim-ish: "1 case = 8
+   displays. Mix and match your displays however you'd like. Free
+   shipping from 16 displays (2 cases), any combination of colours."
+   Every number is the product's own composition and the live threshold,
+   so it can't go stale. It is not on the cart page: the Blocks cart has
+   no server hook for it, and the sticky bar already restates the totals
+   there. The art caps at 12 dots/swatches so an unusual composition
+   doesn't draw a wall of squares.
+
+Verified in the headless-Chrome harness (product page at 1440 and 390,
+shop grid at 1440) against the real Salient markup; PHPUnit covers the
+price HTML (simple, variable, retail untouched), the landing URL (empty,
+on-site, off-site, and the login_redirect filter), the ladder labels and
+the legend's copy. Not yet human-verified on staging.

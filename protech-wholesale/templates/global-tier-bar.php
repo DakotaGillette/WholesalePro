@@ -3,7 +3,7 @@
  * Sticky, site-wide tier progress bar for wholesale customers — see
  * class-global-tier-bar.php. A floating Protech Blue dock (full width on
  * phones): tier chip + message, a two-segment progress track with
- * Standard/Volume/Bulk markers, live totals, and the way to the cart.
+ * a marker per tier, live totals, and the way to the cart.
  *
  * assets/js/global-tier-bar.js finds its targets by the ids below, so a
  * theme override that keeps those ids keeps working; every other element
@@ -72,12 +72,12 @@ $protech_bulk_reward = '' !== $state['bulk_price_html']
 				</div>
 
 				<div class="protech-tier-marker protech-tier-marker--standard" style="left:0%">
-					<span class="protech-tier-marker-label"><?php esc_html_e( 'Standard', 'protech-wholesale' ); ?></span>
+					<span class="protech-tier-marker-label"><?php echo esc_html( sprintf( /* translators: %d: number of displays. */ __( 'Under %d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ) ); ?></span>
 					<span class="protech-tier-marker-dot"></span>
 					<span class="protech-tier-marker-reward"><?php esc_html_e( 'Wholesale price', 'protech-wholesale' ); ?></span>
 				</div>
 
-				<div class="protech-tier-marker protech-tier-marker--volume" id="protech-global-tier-bar-marker-volume" style="left:<?php echo esc_attr( (string) $state['volume_marker_percent'] ); ?>%" title="<?php echo esc_attr( sprintf( /* translators: %d: number of displays. */ __( 'Volume pricing and free shipping at %d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ) ); ?>">
+				<div class="protech-tier-marker protech-tier-marker--volume" id="protech-global-tier-bar-marker-volume" style="left:<?php echo esc_attr( (string) $state['volume_marker_percent'] ); ?>%" title="<?php echo esc_attr( sprintf( /* translators: %d: number of displays. */ __( 'Free shipping and Standard pricing at %d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ) ); ?>">
 					<span class="protech-tier-marker-label"><?php echo esc_html( sprintf( /* translators: %d: number of displays. */ __( '%d displays', 'protech-wholesale' ), $state['volume_threshold_displays'] ) ); ?></span>
 					<span class="protech-tier-marker-dot"></span>
 					<span class="protech-tier-marker-reward"><?php echo wp_kses_post( $protech_volume_reward ); ?></span>
