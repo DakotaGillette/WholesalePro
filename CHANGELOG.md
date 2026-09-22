@@ -3,6 +3,15 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.8.1 - 2026-09-21
+
+### Fixed
+- Adding, dragging, moving, copying or removing a block now redraws the canvas right away,
+  instead of waiting up to 0.7 seconds. Typing still waits for a pause, so it isn't one request
+  per keystroke — only the things that fire once per action (a drop, a click, a dropdown, a
+  picture chosen) are now instant. The Refresh button still works, for a slow connection or with
+  JavaScript off.
+
 ## 2.8.0 - 2026-09-21
 
 ### Changed

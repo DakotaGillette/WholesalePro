@@ -43,6 +43,7 @@
 		var backButton = document.getElementById( 'protech-back-to-blocks' );
 		var lastFocused = null;
 		var previewTimer = null;
+		var typingTimer = null;
 		var dragged = null;
 		var draggingType = null;
 		var dropMarked = null;
@@ -489,7 +490,7 @@
 				}
 			}
 
-			schedulePreview();
+			scheduleTypingPreview();
 		} );
 
 		form.addEventListener( 'change', function ( event ) {
@@ -763,27 +764,59 @@
 
 		// -- live preview ----------------------------------------------------------------
 
+		/** The same form, posted into the preview frame — exactly what the Refresh button does. */
+		function previewNow() {
+			if ( ! refresh ) {
+				return;
+			}
+
+			if ( form.requestSubmit ) {
+				form.requestSubmit( refresh );
+			} else {
+				refresh.click();
+			}
+		}
+
 		/**
-		 * The same form, posted into the preview frame by the Refresh button. Debounced,
-		 * so typing does not send a request per keystroke. Without this script it is
-		 * simply the Refresh button.
+		 * Redraws the canvas right away: adding, moving, copying or removing a block (so a
+		 * drag from the palette shows up live, with nothing to click), a dropdown or checkbox
+		 * changing, a picture chosen. The short wait only coalesces anything firing more than
+		 * once in the same moment; a person never notices it as a wait. Without this script,
+		 * or if a request is still in flight when the next one is due, it is the Refresh button.
 		 */
 		function schedulePreview() {
 			if ( ! refresh ) {
 				return;
 			}
 
+			if ( typingTimer ) {
+				clearTimeout( typingTimer );
+				typingTimer = null;
+			}
+
 			if ( previewTimer ) {
 				clearTimeout( previewTimer );
 			}
 
-			previewTimer = window.setTimeout( function () {
-				if ( form.requestSubmit ) {
-					form.requestSubmit( refresh );
-				} else {
-					refresh.click();
-				}
-			}, 700 );
+			previewTimer = window.setTimeout( previewNow, 100 );
+		}
+
+		/** Typing in a text field: waits for a pause, so it is not one request per keystroke. */
+		function scheduleTypingPreview() {
+			if ( ! refresh ) {
+				return;
+			}
+
+			if ( previewTimer ) {
+				clearTimeout( previewTimer );
+				previewTimer = null;
+			}
+
+			if ( typingTimer ) {
+				clearTimeout( typingTimer );
+			}
+
+			typingTimer = window.setTimeout( previewNow, 700 );
 		}
 
 		// -- start ---------------------------------------------------------------------------

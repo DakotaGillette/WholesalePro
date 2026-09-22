@@ -1680,6 +1680,16 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## The canvas redraws live, not on a delay (2026-09-21, 2.8.1)
+
+The 2.8.0 preview used one 700ms-debounced refresh for everything, typing included — right for a
+keystroke, wrong for a drop, which then looked like it needed the Refresh button to take effect.
+Split it in two: `schedulePreview()` (now a ~100ms coalescing wait, for anything that fires once
+per action — adding, moving, copying, removing a block, a dropdown, a picture) and
+`scheduleTypingPreview()` (the original 700ms wait, kept only for the raw `input` event on text
+and color fields). Both end at the same `previewNow()`, the same real submit into the iframe —
+still one renderer, still no client-side model of what the email looks like.
+
 ## Canvas-first editor (2026-09-21, 2.8.0)
 
 A layout and interaction rework, not a data-model change — the safety properties the composer
