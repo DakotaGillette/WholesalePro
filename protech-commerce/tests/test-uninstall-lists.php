@@ -105,6 +105,11 @@ class Test_Uninstall_Lists extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'DROP TABLE', self::$uninstall_source );
 	}
 
+	public function test_the_contacts_tables_are_dropped(): void {
+		$this->assertStringContainsString( 'protech_wholesale_contacts', self::$uninstall_source );
+		$this->assertStringContainsString( 'protech_wholesale_contact_consent_log', self::$uninstall_source );
+	}
+
 	public function test_action_scheduler_hooks_are_unscheduled(): void {
 		$this->assertStringContainsString( 'as_unschedule_all_actions', self::$uninstall_source );
 		$this->assertStringContainsString( \ProtechWholesale\AutomationRunner::HOOK_DAILY, self::$uninstall_source );

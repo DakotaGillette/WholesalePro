@@ -3,6 +3,24 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.4.0 - 2026-09-22
+
+### Added
+- Messaging → Contacts: a directory of everyone the store has a relationship with, wholesale,
+  retail or a guest who has checked out, searchable by name, email or company and filterable
+  by status and source. Each contact's profile shows their order count, lifetime value, last
+  order date and a consent history. Existing accounts were backfilled automatically.
+  Export to CSV from the list.
+- A guest checkout now creates a contact from the billing details, so a repeat guest is
+  recognised even without an account.
+- "Unsubscribe" on a contact's row, for a contact linked to an account, actually turns off
+  their email marketing the same way doing it from their profile would.
+
+### Changed
+- None of this yet decides who a campaign or automation reaches; that still works exactly as
+  before, by WordPress account. Contacts is a directory today, not an audience source (see
+  DECISIONS.md for what a later release still needs to add before that changes).
+
 ## 3.3.2 - 2026-09-22
 
 ### Fixed

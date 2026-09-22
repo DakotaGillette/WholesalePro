@@ -1680,6 +1680,59 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## A contacts directory, built additively (2026-09-22, 3.4.0)
+
+The roadmap's full scope for this phase (a table replacing per-user consent storage, guest
+capture, a swapped unique key on the live message log, an audience layer over contacts, a
+checkout opt-in checkbox, CSV import, REST routes) was cut back hard, to the slice that adds
+real value with no risk to what already works and already matters for compliance.
+
+1. **SmsConsent's user-meta storage is untouched.** It is this store's proof of opt-in for
+   Brevo's toll-free number verification, and every real send today gates on it. Contacts
+   reads a snapshot of it (email_marketing → subscribed/unsubscribed) rather than becoming a
+   second, competing source of truth; the one deliberate exception is
+   `Contacts::record_manual_unsubscribe()` for a contact linked to an account, which calls
+   `SmsConsent::record()` (its public API, not its storage) so unsubscribing from the new
+   screen has the same real effect unsubscribing from a profile page already has, rather than
+   just looking like it does.
+2. **No unique-key swap on the live message log.** The roadmap wanted `messages`' dedup key
+   changed to `(rule_id, contact_id, anchor, channel)`; that is a schema change on a table this
+   store's live sending already depends on, and the roadmap's own risk note flagged it as the
+   phase's most dangerous step. `messages` is untouched this release; contacts is a new,
+   parallel table, not yet joined to anything that sends.
+3. **Contacts is a directory, not yet an audience source.** Compose, Campaigns and Automations
+   still resolve WordPress users exactly as before. Wiring guests and a contact-level audience
+   into the actual send path is real, separate, cross-cutting work (it touches the production
+   send pipeline directly) better done as its own reviewed step than bundled into the release
+   that also stands up the schema.
+4. **No checkout marketing opt-in checkbox.** Adding a checkbox that does not yet feed
+   anything actionable (nothing sends to guests yet) would be UI that lies about what it does.
+   A first-time guest defaults to "transactional only," the safe, compliant default the
+   roadmap itself specifies for exactly this case; a real opt-in checkbox ships once something
+   downstream can act on it.
+5. **Guest capture uses both checkout hooks, not just the classic one the roadmap named.**
+   `OrdersAdmin::register_hooks()`'s own comment says this store actually checks out through
+   WooCommerce Blocks, which never fires `woocommerce_checkout_create_order` at all. A plugin
+   that only hooked that, as the roadmap's phrasing suggested, would silently never capture a
+   single real guest. Contacts hooks the same pair `OrdersAdmin` already relies on for the
+   wholesale-order flag (classic and the Store API's own equivalent).
+6. **No historical guest backfill.** Creating a contact for every past guest order would mean
+   scanning the store's full order history, open-ended and unbounded in a way the roadmap's own
+   "500 per Action Scheduler batch" language anticipated needing to handle carefully. Only
+   existing WordPress accounts (customer, wholesale, or pending) are backfilled, inline, the
+   same pattern `Automations::backfill_approved_at()` already uses (bounded by account count,
+   not order count); a new guest is captured going forward the moment they next check out.
+7. **One table dropped from the schema, contact_tags.** Nothing in this phase assigns or reads
+   a tag, so an empty, unused table added no present value; it can be added once a real feature
+   needs it.
+8. **Plain PHP admin screens, not REST.** The roadmap suggested `GET /contacts` and friends,
+   but every other Messaging admin screen in this codebase (Log, Compliance, the Emails list)
+   is a server-rendered table with a search form and admin-post actions, not a REST-backed
+   page; introducing REST here for consistency with the roadmap would have meant inconsistency
+   with every screen sitting right next to it. CSV export follows Compliance's own established
+   pattern exactly. CSV import was cut outright (file upload, parsing, and row-level error
+   reporting are a real feature of their own, not a small addition).
+
 ## WooCommerce's own order emails become designable, nine of them (2026-09-22, 3.3.0)
 
 The full aspirational scope for this phase (from the roadmap: all 12 WooCommerce emails,

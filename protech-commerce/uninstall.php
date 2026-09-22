@@ -117,6 +117,10 @@ foreach ( $protech_option_keys as $protech_option_key ) {
 global $wpdb;
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_messages" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 
+// 1c. The contacts directory and its consent log (Contacts::TABLE / CONSENT_LOG_TABLE, 3.4.0).
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contacts" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contact_consent_log" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+
 if ( function_exists( 'as_unschedule_all_actions' ) ) {
 	foreach (
 		array(

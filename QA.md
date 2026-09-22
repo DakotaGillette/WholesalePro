@@ -384,6 +384,22 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 42. A contacts directory (3.4.0)
+
+- [ ] Messaging → Contacts lists existing wholesale and retail accounts, backfilled
+  automatically on update. Search by name, email or company; filter by status and source.
+- [ ] Check out as a guest with an email not used before. Confirm a new row appears on
+  Contacts with source "Guest checkout" and status "Transactional only".
+- [ ] Check out again with that same guest email. Confirm it is still one row, not two.
+- [ ] Open a contact's profile: order count, lifetime value and last order date match what
+  WooCommerce → Orders shows for that person.
+- [ ] Click "Unsubscribe" on a contact linked to a real account. Confirm their My Account →
+  Notifications page now shows email marketing off, and the Compliance screen's consent log
+  for that account shows the new entry, not only the Contacts screen's own history.
+- [ ] Export contacts to CSV; confirm it opens in a spreadsheet with every visible column.
+- [ ] Confirm Compose and Automations behave exactly as before: audience selection is
+  unchanged, and no guest contact appears as a sendable recipient yet.
+
 ## 41. WooCommerce's own order emails become designable (3.3.0)
 
 - [ ] Messaging → Emails shows a new "Order emails" list below "When someone joins", with

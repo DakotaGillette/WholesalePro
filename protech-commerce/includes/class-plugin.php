@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '8';
+	public const DB_VERSION     = '9';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -64,6 +64,8 @@ final class Plugin {
 	private EmailComposer $email_composer;
 	private EmailsScreen $emails_screen;
 	private WcEmailSlots $wc_email_slots;
+	private Contacts $contacts;
+	private ContactsScreen $contacts_screen;
 	private RestApi $rest_api;
 
 	public static function instance(): Plugin {
@@ -120,6 +122,8 @@ final class Plugin {
 		$this->email_composer         = new EmailComposer();
 		$this->emails_screen          = new EmailsScreen();
 		$this->wc_email_slots         = new WcEmailSlots();
+		$this->contacts               = new Contacts();
+		$this->contacts_screen        = new ContactsScreen();
 		$this->rest_api               = new RestApi();
 
 		foreach (
@@ -161,6 +165,8 @@ final class Plugin {
 				$this->email_composer,
 				$this->emails_screen,
 				$this->wc_email_slots,
+				$this->contacts,
+				$this->contacts_screen,
 				$this->rest_api,
 			) as $component
 		) {
@@ -268,6 +274,8 @@ final class Plugin {
 	 *  6: create the four standard automations, switched off (2.7.0).
 	 *  7: nothing new of its own. Its only job is to make every site still on
 	 *     an older version run the table safety-net below one more time.
+	 *  9: create the contacts and contact-consent-log tables (3.4.0), and
+	 *     backfill a contact for every existing user with a customer-ish role.
 	 */
 	public function maybe_upgrade(): void {
 		$current = get_option( self::OPT_DB_VERSION, '0' );
@@ -324,6 +332,12 @@ final class Plugin {
 			// 3.1.0's four new starters: thank-you, sale, back-in-stock, newsletter update.
 			$added = EmailTemplates::seed_starters( array( 'thank_you_order', 'sale_announcement', 'back_in_stock', 'newsletter_update' ) );
 			Logger::info( sprintf( 'Upgraded plugin data to version 8 (%d starter email template(s) added).', $added ) );
+		}
+
+		if ( version_compare( $current, '9', '<' ) ) {
+			Contacts::install_tables();
+			$backfilled = Contacts::backfill();
+			Logger::info( sprintf( 'Upgraded plugin data to version 9 (contacts tables created, %d contact(s) backfilled).', $backfilled ) );
 		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );

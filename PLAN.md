@@ -58,6 +58,8 @@ protech-commerce/
     class-email-composer.php          Template library: new/duplicate/delete/preview admin-post handlers; the client-side editor's mount point and which template it opens on
     class-emails-screen.php           Messaging landing (Emails): lifecycle emails, order emails, the "Sent" campaign list, duplicate links
     class-wc-email-slots.php          Binds a template to one of nine WooCommerce order emails via woocommerce_locate_template, not a WC_Email subclass
+    class-contacts.php                A contacts directory (wholesale, retail, guest), read-only snapshot of SmsConsent; not yet an audience source
+    class-contacts-screen.php         Messaging → Contacts: search/filter/paginate, a contact profile, manual unsubscribe, CSV export
     class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
     class-automations-screen.php      Automations view: rule table and rule form (admin-post: save/preview/toggle/delete/run-now/send-test)
