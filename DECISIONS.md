@@ -1680,6 +1680,15 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## A visible "updating" state (2026-09-21, 2.8.2)
+
+2.8.1 made the request fire almost immediately, but on this store's staging host a preview
+render itself takes two to three seconds — confirmed by timing the raw request directly, not
+guessed. No client-side debounce tuning changes that; the canvas would still look like nothing
+happened for a couple of seconds. `previewNow()` now dims the iframe the moment it submits, and
+`wireFrameDocument()` (already running on every `load`) clears it. No new state and no polling:
+it rides the same submit-and-load cycle that already exists.
+
 ## The canvas redraws live, not on a delay (2026-09-21, 2.8.1)
 
 The 2.8.0 preview used one 700ms-debounced refresh for everything, typing included — right for a

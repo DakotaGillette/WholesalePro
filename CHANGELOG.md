@@ -3,6 +3,13 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.8.2 - 2026-09-21
+
+### Changed
+- The canvas dims briefly while a change is on its way to it (adding, dragging, moving,
+  copying or removing a block, or typing settling down), so it reads as "updating" rather than
+  frozen on a slower connection. It clears the moment the redrawn email arrives.
+
 ## 2.8.1 - 2026-09-21
 
 ### Fixed

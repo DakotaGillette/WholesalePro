@@ -654,6 +654,8 @@
 		function wireFrameDocument() {
 			var doc;
 
+			frame.classList.remove( 'is-loading' );
+
 			try {
 				doc = frame.contentDocument;
 			} catch ( e ) {
@@ -769,6 +771,8 @@
 			if ( ! refresh ) {
 				return;
 			}
+
+			frame.classList.add( 'is-loading' );
 
 			if ( form.requestSubmit ) {
 				form.requestSubmit( refresh );
