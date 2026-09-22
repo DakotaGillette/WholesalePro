@@ -3,6 +3,14 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.3.2 - 2026-09-22
+
+### Fixed
+- The Order items and Order totals blocks showed their own type name ("order_items",
+  "order_totals") on the editor canvas instead of a real placeholder. Found in real-browser
+  verification right after deploying 3.3.1. Sending was never affected, since a real send
+  always used the finished PHP render, only the canvas approximation was wrong.
+
 ## 3.3.1 - 2026-09-22
 
 ### Fixed

@@ -171,6 +171,16 @@ function BlockBody( {
 			);
 		}
 
+		case 'order_items':
+		case 'order_totals':
+			return (
+				<div style={ { background: '#eef3fa', border: '1px solid #c9d6ea', borderRadius: '8px', padding: '20px', fontFamily: font, fontSize: '13px', color: style.muted } }>
+					{ 'order_items' === block.type
+						? 'Order items: picture, name, quantity and price for each product (order emails only)'
+						: 'Order totals: subtotal, shipping, discount, tax and total (order emails only)' }
+				</div>
+			);
+
 		case 'columns': {
 			const gap = Number( a.gap ?? 16 );
 			const valign = String( a.valign ?? 'top' );
