@@ -154,7 +154,7 @@ class Test_Emails_Screen extends WP_UnitTestCase {
 	}
 
 	public function test_the_sent_list_shows_past_messages_with_a_way_to_send_again(): void {
-		$this->assertStringContainsString( 'Nothing has been sent', $this->html( array( EmailsScreen::class, 'render_sent' ) ) );
+		$this->assertStringContainsString( 'Nothing sent yet', $this->html( array( EmailsScreen::class, 'render_sent' ) ) );
 
 		$created = Campaigns::create(
 			array(
