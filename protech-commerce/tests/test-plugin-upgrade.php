@@ -40,7 +40,27 @@ class Test_Plugin_Upgrade extends WP_UnitTestCase {
 		$table = MessageLog::table();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-		$this->assertFalse( $this->table_really_exists( $table ) );
+
+		$mysqli  = new mysqli( DB_HOST, DB_USER, DB_PASSWORD, DB_NAME );
+		$matches = array();
+		$result  = $mysqli->query( "SHOW TABLES LIKE '%protech%'" );
+		while ( $result instanceof mysqli_result && ( $row = $result->fetch_row() ) ) {
+			$matches[] = $row[0];
+		}
+		$mysqli->close();
+
+		$this->assertFalse(
+			$this->table_really_exists( $table ),
+			sprintf(
+				'DB_HOST="%s" DB_NAME="%s" table="%s" (len %d, hex %s); tables matching %%protech%%: %s',
+				DB_HOST,
+				DB_NAME,
+				$table,
+				strlen( $table ),
+				bin2hex( $table ),
+				$matches ? implode( ', ', $matches ) : '(none)'
+			)
+		);
 
 		// Simulate a site still recorded at an older version, the ordinary
 		// condition under which maybe_upgrade() actually does anything.
