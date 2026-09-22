@@ -365,11 +365,17 @@ class Test_Flows extends WP_UnitTestCase {
 				'steps'   => array( array( 'type' => 'send_email', 'email' => array( 'subject' => 'Approved', 'heading' => '', 'body' => 'hi' ) ) ),
 			)
 		);
+		// Creating a user already granted with the role fires set_user_role once, with no
+		// prior roles to compare against, which is a real grant, not a no-op: one run
+		// already exists at this point. What this test actually checks is that re-saving
+		// the same role afterwards, with the role already present in $old_roles, does not
+		// start a second one.
 		$user_id = self::factory()->user->create( array( 'role' => Roles::CUSTOMER ) );
+		$before  = array_sum( FlowRunner::counts_for( (string) $flow['id'] ) );
 
 		get_userdata( $user_id )->set_role( Roles::CUSTOMER );
 
-		$this->assertFalse( MessageLog::exists( 'flow:' . $flow['id'], $user_id, 'approved:' . $user_id . ':0', MessageLog::CHANNEL_EMAIL ) );
+		$this->assertSame( $before, array_sum( FlowRunner::counts_for( (string) $flow['id'] ) ) );
 	}
 
 	public function test_account_created_starts_on_user_register(): void {
