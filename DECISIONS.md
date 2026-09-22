@@ -1708,6 +1708,7 @@ built on top of them.
 4. **The Log's documented search filter (`s`) was never implemented**, so typing a search term in the
    Log had no effect (the field itself did not exist in the UI either, since nothing wired it up).
    `MessageLog::query()` now matches `s` against recipient or subject.
+   The search box itself did not make it into that release; it was added the same day in 2.9.1.
 5. **The site-wide logo setting was a raw attachment ID in a number box**, unlike the per-template
    logo picker in the editor, which already uses `wp.media`. Added a small custom WooCommerce Settings
    API field type (`protech_media`, via the `woocommerce_admin_field_protech_media` action every

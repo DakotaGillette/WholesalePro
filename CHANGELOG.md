@@ -3,6 +3,12 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.9.1 - 2026-09-21
+
+### Fixed
+- Messaging → Log now actually has a search box for recipient or subject. 2.9.0 wired up
+  the filter underneath but never added the field to type into.
+
 ## 2.9.0 - 2026-09-21
 
 ### Fixed
@@ -14,8 +20,6 @@ change landed on staging.
 - The messages table is recreated automatically whenever the plugin next updates itself, not
   only the one time (long ago) it was first created. The Log screen's own text now says so
   accurately.
-- Messaging → Log now has a search box for recipient or subject. The filter existed
-  underneath but nothing in the screen ever offered it.
 - The site-wide email logo is now a proper Media Library picker in Messaging → Settings,
   instead of typing an attachment's numeric ID into a box.
 - The three application-flow emails (received, approved, rejected) are now recorded in the

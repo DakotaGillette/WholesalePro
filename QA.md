@@ -384,7 +384,7 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
-## 36. Fix and unblock, and the admin file split (2.9.0)
+## 36. Fix and unblock, and the admin file split (2.9.0, 2.9.1)
 
 - [ ] Set Messaging → Settings quiet hours to a window covering right now. Send a text preview from Compose: the Log shows it queued with a send_after time after quiet hours end, not failed.
 - [ ] Open a template with a 3-across product grid showing only 1 or 2 products. At 360px, each product is its own row rather than squeezed into part of a row.
