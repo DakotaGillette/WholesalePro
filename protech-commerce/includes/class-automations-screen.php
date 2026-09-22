@@ -48,6 +48,7 @@ class AutomationsScreen {
 		}
 
 		EmailsScreen::render_lifecycle();
+		EmailsScreen::render_order_emails();
 
 		$rules  = Automations::all();
 		$labels = self::trigger_labels();

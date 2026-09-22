@@ -63,6 +63,7 @@ final class Plugin {
 	private WelcomeEmail $welcome_email;
 	private EmailComposer $email_composer;
 	private EmailsScreen $emails_screen;
+	private WcEmailSlots $wc_email_slots;
 	private RestApi $rest_api;
 
 	public static function instance(): Plugin {
@@ -118,6 +119,7 @@ final class Plugin {
 		$this->welcome_email          = new WelcomeEmail();
 		$this->email_composer         = new EmailComposer();
 		$this->emails_screen          = new EmailsScreen();
+		$this->wc_email_slots         = new WcEmailSlots();
 		$this->rest_api               = new RestApi();
 
 		foreach (
@@ -158,6 +160,7 @@ final class Plugin {
 				$this->welcome_email,
 				$this->email_composer,
 				$this->emails_screen,
+				$this->wc_email_slots,
 				$this->rest_api,
 			) as $component
 		) {
@@ -655,8 +658,12 @@ final class Plugin {
 						'link_color'     => '' !== MessagingSettings::email_link_color() ? MessagingSettings::email_link_color() : MessagingSettings::email_brand_color(),
 						'mobile_padding' => MessagingSettings::email_mobile_padding(),
 					),
-					'mergeTags'      => MergeTags::all(),
-					'slots'          => EmailTemplates::slots(),
+					// Always the full set, order tags included: the editor has one merge-tag picker for every
+					// template regardless of which slot (if any) it is bound to. Saving a template that uses an
+					// order tag without an order-bound slot reports the same "not recognised" error any other
+					// invalid tag would.
+					'mergeTags'      => MergeTags::all( '', 'order' ),
+					'slots'          => array_merge( EmailTemplates::slots(), WcEmailSlots::slots() ),
 					'categoryLabels' => EmailTemplates::category_labels(),
 					'caps'           => array( 'unfiltered_html' => current_user_can( 'unfiltered_html' ) ),
 					'urls'           => array( 'list' => MessagingTab::url( 'templates' ) ),

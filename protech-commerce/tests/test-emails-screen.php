@@ -119,6 +119,22 @@ class Test_Emails_Screen extends WP_UnitTestCase {
 		$this->assertStringContainsString( $id, $html, 'It links to the template.' );
 	}
 
+	public function test_the_order_emails_list_offers_to_design_each_one_until_one_is_bound(): void {
+		$html = $this->html( array( EmailsScreen::class, 'render_order_emails' ) );
+
+		$this->assertSame( 9, substr_count( $html, 'Design this email' ) );
+		$this->assertStringNotContainsString( "Use WooCommerce's design", $html );
+
+		$id = EmailTemplates::save( EmailTemplates::validate( array( 'name' => 'Mine', 'slot' => 'wc:customer_invoice', 'blocks' => array( array( 'type' => 'order_items' ) ) ) )['template'] );
+
+		$html = $this->html( array( EmailsScreen::class, 'render_order_emails' ) );
+
+		$this->assertSame( 8, substr_count( $html, 'Design this email' ) );
+		$this->assertSame( 1, substr_count( $html, "Use WooCommerce's design" ) );
+		$this->assertStringContainsString( 'Mine', $html );
+		$this->assertStringContainsString( $id, $html, 'It links to the template.' );
+	}
+
 	public function test_the_sent_list_shows_past_messages_with_a_way_to_send_again(): void {
 		$this->assertStringContainsString( 'Nothing has been sent', $this->html( array( EmailsScreen::class, 'render_sent' ) ) );
 

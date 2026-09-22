@@ -32,10 +32,11 @@ class MergeTags {
 		'site_name', 'brand', 'store_address',
 	);
 
-	/** Only available on the order_status trigger and manual "service message" sends with an order attached. */
+	/** Only available on the order_status trigger and manual "service message" sends with an order attached, or (context 'order') a template bound to a WooCommerce order email. */
 	private const ORDER_TAGS = array(
 		'order_number', 'order_date', 'order_total', 'order_status', 'order_url',
 		'tracking_number', 'tracking_url', 'carrier', 'tracking_block',
+		'payment_method', 'shipping_method', 'billing_address', 'shipping_address',
 	);
 
 	/** Tags whose value is a URL, so HTML rendering uses esc_url() rather than esc_html(). */
@@ -45,9 +46,11 @@ class MergeTags {
 	);
 
 	/**
+	 * @param string $context Pass 'order' for a template bound to a WooCommerce order email (WcEmailSlots), which is
+	 *                         its own context rather than a trigger: nothing "triggers" it in the automations sense.
 	 * @return array<string, string> tag => human label.
 	 */
-	public static function all( string $trigger = '' ): array {
+	public static function all( string $trigger = '', string $context = '' ): array {
 		$labels = array(
 			'first_name'             => __( 'First name', 'protech-wholesale' ),
 			'name'                   => __( 'Full name', 'protech-wholesale' ),
@@ -81,9 +84,13 @@ class MergeTags {
 			'tracking_url'           => __( 'Tracking link', 'protech-wholesale' ),
 			'carrier'                => __( 'Carrier', 'protech-wholesale' ),
 			'tracking_block'         => __( 'Tracking details (blank if none yet)', 'protech-wholesale' ),
+			'payment_method'         => __( 'Payment method', 'protech-wholesale' ),
+			'shipping_method'        => __( 'Shipping method', 'protech-wholesale' ),
+			'billing_address'        => __( 'Billing address', 'protech-wholesale' ),
+			'shipping_address'       => __( 'Shipping address (blank if same as billing, or no shipping)', 'protech-wholesale' ),
 		);
 
-		if ( 'order_status' !== $trigger ) {
+		if ( 'order_status' !== $trigger && 'order' !== $context ) {
 			$labels = array_diff_key( $labels, array_flip( self::ORDER_TAGS ) );
 		}
 
@@ -159,21 +166,79 @@ class MergeTags {
 	/**
 	 * @return array<string, string>
 	 */
-	private static function order_context( \WC_Order $order ): array {
+	public static function order_context( \WC_Order $order ): array {
 		$created  = $order->get_date_created();
 		$tracking = self::tracking_for_order( $order );
 
 		return array(
-			'order_number'    => (string) $order->get_order_number(),
-			'order_date'      => $created ? wc_format_datetime( $created ) : '',
-			'order_total'     => wp_strip_all_tags( $order->get_formatted_order_total() ),
-			'order_status'    => wc_get_order_status_name( $order->get_status() ),
-			'order_url'       => $order->get_view_order_url(),
-			'tracking_number' => $tracking['number'],
-			'tracking_url'    => $tracking['url'],
-			'carrier'         => $tracking['carrier'],
-			'tracking_block'  => $tracking['block'],
+			'order_number'     => (string) $order->get_order_number(),
+			'order_date'       => $created ? wc_format_datetime( $created ) : '',
+			'order_total'      => wp_strip_all_tags( $order->get_formatted_order_total() ),
+			'order_status'     => wc_get_order_status_name( $order->get_status() ),
+			'order_url'        => $order->get_view_order_url(),
+			'tracking_number'  => $tracking['number'],
+			'tracking_url'     => $tracking['url'],
+			'carrier'          => $tracking['carrier'],
+			'tracking_block'   => $tracking['block'],
+			'payment_method'   => $order->get_payment_method_title(),
+			'shipping_method'  => $order->get_shipping_method(),
+			'billing_address'  => self::format_order_address( $order, 'billing' ),
+			'shipping_address' => $order->has_shipping_address() ? self::format_order_address( $order, 'shipping' ) : '',
 		);
+	}
+
+	/** A one-line-per-part postal address from an order, the same formatter store_address() uses for the site's own. */
+	private static function format_order_address( \WC_Order $order, string $type ): string {
+		if ( ! function_exists( 'WC' ) || ! WC()->countries ) {
+			return '';
+		}
+
+		return wp_strip_all_tags( WC()->countries->get_formatted_address( $order->get_address( $type ), ', ' ) );
+	}
+
+	/**
+	 * The merge-tag context for a WooCommerce order email (WcEmailSlots): a
+	 * logged-in customer's usual context, or, for a guest order, one built
+	 * straight from the order's billing details, since there is no wp_user
+	 * to read. Either way {order_number} and friends are the order itself,
+	 * not a "last order" that might be a different one.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function context_for_order( \WC_Order $order ): array {
+		$user_id = (int) $order->get_customer_id();
+
+		if ( $user_id > 0 && get_userdata( $user_id ) ) {
+			return self::context_for_customer( $user_id, $order );
+		}
+
+		$context = array(
+			'first_name'                 => $order->get_billing_first_name(),
+			'name'                       => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+			'store_name'                 => $order->get_billing_company(),
+			'email'                      => $order->get_billing_email(),
+			'phone'                      => $order->get_billing_phone(),
+			'shop_url'                   => (string) wc_get_page_permalink( 'shop' ),
+			'account_url'                => (string) wc_get_page_permalink( 'myaccount' ),
+			'orders_url'                 => '',
+			'preferences_url'            => '',
+			'unsubscribe_url'            => '',
+			'login_url'                  => WelcomeEmail::login_url(),
+			'lost_password_url'          => (string) wc_lostpassword_url(),
+			'set_password_url'           => (string) wc_lostpassword_url(),
+			'application_reject_reason'  => '',
+			'site_name'                  => (string) get_bloginfo( 'name' ),
+			'brand'                      => MessagingSettings::brand(),
+			'store_address'              => self::store_address(),
+			'last_order_number'          => (string) $order->get_order_number(),
+			'last_order_date'            => $order->get_date_created() ? wc_format_datetime( $order->get_date_created() ) : '',
+			'last_order_total'           => wp_strip_all_tags( $order->get_formatted_order_total() ),
+			'last_order_url'             => $order->get_view_order_url(),
+			'days_since_last_order'      => '0',
+			'order_count'                => '1',
+		);
+
+		return array_merge( $context, self::order_context( $order ) );
 	}
 
 	/**
@@ -335,9 +400,9 @@ class MergeTags {
 	 * @return string[] Tags referenced in $template that either don't
 	 *                   exist at all, or aren't available for $trigger.
 	 */
-	public static function unknown_tags( string $template, string $trigger = '' ): array {
+	public static function unknown_tags( string $template, string $trigger = '', string $context = '' ): array {
 		preg_match_all( '/\{([a-z_]+)\}/', $template, $matches );
-		$available = self::all( $trigger );
+		$available = self::all( $trigger, $context );
 
 		return array_values( array_unique( array_diff( $matches[1] ?? array(), array_keys( $available ) ) ) );
 	}

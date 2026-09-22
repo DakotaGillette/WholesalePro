@@ -3,6 +3,28 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.3.0 - 2026-09-22
+
+### Added
+- Nine of WooCommerce's own order emails (new order, cancelled order, failed order, on-hold,
+  processing, completed, refunded, invoice, and note added to order) can now be designed the
+  same way as the welcome email, from a new "Order emails" list on the Emails screen.
+  WooCommerce keeps deciding whether each one is turned on and who it goes to; only the
+  design changes.
+- Two new blocks for a designed order email: Order items (picture, name, quantity and price
+  for each product on the order) and Order totals (subtotal, shipping, discount, tax and
+  total, exactly as WooCommerce itself would show them).
+- Merge tags for payment method, shipping method, billing address and shipping address, and
+  the existing order tags (order number, date, total, status, tracking) now work in any
+  order email design, not only the order-status automation.
+- A guest order's emails fill in the customer's name and email from what they typed at
+  checkout, since there is no account to read them from.
+
+### Changed
+- Order emails and Order totals blocks only show anything inside a designed order email;
+  elsewhere they render nothing, the same way the wholesale-only explainer blocks already
+  behave for a retail reader.
+
 ## 3.2.0 - 2026-09-22
 
 ### Added

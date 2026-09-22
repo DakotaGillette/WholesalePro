@@ -232,7 +232,7 @@ class EmailTemplates {
 		// Which lifecycle email this sends as. Only read when the form sends it, so a form without the field
 		// (a starter, an import) leaves the binding as it was. A lifecycle email is a service email by nature.
 		if ( array_key_exists( 'slot', $input ) ) {
-			$template['slot'] = EmailBlocks::pick( $input['slot'], array_merge( array( '' ), array_keys( self::slots() ) ), '' );
+			$template['slot'] = EmailBlocks::pick( $input['slot'], array_merge( array( '' ), array_keys( self::slots() ), array_keys( WcEmailSlots::slots() ) ), '' );
 		}
 
 		if ( '' !== (string) $template['slot'] ) {
@@ -294,7 +294,7 @@ class EmailTemplates {
 		}
 
 		$tag_source = implode( ' ', array_merge( array( $template['subject'], $template['preheader'], $template['footer']['text'] ), array_map( array( EmailBlocks::class, 'tag_source' ), $blocks ) ) );
-		$unknown    = MergeTags::unknown_tags( $tag_source );
+		$unknown    = MergeTags::unknown_tags( $tag_source, '', WcEmailSlots::is_wc_slot( (string) $template['slot'] ) ? 'order' : '' );
 
 		if ( ! empty( $unknown ) ) {
 			$errors[] = sprintf(

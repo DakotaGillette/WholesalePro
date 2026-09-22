@@ -92,6 +92,14 @@ class Test_Merge_Tags extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'tracking_url', MergeTags::all( 'order_status' ) );
 	}
 
+	/** The 'order' context (a template bound to a WooCommerce order email) admits the same order tags the order_status trigger does. */
+	public function test_order_only_tags_are_also_available_in_the_order_context(): void {
+		$this->assertEmpty( MergeTags::unknown_tags( '{payment_method} {shipping_method} {billing_address}', '', 'order' ) );
+		$this->assertArrayHasKey( 'payment_method', MergeTags::all( '', 'order' ) );
+		$this->assertArrayHasKey( 'shipping_address', MergeTags::all( '', 'order' ) );
+		$this->assertArrayNotHasKey( 'payment_method', MergeTags::all( '' ) );
+	}
+
 	public function test_sms_segment_counting(): void {
 		$ascii_one_segment = str_repeat( 'a', 160 );
 		$ascii_two_segments = str_repeat( 'a', 161 );

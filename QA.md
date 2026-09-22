@@ -384,6 +384,30 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 41. WooCommerce's own order emails become designable (3.3.0)
+
+- [ ] Messaging → Emails shows a new "Order emails" list below "When someone joins", with
+  nine rows, each showing "WooCommerce's default design" and a "Design this email" button.
+- [ ] Click "Design this email" on Processing order: opens the editor with a heading, a line
+  of text and Order items / Order totals blocks already in place, bound to that email.
+- [ ] Place a wholesale test order and move it to Processing. Confirm the email that arrives
+  is the designed one (not WooCommerce's default), with the real order number in the
+  subject, the real products and quantities in Order items, and the real subtotal/shipping/
+  tax/total in Order totals matching what the order screen shows.
+- [ ] Confirm the subject still starts with "WHOLESALE ORDER" for a wholesale order's New
+  order email (to the shop) once that slot is also designed.
+- [ ] Place an order as a guest (log out first) and confirm the designed Processing order
+  email still fills in the name from what was typed at checkout, not blank or an error.
+- [ ] Back on the Order emails list, the row now shows "Designed: [name]" with "Edit design"
+  and "Use WooCommerce's design"; clicking the latter reverts to WooCommerce's own email on
+  the next order.
+- [ ] In the editor, open the merge-tag picker on a Text block: {payment_method},
+  {shipping_method}, {billing_address} and {shipping_address} are offered; add one to a
+  bound order email and confirm it fills with the real value on the next order.
+- [ ] Preview and Send a test on a template bound to an order email both use the store's
+  most recent real order; if there are no orders yet, they still render (just without order
+  content) rather than erroring.
+
 ## 40. Three new blocks, and hide-on/visible-to (3.2.0)
 
 - [ ] Add a Social links block, fill in only Facebook and Instagram: Preview shows two round

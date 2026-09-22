@@ -70,16 +70,17 @@ class EmailRenderer {
 
 	/**
 	 * The merge-tag context for a recipient, plus the flags the blocks read:
-	 * `_user_id`, `_wholesale` and `_preview`.
+	 * `_user_id`, `_wholesale`, `_preview` and (order emails only) `_order`.
 	 *
 	 * @return array<string, mixed>
 	 */
-	public static function context( int $user_id, bool $preview = false ): array {
-		$context = MergeTags::context_for_customer( $user_id );
+	public static function context( int $user_id, bool $preview = false, ?\WC_Order $order = null ): array {
+		$context = null !== $order ? MergeTags::context_for_order( $order ) : MergeTags::context_for_customer( $user_id );
 
 		$context['_user_id']   = $user_id;
 		$context['_wholesale'] = $user_id > 0 && Roles::is_wholesale_customer( $user_id );
 		$context['_preview']   = $preview;
+		$context['_order']     = $order;
 
 		// A rejection reason exists only when an application is being rejected; a preview shows where it would go.
 		if ( $preview && '' === ( $context['application_reject_reason'] ?? '' ) ) {

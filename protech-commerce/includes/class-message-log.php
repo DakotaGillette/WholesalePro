@@ -49,6 +49,7 @@ class MessageLog {
 	public const KIND_WELCOME = 'welcome';
 	/** The three application-flow emails (received/approved/rejected): sent once, logged as already sent, never queued or retried. */
 	public const KIND_LIFECYCLE = 'lifecycle';
+	public const KIND_WC        = 'wc';
 
 	public const CATEGORY_MARKETING     = 'marketing';
 	public const CATEGORY_TRANSACTIONAL = 'transactional';

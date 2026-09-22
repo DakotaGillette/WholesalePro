@@ -1680,6 +1680,57 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## WooCommerce's own order emails become designable, nine of them (2026-09-22, 3.3.0)
+
+The full aspirational scope for this phase (from the roadmap: all 12 WooCommerce emails,
+five order blocks, an order picker in the editor, a starter per slot) was cut back to what
+could be verified against WooCommerce's actual source rather than guessed at, since a wrong
+template path or hook name here fails silently (an email simply keeps its default design)
+rather than with an error anyone would notice.
+
+1. **A template file swap, not a `WC_Email` replacement**, exactly as the roadmap called
+   for: `WcEmailSlots` filters `woocommerce_locate_template`, matching the bound email's
+   exact `template_html`/`template_plain` path (verified against each `WC_Email_*`
+   constructor, not assumed from the id) and returning `templates/wc-email-slot(-plain).php`
+   only then. WooCommerce keeps deciding enable/recipient/BCC and firing its own hooks
+   (`woocommerce_email_subject_*`, `woocommerce_email_sent`); only the body content changes.
+2. **Nine order-bearing emails, not twelve.** `customer_new_account` and
+   `customer_reset_password` carry no order at all (their template args are user/account
+   fields, not `$order`), so they would need a whole separate, account-only merge-tag
+   context; left for a later pass rather than half-built now. WooCommerce also ships
+   newer, off-by-default customer-facing cancelled/failed-order emails
+   (`customer_cancelled_order`, `customer_failed_order`) whose exact template paths were not
+   worth the same source-verification effort for two emails few stores turn on; also
+   deferred. The nine that shipped were each checked against WooCommerce's own class file.
+3. **A full refund and a partial refund share one slot.** `WC_Email_Customer_Refunded_Order`
+   swaps its own `id` between `customer_refunded_order` and `customer_partially_refunded_order`
+   at send time depending on the refund, but always uses the same template file, so binding
+   `wc:customer_refunded_order` covers both; the subject filter and the sent-email logger
+   both resolve the second id back to the first, so a partial refund is never a silent gap.
+4. **Two order blocks, not five.** Order items and Order totals need real per-line-item
+   looping (`WC_Order::get_items()`, `get_order_item_totals()`) that a block genuinely earns
+   its keep doing. Order addresses, payment/shipping method, and tracking details do not:
+   they are now plain merge tags (`{billing_address}`, `{shipping_address}`,
+   `{payment_method}`, `{shipping_method}`, and the existing `{tracking_block}`, now
+   available in any order email design) that a Text block already displays. One rendering
+   path instead of four, for the same information.
+5. **No order picker in the editor yet.** Previewing or test-sending a template bound to an
+   order email uses the store's single most recent order (`wc_get_orders()`, newest first)
+   rather than a chosen one; building a real order-search UI is its own piece of work. The
+   real send, of course, always uses the actual order the email is about.
+6. **No starter per order-email slot.** "Design this email" for one of these nine opens a
+   fresh template with a small, sensible starting point built inline (a heading, a line of
+   text, Order items, Order totals) rather than a full `EmailStarters` entry; the roadmap's
+   per-slot starters can follow once there is a reason to make each of the nine look
+   different from the others.
+7. **`MergeTags::all()`/`unknown_tags()` gained a `$context` parameter** (`'order'`)
+   alongside the existing `$trigger` one, since being bound to an order email is not a
+   "trigger" in the automations sense; a template's own `validate()` passes `'order'` only
+   when its slot is one of these nine, so an order tag used anywhere else still reports the
+   existing "not recognised" error. The editor's own merge-tag picker, more simply, always
+   offers the full set: it has one picker for every template regardless of slot, and saving
+   is where the real gate lives, the same as any other invalid tag today.
+
 ## Three new blocks, and a visibility/hide model every block shares (2026-09-22, 3.2.0)
 
 The roadmap's "content block library" phase named eight new block types plus per-recipient

@@ -56,7 +56,8 @@ protech-commerce/
     class-email-blocks.php            Block registry: types, sanitize, render (HTML + plain text), field schema
     class-email-renderer.php          Template + context -> one finished email document (header/blocks/footer) and its plain text
     class-email-composer.php          Template library: new/duplicate/delete/preview admin-post handlers; the client-side editor's mount point and which template it opens on
-    class-emails-screen.php           Messaging landing (Emails): lifecycle emails, the "Sent" campaign list, duplicate links
+    class-emails-screen.php           Messaging landing (Emails): lifecycle emails, order emails, the "Sent" campaign list, duplicate links
+    class-wc-email-slots.php          Binds a template to one of nine WooCommerce order emails via woocommerce_locate_template, not a WC_Email subclass
     class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
     class-automations-screen.php      Automations view: rule table and rule form (admin-post: save/preview/toggle/delete/run-now/send-test)
@@ -81,7 +82,7 @@ protech-commerce/
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
                                       account-notifications, quantity-legend, welcome-email, email-quantity-diagram,
-                                      email-pricing-ladder
+                                      email-pricing-ladder, wc-email-slot(-plain) (stand in for a bound WooCommerce order email)
   assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI (portal, bar, ladder, selector, account, cart badge)
   assets/css/admin.css                Messaging admin styling (merge-tag chips, form layout), wholesale screens only
   assets/editor/editor.js, editor.css Template editor, built from editor-src/ and committed: no Node step on deploy

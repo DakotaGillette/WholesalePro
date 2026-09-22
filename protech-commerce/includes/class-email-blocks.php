@@ -149,6 +149,16 @@ class EmailBlocks {
 				'help'     => __( 'Two or three blocks side by side.', 'protech-wholesale' ),
 				'defaults' => array_merge( $common, array( 'count' => 2, 'gap' => 16, 'valign' => 'top', 'children' => array( array(), array() ) ) ),
 			),
+			'order_items'          => array(
+				'label'    => __( 'Order items', 'protech-wholesale' ),
+				'help'     => __( 'The products on the order, with quantity and price. Only shows anything on an order email.', 'protech-wholesale' ),
+				'defaults' => array_merge( $common, array( 'show_image' => true, 'show_sku' => false ) ),
+			),
+			'order_totals'         => array(
+				'label'    => __( 'Order totals', 'protech-wholesale' ),
+				'help'     => __( 'Subtotal, shipping, discount, tax and total. Only shows anything on an order email.', 'protech-wholesale' ),
+				'defaults' => array_merge( $common, array() ),
+			),
 			'social'               => array(
 				'label'    => __( 'Social links', 'protech-wholesale' ),
 				'help'     => __( 'Icons linking to your social accounts.', 'protech-wholesale' ),
@@ -257,6 +267,11 @@ class EmailBlocks {
 				array( 'key' => 'gap', 'label' => __( 'Space between (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 40 ),
 				array( 'key' => 'valign', 'label' => __( 'Line up at the', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'top' => __( 'Top', 'protech-wholesale' ), 'middle' => __( 'Middle', 'protech-wholesale' ), 'bottom' => __( 'Bottom', 'protech-wholesale' ) ) ),
 			),
+			'order_items'          => array(
+				array( 'key' => 'show_image', 'label' => __( 'Show a picture of each product', 'protech-wholesale' ), 'type' => 'checkbox' ),
+				array( 'key' => 'show_sku', 'label' => __( 'Show the SKU', 'protech-wholesale' ), 'type' => 'checkbox' ),
+			),
+			'order_totals'         => array(),
 			'social'               => array(
 				array( 'key' => 'facebook', 'label' => __( 'Facebook URL', 'protech-wholesale' ), 'type' => 'text' ),
 				array( 'key' => 'instagram', 'label' => __( 'Instagram URL', 'protech-wholesale' ), 'type' => 'text' ),
@@ -310,6 +325,8 @@ class EmailBlocks {
 			'spacer'               => array( 'align' ),
 			'video'                => array( 'align' ),
 			'html'                 => array( 'align' ),
+			'order_items'          => array( 'align' ),
+			'order_totals'         => array( 'align' ),
 		);
 
 		$types = array();
@@ -499,6 +516,14 @@ class EmailBlocks {
 				}
 				break;
 
+			case 'order_items':
+				$out['show_image'] = self::flag( $in['show_image'] ?? true );
+				$out['show_sku']   = self::flag( $in['show_sku'] ?? false );
+				break;
+
+			case 'order_totals':
+				break;
+
 			case 'social':
 				foreach ( array( 'facebook', 'instagram', 'x', 'youtube' ) as $network ) {
 					$out[ $network ] = self::url( $in[ $network ] ?? '' );
@@ -676,6 +701,12 @@ class EmailBlocks {
 
 			case 'columns':
 				return self::render_columns( $block, $ctx, $style, $inner );
+
+			case 'order_items':
+				return self::render_order_items( $a, $ctx, $style, $inner );
+
+			case 'order_totals':
+				return self::render_order_totals( $a, $ctx, $style, $inner );
 
 			case 'social':
 				return self::render_social( $a, $inner, $style );
@@ -876,6 +907,97 @@ class EmailBlocks {
 		}
 
 		return self::row( $img, $a, $inner, $style );
+	}
+
+	/**
+	 * The order's line items: picture (optional), name and quantity, line
+	 * total. '' outside an order email (no `_order` in context, the same as
+	 * a preview of a template that isn't bound to one), or for an order with
+	 * no line items.
+	 *
+	 * @param array<string, mixed> $a
+	 * @param array<string, mixed> $ctx
+	 * @param array<string, mixed> $style
+	 */
+	private static function render_order_items( array $a, array $ctx, array $style, bool $inner ): string {
+		$order = $ctx['_order'] ?? null;
+
+		if ( ! $order instanceof \WC_Order ) {
+			return '';
+		}
+
+		$cell = 'font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:14px;color:' . esc_attr( (string) $style['text'] ) . ';';
+		$rows = '';
+
+		foreach ( $order->get_items() as $item ) {
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
+				continue;
+			}
+
+			$product = $item->get_product();
+			$image   = '';
+
+			if ( ! empty( $a['show_image'] ) && $product instanceof \WC_Product ) {
+				$thumb = wp_get_attachment_image_src( (int) $product->get_image_id(), 'thumbnail' );
+
+				if ( is_array( $thumb ) ) {
+					$image = '<td width="56" style="padding:8px 12px 8px 0;"><img src="' . esc_url( (string) $thumb[0] ) . '" width="56" style="display:block;width:56px;height:auto;border:0;border-radius:6px;" alt="" /></td>';
+				}
+			}
+
+			$sku = '';
+
+			if ( ! empty( $a['show_sku'] ) && $product instanceof \WC_Product && '' !== $product->get_sku() ) {
+				$sku = '<br /><span style="color:' . esc_attr( (string) $style['muted'] ) . ';font-size:12px;">' . esc_html( $product->get_sku() ) . '</span>';
+			}
+
+			$rows .= '<tr>' . $image
+				. '<td style="padding:8px 0;' . $cell . '">' . esc_html( $item->get_name() ) . ' &times; ' . (int) $item->get_quantity() . $sku . '</td>'
+				. '<td align="right" style="padding:8px 0;white-space:nowrap;' . $cell . '">' . wp_kses_post( $order->get_formatted_line_subtotal( $item ) ) . '</td>'
+				. '</tr>';
+		}
+
+		if ( '' === $rows ) {
+			return '';
+		}
+
+		return self::row( '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">' . $rows . '</table>', $a, $inner, $style );
+	}
+
+	/**
+	 * Subtotal, shipping, discount, tax and total, from WooCommerce's own
+	 * WC_Order::get_order_item_totals() (the same source
+	 * emails/email-order-details.php uses), so tax display settings and
+	 * refunds are already accounted for. '' outside an order email.
+	 *
+	 * @param array<string, mixed> $a
+	 * @param array<string, mixed> $ctx
+	 * @param array<string, mixed> $style
+	 */
+	private static function render_order_totals( array $a, array $ctx, array $style, bool $inner ): string {
+		$order = $ctx['_order'] ?? null;
+
+		if ( ! $order instanceof \WC_Order ) {
+			return '';
+		}
+
+		$font = 'font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:14px;color:' . esc_attr( (string) $style['text'] ) . ';';
+		$rows = '';
+
+		foreach ( $order->get_order_item_totals() as $row ) {
+			$weight = 'total' === ( $row['type'] ?? '' ) ? 'font-weight:700;' : '';
+
+			$rows .= '<tr>'
+				. '<td style="padding:4px 0;' . $font . $weight . '">' . esc_html( (string) $row['label'] ) . '</td>'
+				. '<td align="right" style="padding:4px 0;white-space:nowrap;' . $font . $weight . '">' . wp_kses_post( (string) $row['value'] ) . '</td>'
+				. '</tr>';
+		}
+
+		if ( '' === $rows ) {
+			return '';
+		}
+
+		return self::row( '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">' . $rows . '</table>', $a, $inner, $style );
 	}
 
 	/**
@@ -1289,6 +1411,38 @@ class EmailBlocks {
 							$out .= self::plain( $child, $ctx );
 						}
 					}
+				}
+
+				return $out;
+
+			case 'order_items':
+				$order = $ctx['_order'] ?? null;
+
+				if ( ! $order instanceof \WC_Order ) {
+					return '';
+				}
+
+				$out = '';
+
+				foreach ( $order->get_items() as $item ) {
+					if ( $item instanceof \WC_Order_Item_Product ) {
+						$out .= '- ' . $item->get_name() . ' x' . $item->get_quantity() . ' - ' . wp_strip_all_tags( $order->get_formatted_line_subtotal( $item ) ) . "\n";
+					}
+				}
+
+				return $out;
+
+			case 'order_totals':
+				$order = $ctx['_order'] ?? null;
+
+				if ( ! $order instanceof \WC_Order ) {
+					return '';
+				}
+
+				$out = '';
+
+				foreach ( $order->get_order_item_totals() as $row ) {
+					$out .= $row['label'] . ' ' . wp_strip_all_tags( $row['value'] ) . "\n";
 				}
 
 				return $out;

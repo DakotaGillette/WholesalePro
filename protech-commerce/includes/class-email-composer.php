@@ -100,11 +100,25 @@ class EmailComposer {
 	 * @param array<string, mixed> $template
 	 */
 	public static function preview_html( array $template, int $user_id ): string {
+		$order = WcEmailSlots::is_wc_slot( (string) $template['slot'] ) ? self::most_recent_order() : null;
+
 		return EmailRenderer::render(
 			$template,
-			EmailRenderer::context( $user_id, true ),
+			EmailRenderer::context( $user_id, true, $order ),
 			array( 'footer_html' => MessageTransport::footer_html_for( $user_id, self::category_of( $template ) ) )
 		)['html'];
+	}
+
+	/** The store's single most recent order, for previewing a template bound to a WooCommerce order email. */
+	private static function most_recent_order(): ?\WC_Order {
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return null;
+		}
+
+		$orders = wc_get_orders( array( 'limit' => 1, 'orderby' => 'date', 'order' => 'DESC' ) );
+		$order  = $orders[0] ?? null;
+
+		return $order instanceof \WC_Order ? $order : null;
 	}
 
 	/** @param array<string, mixed> $template */
@@ -236,7 +250,7 @@ class EmailComposer {
 		$uses = array();
 
 		if ( '' !== $slot ) {
-			$uses[] = EmailTemplates::slots()[ $slot ] ?? $slot;
+			$uses[] = EmailTemplates::slots()[ $slot ] ?? WcEmailSlots::slots()[ $slot ] ?? $slot;
 		}
 
 		foreach ( Automations::all() as $rule ) {

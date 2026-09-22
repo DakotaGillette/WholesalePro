@@ -104,6 +104,31 @@ class EmailsScreen {
 		echo '</tbody></table>';
 	}
 
+	/** "Order emails": WooCommerce's own order emails, each either its default design or a template designed here. */
+	public static function render_order_emails(): void {
+		echo '<h2>' . esc_html__( 'Order emails', 'protech-wholesale' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'WooCommerce\'s own order emails. Each is either WooCommerce\'s default design or a template you have designed here, with the real order\'s items and totals.', 'protech-wholesale' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Email', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Wording', 'protech-wholesale' ) . '</th><th></th></tr></thead><tbody>';
+
+		foreach ( WcEmailSlots::slots() as $slot => $label ) {
+			$template = EmailTemplates::for_slot( $slot );
+
+			echo '<tr><td><strong>' . esc_html( $label ) . '</strong></td>';
+
+			if ( null !== $template ) {
+				echo '<td>' . esc_html__( 'Designed:', 'protech-wholesale' ) . ' <a href="' . esc_url( EmailComposer::edit_url( (string) $template['id'] ) ) . '">' . esc_html( (string) $template['name'] ) . '</a></td>';
+				echo '<td><a href="' . esc_url( EmailComposer::edit_url( (string) $template['id'] ) ) . '">' . esc_html__( 'Edit design', 'protech-wholesale' ) . '</a> | <a href="' . esc_url( self::link( self::UNBIND_ACTION, $slot ) ) . '">' . esc_html__( "Use WooCommerce's design", 'protech-wholesale' ) . '</a></td>';
+			} else {
+				echo '<td>' . esc_html__( "WooCommerce's default design", 'protech-wholesale' ) . '</td>';
+				echo '<td><a class="button button-small" href="' . esc_url( self::link( self::DESIGN_ACTION, $slot ) ) . '">' . esc_html__( 'Design this email', 'protech-wholesale' ) . '</a></td>';
+			}
+
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+	}
+
 	/** The "Duplicate" link for a rule row. */
 	public static function duplicate_rule_link( string $rule_id ): string {
 		return '<a href="' . esc_url( self::link( self::DUPLICATE_RULE_ACTION, $rule_id ) ) . '">' . esc_html__( 'Duplicate', 'protech-wholesale' ) . '</a>';
@@ -161,6 +186,12 @@ class EmailsScreen {
 	 */
 	public function handle_design(): void {
 		$slot = self::authorize( self::DESIGN_ACTION );
+
+		if ( WcEmailSlots::is_wc_slot( $slot ) ) {
+			$this->handle_design_order_email( $slot );
+			return;
+		}
+
 		$info = self::lifecycle()[ $slot ] ?? null;
 
 		if ( null === $info ) {
@@ -187,6 +218,54 @@ class EmailsScreen {
 		if ( '' !== $id ) {
 			EmailTemplates::bind_slot( $id, $slot );
 			Logger::info( sprintf( 'Lifecycle email "%s" switched to a designed template by admin #%d.', $slot, get_current_user_id() ) );
+		}
+
+		wp_safe_redirect( '' !== $id ? EmailComposer::edit_url( $id ) : MessagingTab::url( 'automations' ) );
+		exit;
+	}
+
+	/**
+	 * "Design this email" for a WooCommerce order email: no starter exists
+	 * for these yet (see DECISIONS.md), so a fresh template opens with a
+	 * sensible order-aware starting point instead of a blank canvas.
+	 */
+	private function handle_design_order_email( string $slot ): void {
+		if ( ! array_key_exists( $slot, WcEmailSlots::slots() ) ) {
+			wp_safe_redirect( MessagingTab::url( 'automations' ) );
+			exit;
+		}
+
+		$existing = EmailTemplates::for_slot( $slot );
+		$id       = null !== $existing ? (string) $existing['id'] : '';
+
+		if ( '' === $id ) {
+			$result = EmailTemplates::validate(
+				array(
+					'name'    => WcEmailSlots::slots()[ $slot ],
+					'kind'    => EmailTemplates::KIND_TRANSACTIONAL,
+					'slot'    => $slot,
+					'subject' => __( 'Your order {order_number}', 'protech-wholesale' ),
+					'blocks'  => array(
+						array(
+							'type'  => 'heading',
+							'attrs' => array( 'text' => __( 'Thanks, {first_name}', 'protech-wholesale' ), 'size' => 24 ),
+						),
+						array(
+							'type'  => 'text',
+							'attrs' => array( 'html' => __( "Here's a summary of order {order_number}.", 'protech-wholesale' ) ),
+						),
+						array( 'type' => 'order_items' ),
+						array( 'type' => 'order_totals' ),
+					),
+				)
+			);
+
+			$id = EmailTemplates::save( $result['template'] );
+		}
+
+		if ( '' !== $id ) {
+			EmailTemplates::bind_slot( $id, $slot );
+			Logger::info( sprintf( 'Order email "%s" switched to a designed template by admin #%d.', $slot, get_current_user_id() ) );
 		}
 
 		wp_safe_redirect( '' !== $id ? EmailComposer::edit_url( $id ) : MessagingTab::url( 'automations' ) );

@@ -210,6 +210,24 @@ class RestTemplates {
 		return new \WP_REST_Response( array( 'template' => EmailTemplates::get( $new ) ), 201 );
 	}
 
+	/**
+	 * A real order for a preview or test send of a template bound to a
+	 * WooCommerce order email, since order blocks and order merge tags need
+	 * one to show anything. The store's single most recent order, since the
+	 * editor has no order picker yet (see DECISIONS.md); null for anything
+	 * else, or a shop with no orders at all.
+	 */
+	private static function order_for_preview( string $slot ): ?\WC_Order {
+		if ( ! WcEmailSlots::is_wc_slot( $slot ) || ! function_exists( 'wc_get_orders' ) ) {
+			return null;
+		}
+
+		$orders = wc_get_orders( array( 'limit' => 1, 'orderby' => 'date', 'order' => 'DESC' ) );
+		$order  = $orders[0] ?? null;
+
+		return $order instanceof \WC_Order ? $order : null;
+	}
+
 	/** @return array<string, mixed> */
 	public function schema(): array {
 		return EmailBlocks::schema();
@@ -251,7 +269,7 @@ class RestTemplates {
 		$result  = EmailTemplates::validate( $input );
 		$template = $result['template'];
 
-		$context  = EmailRenderer::context( $user_id, true );
+		$context  = EmailRenderer::context( $user_id, true, self::order_for_preview( (string) $template['slot'] ) );
 		$category = EmailComposer::category_of( $template );
 		$footer   = MessageTransport::footer_html_for( $user_id, $category );
 		$rendered = EmailRenderer::render( $template, $context, array( 'footer_html' => $footer ) );
@@ -272,7 +290,7 @@ class RestTemplates {
 		$to      = is_email( $to_raw ) ? $to_raw : (string) $admin->user_email;
 		$template = EmailTemplates::validate( $input )['template']; // Errors do not matter for a test send.
 
-		$context = EmailRenderer::context( (int) $admin->ID, true );
+		$context = EmailRenderer::context( (int) $admin->ID, true, self::order_for_preview( (string) $template['slot'] ) );
 		$subject = EmailRenderer::subject( $template, $context );
 
 		$result = MessageTransport::send_template_email( (int) $admin->ID, $to, $subject, $template, $context, EmailComposer::category_of( $template ), array( 'test' ) );
