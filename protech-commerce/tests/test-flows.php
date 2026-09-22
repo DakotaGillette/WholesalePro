@@ -24,6 +24,11 @@ class Test_Flows extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		update_option( MessagingSettings::OPT_ENABLED, 'yes' );
+		// A DDL call in maybe_upgrade() (dbDelta) commits mid-transaction, which can
+		// leave a previous test's option writes visible to this one; other Messaging
+		// test files already work around it the same way (see test-emails-screen.php).
+		delete_option( Flows::OPTION );
+		delete_option( Automations::OPTION );
 	}
 
 	/** @return array<string, mixed> */

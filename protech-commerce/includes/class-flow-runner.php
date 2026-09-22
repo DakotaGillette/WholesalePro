@@ -136,7 +136,12 @@ class FlowRunner {
 		self::mark_active( $run_id );
 
 		$steps = (array) $flow['steps'];
-		$path  = '' === $run['step_path'] ? array() : explode( '.', (string) $run['step_path'] );
+		// A fresh run's path is step 0, not "no path yet": step_at()/advance_path() both read
+		// the first element as the top-level index, so it has to be present (`[0]`) rather than
+		// implied by an empty array, or a condition's branch merge and a send's own anchor at the
+		// very first step silently drop it (see class-flows.php's content_for_run(), which expects
+		// the same `[0, 'yes'|'no', j]` shape this produces).
+		$path  = '' === $run['step_path'] ? array( 0 ) : explode( '.', (string) $run['step_path'] );
 		$guard = 0;
 
 		while ( true ) {
