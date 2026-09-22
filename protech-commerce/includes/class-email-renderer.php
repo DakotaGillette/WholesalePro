@@ -201,8 +201,8 @@ class EmailRenderer {
 			. '<meta http-equiv="X-UA-Compatible" content="IE=edge" />'
 			. '<title>' . esc_html( $subject ) . '</title>'
 			. self::web_font_link( $style )
-			. '<style type="text/css">body{margin:0;padding:0;}img{border:0;}'
-			. '@media only screen and (max-width:' . ( $width + 20 ) . 'px){.pw-col{display:block !important;width:100% !important;padding:0 0 12px !important;}' . $mobile_rule . '}</style>'
+			. '<style type="text/css">body{margin:0;padding:0;}img{border:0;}.pw-hide-desktop{display:none !important;}'
+			. '@media only screen and (max-width:' . ( $width + 20 ) . 'px){.pw-col{display:block !important;width:100% !important;padding:0 0 12px !important;}' . $mobile_rule . '.pw-hide-mobile{display:none !important;}.pw-hide-desktop{display:table-cell !important;}}</style>'
 			. '</head><body style="margin:0;padding:0;background:' . esc_attr( (string) $style['page_bg'] ) . ';">'
 			. $hidden
 			. '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:' . esc_attr( (string) $style['page_bg'] ) . ';"><tr><td align="center" style="padding:24px 12px;">'

@@ -284,7 +284,7 @@ class EmailTemplates {
 		$blocks     = EmailBlocks::sanitize_all( $raw_blocks );
 
 		if ( count( $blocks ) < count( array_filter( $raw_blocks, 'is_array' ) ) ) {
-			$errors[] = __( 'Some blocks were dropped: an unknown block type, or columns placed inside columns.', 'protech-wholesale' );
+			$errors[] = __( 'Some blocks were dropped: an unknown block type, columns placed inside columns, or a Custom HTML block saved by someone without the unfiltered_html capability.', 'protech-wholesale' );
 		}
 
 		$template['blocks'] = $blocks;

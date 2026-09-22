@@ -106,6 +106,8 @@ export interface EditorBootstrap {
 	slots: Record< string, string >;
 	/** category key => label, for the new-template Gallery. */
 	categoryLabels: Record< string, string >;
+	/** Whether the current admin can save a Custom HTML block; when false, the Palette never offers it. */
+	caps: { unfiltered_html: boolean };
 	urls: { list: string };
 }
 

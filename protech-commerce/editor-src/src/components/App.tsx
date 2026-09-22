@@ -333,7 +333,7 @@ export function App( { boot }: { boot: EditorBootstrap } ) {
 					) : (
 						<>
 							<div className="pw-panel-title">Add a block</div>
-							<Palette schema={ boot.schema } nested={ false } onAdd={ ( type ) => handleInsert( ROOT, template.blocks.length, type ) } />
+							<Palette schema={ boot.schema } nested={ false } canUseHtml={ boot.caps.unfiltered_html } onAdd={ ( type ) => handleInsert( ROOT, template.blocks.length, type ) } />
 							<SendTest template={ template } />
 							<SettingsPanels template={ template } schema={ boot.schema } slots={ boot.slots } mergeTags={ boot.mergeTags } onChange={ handleTemplateChange } />
 						</>

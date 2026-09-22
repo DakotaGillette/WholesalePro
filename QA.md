@@ -384,6 +384,25 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 40. Three new blocks, and hide-on/visible-to (3.2.0)
+
+- [ ] Add a Social links block, fill in only Facebook and Instagram: Preview shows two round
+  icons, nothing for X or YouTube. Leave every field blank and the block disappears entirely.
+- [ ] Add a Video block with a link and no picture: Preview shows a "Watch the video" panel
+  that links out. Choose a thumbnail picture: the picture replaces the panel, still linked.
+  Leave the link blank: the block renders nothing.
+- [ ] As an administrator, add a Custom HTML block and type some markup: it saves and Preview
+  shows it exactly as typed. Log in as a Shop Manager (no `unfiltered_html`): the Custom HTML
+  tile is not in "Add a block" at all.
+- [ ] On any block, open "Spacing and background" and set "Hide on" to Phones: Preview at
+  desktop width shows it, at 375px it is gone. Set it to "Everything but phones" and the
+  opposite happens. Set "Show this block to" to "Wholesale customers only": a wholesale test
+  send shows the block, a retail test send does not, and Preview (as the admin) always shows
+  it regardless of the setting.
+- [ ] Set a product's sale price in WooCommerce, add a Products block set to "Currently on
+  sale": Preview shows that product; a regular-priced product does not appear. Remove the
+  sale price and the block updates to show nothing (or another on-sale product, if any).
+
 ## 39. Global styles, a starter gallery, and categories (3.1.0)
 
 - [ ] Messaging → Email templates → New template opens a gallery instead of a blank canvas:

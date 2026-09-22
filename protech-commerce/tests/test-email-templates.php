@@ -95,6 +95,42 @@ class Test_Email_Templates extends WP_UnitTestCase {
 		$this->assertSame( '', $blocks[1]['attrs']['bg_color'] );
 	}
 
+	public function test_hide_on_and_visible_to_are_clamped_to_known_values(): void {
+		$result = EmailTemplates::validate(
+			$this->input(
+				array(
+					'blocks' => array(
+						array( 'type' => 'text', 'attrs' => array( 'html' => 'x', 'hide_on' => 'not-a-real-value', 'visible_to' => 'nope' ) ),
+					),
+				)
+			)
+		);
+
+		$attrs = $result['template']['blocks'][0]['attrs'];
+		$this->assertSame( 'none', $attrs['hide_on'] );
+		$this->assertSame( 'all', $attrs['visible_to'] );
+
+		$good = EmailTemplates::validate(
+			$this->input(
+				array(
+					'blocks' => array(
+						array( 'type' => 'text', 'attrs' => array( 'html' => 'x', 'hide_on' => 'mobile', 'visible_to' => 'wholesale' ) ),
+					),
+				)
+			)
+		)['template']['blocks'][0]['attrs'];
+
+		$this->assertSame( 'mobile', $good['hide_on'] );
+		$this->assertSame( 'wholesale', $good['visible_to'] );
+	}
+
+	public function test_a_product_grid_accepts_the_on_sale_mode(): void {
+		$result = EmailTemplates::validate( $this->input( array( 'blocks' => array( array( 'type' => 'product_grid', 'attrs' => array( 'mode' => 'on_sale' ) ) ) ) ) );
+
+		$this->assertSame( 'on_sale', $result['template']['blocks'][0]['attrs']['mode'] );
+		$this->assertSame( array(), $result['errors'] );
+	}
+
 	public function test_a_merge_tag_alone_is_kept_as_a_link_target(): void {
 		$result = EmailTemplates::validate( $this->input( array( 'blocks' => array( array( 'type' => 'button', 'attrs' => array( 'label' => 'Shop', 'url' => '{shop_url}' ) ) ) ) ) );
 

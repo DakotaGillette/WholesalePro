@@ -100,10 +100,12 @@ class EmailBlocks {
 		}
 
 		$common = array(
-			'pt'    => 8,
-			'pb'    => 8,
-			'bg'    => '',
-			'align' => 'left',
+			'pt'        => 8,
+			'pb'        => 8,
+			'bg'        => '',
+			'align'     => 'left',
+			'hide_on'   => 'none',
+			'visible_to' => 'all',
 		);
 
 		$cache = array(
@@ -146,6 +148,21 @@ class EmailBlocks {
 				'label'    => __( 'Columns', 'protech-wholesale' ),
 				'help'     => __( 'Two or three blocks side by side.', 'protech-wholesale' ),
 				'defaults' => array_merge( $common, array( 'count' => 2, 'gap' => 16, 'valign' => 'top', 'children' => array( array(), array() ) ) ),
+			),
+			'social'               => array(
+				'label'    => __( 'Social links', 'protech-wholesale' ),
+				'help'     => __( 'Icons linking to your social accounts.', 'protech-wholesale' ),
+				'defaults' => array_merge( $common, array( 'facebook' => '', 'instagram' => '', 'x' => '', 'youtube' => '', 'size' => 28, 'align' => 'center' ) ),
+			),
+			'video'                => array(
+				'label'    => __( 'Video', 'protech-wholesale' ),
+				'help'     => __( 'A thumbnail that links to a video.', 'protech-wholesale' ),
+				'defaults' => array_merge( $common, array( 'id' => 0, 'url' => '', 'alt' => '' ) ),
+			),
+			'html'                 => array(
+				'label'    => __( 'Custom HTML', 'protech-wholesale' ),
+				'help'     => __( 'Your own code. Needs the "unfiltered_html" capability to save.', 'protech-wholesale' ),
+				'defaults' => array_merge( $common, array( 'code' => '' ) ),
 			),
 			'divider'              => array(
 				'label'    => __( 'Divider', 'protech-wholesale' ),
@@ -223,7 +240,7 @@ class EmailBlocks {
 				array( 'key' => 'align', 'label' => __( 'Alignment', 'protech-wholesale' ), 'type' => 'select', 'options' => $align ),
 			),
 			'product_grid'         => array(
-				array( 'key' => 'mode', 'label' => __( 'Which products', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'picked' => __( 'The ones I choose', 'protech-wholesale' ), 'newest' => __( 'The newest in the shop', 'protech-wholesale' ) ) ),
+				array( 'key' => 'mode', 'label' => __( 'Which products', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'picked' => __( 'The ones I choose', 'protech-wholesale' ), 'newest' => __( 'The newest in the shop', 'protech-wholesale' ), 'on_sale' => __( 'Currently on sale', 'protech-wholesale' ) ) ),
 				array( 'key' => 'product_ids', 'label' => __( 'Products', 'protech-wholesale' ), 'type' => 'products', 'help' => __( 'Only used when you choose your own.', 'protech-wholesale' ) ),
 				array( 'key' => 'limit', 'label' => __( 'How many (newest)', 'protech-wholesale' ), 'type' => 'number', 'min' => 1, 'max' => 12 ),
 				array( 'key' => 'columns', 'label' => __( 'Across', 'protech-wholesale' ), 'type' => 'select', 'options' => array( '1' => __( '1 product', 'protech-wholesale' ), '2' => __( '2 products', 'protech-wholesale' ), '3' => __( '3 products', 'protech-wholesale' ) ) ),
@@ -239,6 +256,22 @@ class EmailBlocks {
 				array( 'key' => 'count', 'label' => __( 'Columns', 'protech-wholesale' ), 'type' => 'select', 'options' => array( '2' => __( 'Two', 'protech-wholesale' ), '3' => __( 'Three', 'protech-wholesale' ) ) ),
 				array( 'key' => 'gap', 'label' => __( 'Space between (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 40 ),
 				array( 'key' => 'valign', 'label' => __( 'Line up at the', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'top' => __( 'Top', 'protech-wholesale' ), 'middle' => __( 'Middle', 'protech-wholesale' ), 'bottom' => __( 'Bottom', 'protech-wholesale' ) ) ),
+			),
+			'social'               => array(
+				array( 'key' => 'facebook', 'label' => __( 'Facebook URL', 'protech-wholesale' ), 'type' => 'text' ),
+				array( 'key' => 'instagram', 'label' => __( 'Instagram URL', 'protech-wholesale' ), 'type' => 'text' ),
+				array( 'key' => 'x', 'label' => __( 'X (Twitter) URL', 'protech-wholesale' ), 'type' => 'text' ),
+				array( 'key' => 'youtube', 'label' => __( 'YouTube URL', 'protech-wholesale' ), 'type' => 'text' ),
+				array( 'key' => 'size', 'label' => __( 'Icon size (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 16, 'max' => 48 ),
+				array( 'key' => 'align', 'label' => __( 'Alignment', 'protech-wholesale' ), 'type' => 'select', 'options' => $align ),
+			),
+			'video'                => array(
+				array( 'key' => 'id', 'label' => __( 'Thumbnail picture', 'protech-wholesale' ), 'type' => 'image' ),
+				array( 'key' => 'url', 'label' => __( 'Video link', 'protech-wholesale' ), 'type' => 'text', 'tag' => true, 'help' => __( 'Where the play button sends the reader: YouTube, Vimeo, or wherever the video lives.', 'protech-wholesale' ) ),
+				array( 'key' => 'alt', 'label' => __( 'Description', 'protech-wholesale' ), 'type' => 'text', 'tag' => true, 'summary' => true ),
+			),
+			'html'                 => array(
+				array( 'key' => 'code', 'label' => __( 'HTML', 'protech-wholesale' ), 'type' => 'textarea', 'help' => __( 'Kept exactly as typed. Needs the "unfiltered_html" capability to save.', 'protech-wholesale' ) ),
 			),
 			'divider'              => array(
 				array( 'key' => 'color', 'label' => __( 'Line color', 'protech-wholesale' ), 'type' => 'color' ),
@@ -256,6 +289,8 @@ class EmailBlocks {
 			array( 'key' => 'pt', 'label' => __( 'Space above (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 80 ),
 			array( 'key' => 'pb', 'label' => __( 'Space below (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 80 ),
 			array( 'key' => 'bg', 'label' => __( 'Background color', 'protech-wholesale' ), 'type' => 'color', 'help' => __( 'Empty is transparent.', 'protech-wholesale' ) ),
+			array( 'key' => 'visible_to', 'label' => __( 'Show this block to', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'all' => __( 'Everyone', 'protech-wholesale' ), 'wholesale' => __( 'Wholesale customers only', 'protech-wholesale' ), 'retail' => __( 'Retail customers only', 'protech-wholesale' ) ) ),
+			array( 'key' => 'hide_on', 'label' => __( 'Hide on', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'none' => __( 'Never (always show it)', 'protech-wholesale' ), 'mobile' => __( 'Phones', 'protech-wholesale' ), 'desktop' => __( 'Everything but phones', 'protech-wholesale' ) ) ),
 		);
 
 		// Default keys neither in a type's own fields above nor in $common_fields
@@ -273,6 +308,8 @@ class EmailBlocks {
 			'columns'              => array( 'align' ),
 			'divider'              => array( 'align' ),
 			'spacer'               => array( 'align' ),
+			'video'                => array( 'align' ),
+			'html'                 => array( 'align' ),
 		);
 
 		$types = array();
@@ -370,8 +407,10 @@ class EmailBlocks {
 	}
 
 	/**
-	 * One block, or null when its type is unknown or it may not sit here
-	 * (columns inside columns).
+	 * One block, or null when its type is unknown, it may not sit here
+	 * (columns inside columns), or (the HTML block only) the saving user
+	 * lacks unfiltered_html: refused outright, the same way wp_editor()'s
+	 * own "Text" tab is, rather than silently saving with the code stripped.
 	 *
 	 * @param array<string, mixed> $block
 	 * @return array<string, mixed>|null
@@ -380,7 +419,7 @@ class EmailBlocks {
 		$type  = sanitize_key( (string) ( $block['type'] ?? '' ) );
 		$types = self::types();
 
-		if ( ! isset( $types[ $type ] ) || ( 'columns' === $type && $depth >= self::MAX_DEPTH ) ) {
+		if ( ! isset( $types[ $type ] ) || ( 'columns' === $type && $depth >= self::MAX_DEPTH ) || ( 'html' === $type && ! current_user_can( 'unfiltered_html' ) ) ) {
 			return null;
 		}
 
@@ -389,10 +428,12 @@ class EmailBlocks {
 		$id       = (string) ( $block['id'] ?? '' );
 
 		$out = array(
-			'pt'    => self::num( $in['pt'] ?? null, 0, 80, (int) $defaults['pt'] ),
-			'pb'    => self::num( $in['pb'] ?? null, 0, 80, (int) $defaults['pb'] ),
-			'bg'    => self::hex( $in['bg'] ?? '', '' ),
-			'align' => self::pick( $in['align'] ?? '', array( 'left', 'center', 'right' ), (string) $defaults['align'] ),
+			'pt'         => self::num( $in['pt'] ?? null, 0, 80, (int) $defaults['pt'] ),
+			'pb'         => self::num( $in['pb'] ?? null, 0, 80, (int) $defaults['pb'] ),
+			'bg'         => self::hex( $in['bg'] ?? '', '' ),
+			'align'      => self::pick( $in['align'] ?? '', array( 'left', 'center', 'right' ), (string) $defaults['align'] ),
+			'hide_on'    => self::pick( $in['hide_on'] ?? '', array( 'none', 'mobile', 'desktop' ), 'none' ),
+			'visible_to' => self::pick( $in['visible_to'] ?? '', array( 'all', 'wholesale', 'retail' ), 'all' ),
 		);
 
 		$clean_children = array();
@@ -431,7 +472,7 @@ class EmailBlocks {
 				break;
 
 			case 'product_grid':
-				$out['mode']         = self::pick( $in['mode'] ?? '', array( 'picked', 'newest' ), 'picked' );
+				$out['mode']         = self::pick( $in['mode'] ?? '', array( 'picked', 'newest', 'on_sale' ), 'picked' );
 				$out['product_ids']  = array_slice( array_values( array_unique( array_filter( array_map( 'absint', (array) ( $in['product_ids'] ?? array() ) ) ) ) ), 0, 12 );
 				$out['columns']      = self::num( $in['columns'] ?? null, 1, 3, 3 );
 				$out['limit']        = self::num( $in['limit'] ?? null, 1, 12, 6 );
@@ -456,6 +497,26 @@ class EmailBlocks {
 				for ( $i = 0; $i < $count; $i++ ) {
 					$clean_children[] = self::sanitize_all( is_array( $children[ $i ] ?? null ) ? $children[ $i ] : array(), $depth + 1 );
 				}
+				break;
+
+			case 'social':
+				foreach ( array( 'facebook', 'instagram', 'x', 'youtube' ) as $network ) {
+					$out[ $network ] = self::url( $in[ $network ] ?? '' );
+				}
+				$out['size'] = self::num( $in['size'] ?? null, 16, 48, 28 );
+				break;
+
+			case 'video':
+				$out['id']  = max( 0, (int) ( $in['id'] ?? 0 ) );
+				$out['url'] = self::url( $in['url'] ?? '' );
+				$out['alt'] = self::text( $in['alt'] ?? '', 200 );
+				break;
+
+			case 'html':
+				// The one block never run through inline_allowed()'s tag allowlist: an admin's own
+				// markup, kept exactly as typed. Reaching this line already means the capability
+				// check above passed.
+				$out['code'] = (string) ( $in['code'] ?? '' );
 				break;
 
 			case 'divider':
@@ -573,6 +634,10 @@ class EmailBlocks {
 		// Whatever the block left out falls back to its default, so a block written by hand still renders.
 		$a = array_merge( $types[ $type ]['defaults'], is_array( $block['attrs'] ?? null ) ? $block['attrs'] : array() );
 
+		if ( ! self::visible( (string) ( $a['visible_to'] ?? 'all' ), $ctx ) ) {
+			return '';
+		}
+
 		switch ( $type ) {
 			case 'heading':
 				$text = self::tags( esc_html( (string) ( $a['text'] ?? '' ) ), $ctx );
@@ -612,6 +677,17 @@ class EmailBlocks {
 			case 'columns':
 				return self::render_columns( $block, $ctx, $style, $inner );
 
+			case 'social':
+				return self::render_social( $a, $inner, $style );
+
+			case 'video':
+				return self::render_video( $a, $ctx, $style, $inner );
+
+			case 'html':
+				$code = trim( (string) ( $a['code'] ?? '' ) );
+
+				return '' === $code ? '' : self::row( $code, $a, $inner, $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the admin's own markup, saved only with unfiltered_html; see sanitize().
+
 			case 'divider':
 				$width = (int) $a['width_pct'];
 
@@ -623,21 +699,36 @@ class EmailBlocks {
 				);
 
 			case 'spacer':
-				$h = (int) $a['height'];
+				$h         = (int) $a['height'];
+				$hide_on   = in_array( $a['hide_on'] ?? 'none', array( 'mobile', 'desktop' ), true ) ? ' class="pw-hide-' . esc_attr( (string) $a['hide_on'] ) . '"' : '';
 
-				return '<tr><td height="' . $h . '" style="height:' . $h . 'px;font-size:0;line-height:0;">&nbsp;</td></tr>';
+				return '<tr><td' . $hide_on . ' height="' . $h . '" style="height:' . $h . 'px;font-size:0;line-height:0;">&nbsp;</td></tr>';
 		}
 
 		return '';
 	}
 
 	/**
-	 * Wraps a block's content in a row: padding, background and alignment
+	 * Whether $ctx's reader should see a block asking for `$visible_to`. A
+	 * preview always shows everything, the same way the wholesale-only
+	 * explainer blocks already did, so an admin editing a template can see
+	 * every block regardless of who is signed in to their own account.
+	 *
+	 * @param array<string, mixed> $ctx
+	 */
+	private static function visible( string $visible_to, array $ctx ): bool {
+		if ( ! empty( $ctx['_preview'] ) || 'all' === $visible_to ) {
+			return true;
+		}
+
+		return ( 'wholesale' === $visible_to ) === ! empty( $ctx['_wholesale'] );
+	}
+
+	/**
+	 * Wraps a block's content in a row: padding, background, alignment and
+	 * the phone-only visibility classes (pw-row, pw-hide-mobile/desktop)
 	 * shared by every type.
 	 *
-	 * @param array<string, mixed> $a
-	 */
-	/**
 	 * @param array<string, mixed> $a
 	 * @param array<string, mixed> $style
 	 */
@@ -645,10 +736,20 @@ class EmailBlocks {
 		$side = $inner ? 0 : self::SIDE;
 		$bg   = '' !== ( $a['bg'] ?? '' ) ? 'background:' . esc_attr( (string) $a['bg'] ) . ';' : '';
 
+		$classes = array();
+
 		// pw-row only matters outside a column (an inner block has no side padding to override),
 		// and only when mobile padding actually differs from the historical fixed 24px: a
 		// template that never touches the new setting renders exactly the markup it always did.
-		$class = ( ! $inner && self::SIDE !== (int) ( $style['mobile_padding'] ?? self::SIDE ) ) ? ' class="pw-row"' : '';
+		if ( ! $inner && self::SIDE !== (int) ( $style['mobile_padding'] ?? self::SIDE ) ) {
+			$classes[] = 'pw-row';
+		}
+
+		if ( in_array( $a['hide_on'] ?? 'none', array( 'mobile', 'desktop' ), true ) ) {
+			$classes[] = 'pw-hide-' . $a['hide_on'];
+		}
+
+		$class = array() === $classes ? '' : ' class="' . esc_attr( implode( ' ', $classes ) ) . '"';
 
 		return '<tr><td' . $class . ' align="' . esc_attr( (string) ( $a['align'] ?? 'left' ) ) . '" style="padding:' . (int) ( $a['pt'] ?? 0 ) . 'px ' . $side . 'px ' . (int) ( $a['pb'] ?? 0 ) . 'px;' . $bg . '">' . $content . '</td></tr>';
 	}
@@ -777,6 +878,76 @@ class EmailBlocks {
 		return self::row( $img, $a, $inner, $style );
 	}
 
+	/**
+	 * @param array<string, mixed> $a
+	 * @param array<string, mixed> $style
+	 */
+	private static function render_social( array $a, bool $inner, array $style ): string {
+		$networks = array(
+			'facebook'  => 'f',
+			'instagram' => 'IG',
+			'x'         => 'X',
+			'youtube'   => 'YT',
+		);
+
+		$size  = self::num( $a['size'] ?? null, 16, 48, 28 );
+		$cells = '';
+
+		foreach ( $networks as $key => $letter ) {
+			$url = (string) ( $a[ $key ] ?? '' );
+
+			if ( '' === $url ) {
+				continue;
+			}
+
+			$cells .= '<td style="padding:0 6px;"><a href="' . esc_url( $url ) . '" target="_blank" style="display:inline-block;width:' . $size . 'px;height:' . $size . 'px;line-height:' . $size . 'px;border-radius:50%;background:' . esc_attr( (string) $style['brand'] ) . ';color:#ffffff;text-align:center;text-decoration:none;font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:' . (int) round( $size * 0.4 ) . 'px;font-weight:700;">' . esc_html( $letter ) . '</a></td>';
+		}
+
+		if ( '' === $cells ) {
+			return '';
+		}
+
+		return self::row(
+			'<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="' . esc_attr( (string) $a['align'] ) . '"><tr>' . $cells . '</tr></table>',
+			$a,
+			$inner,
+			$style
+		);
+	}
+
+	/**
+	 * @param array<string, mixed> $a
+	 * @param array<string, mixed> $ctx
+	 * @param array<string, mixed> $style
+	 */
+	private static function render_video( array $a, array $ctx, array $style, bool $inner ): string {
+		$url = self::link( (string) ( $a['url'] ?? '' ), $ctx );
+
+		if ( '' === $url ) {
+			return '';
+		}
+
+		$src = '';
+
+		if ( ! empty( $a['id'] ) ) {
+			$image = wp_get_attachment_image_src( (int) $a['id'], 'large' );
+			$src   = is_array( $image ) ? (string) $image[0] : '';
+		}
+
+		$max = max( 40, (int) $style['width'] - ( $inner ? 0 : 2 * self::SIDE ) );
+		$alt = MergeTags::fill( (string) ( $a['alt'] ?? '' ), self::tag_values( $ctx ), 'raw' );
+
+		// A linked thumbnail (or, without one, a plain "watch the video" panel): no attempt at a
+		// play-button overlay, which email clients render inconsistently at best.
+		if ( '' !== $src ) {
+			$inner_html = '<img src="' . esc_url( $src ) . '" alt="' . esc_attr( $alt ) . '" width="' . $max . '" style="display:block;width:100%;max-width:' . $max . 'px;height:auto;border:0;" />';
+		} else {
+			$inner_html = '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:' . $max . 'px;background:#eef3fa;border-radius:8px;"><tr><td align="center" style="padding:40px 20px;font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:14px;color:' . esc_attr( (string) $style['brand'] ) . ';">&#9658; ' . esc_html__( 'Watch the video', 'protech-wholesale' ) . '</td></tr></table>';
+		}
+
+		return self::row( '<a href="' . $url . '" target="_blank" style="text-decoration:none;display:block;">' . $inner_html . '</a>', $a, $inner, $style );
+	}
+
 	// -- product grid -----------------------------------------------------------
 
 	/**
@@ -805,6 +976,18 @@ class EmailBlocks {
 					'return'  => 'objects',
 				)
 			);
+		} elseif ( 'on_sale' === ( $a['mode'] ?? 'picked' ) ) {
+			$sale_ids = function_exists( 'wc_get_product_ids_on_sale' ) ? wc_get_product_ids_on_sale() : array();
+			$products = empty( $sale_ids ) ? array() : wc_get_products(
+				array(
+					'status'  => 'publish',
+					'include' => $sale_ids,
+					'limit'   => $limit * 3,
+					'orderby' => 'date',
+					'order'   => 'DESC',
+					'return'  => 'objects',
+				)
+			);
 		} else {
 			$products = array_map( 'wc_get_product', (array) ( $a['product_ids'] ?? array() ) );
 		}
@@ -820,9 +1003,10 @@ class EmailBlocks {
 
 			$id = $product->get_id();
 
-			// The newest products are what the shop shows: never the ones hidden from the
-			// catalog (an unlisted kit, say). A product an admin picks by hand is always allowed.
-			if ( 'newest' === ( $a['mode'] ?? 'picked' ) && ! in_array( $product->get_catalog_visibility(), array( 'visible', 'catalog' ), true ) ) {
+			// The newest and on-sale products are what the shop shows: never the ones hidden
+			// from the catalog (an unlisted kit, say). A product an admin picks by hand is
+			// always allowed.
+			if ( in_array( $a['mode'] ?? 'picked', array( 'newest', 'on_sale' ), true ) && ! in_array( $product->get_catalog_visibility(), array( 'visible', 'catalog' ), true ) ) {
 				continue;
 			}
 
@@ -1037,6 +1221,10 @@ class EmailBlocks {
 		$values = self::tag_values( $ctx );
 		$fill   = static fn( string $s ): string => MergeTags::fill( $s, $values, 'raw' );
 
+		if ( ! self::visible( (string) ( $a['visible_to'] ?? 'all' ), $ctx ) ) {
+			return '';
+		}
+
 		switch ( (string) ( $block['type'] ?? '' ) ) {
 			case 'heading':
 				return strtoupper( $fill( (string) ( $a['text'] ?? '' ) ) ) . "\n";
@@ -1104,6 +1292,23 @@ class EmailBlocks {
 				}
 
 				return $out;
+
+			case 'social':
+				$out = '';
+
+				foreach ( array( 'facebook', 'instagram', 'x', 'youtube' ) as $network ) {
+					if ( '' !== ( $a[ $network ] ?? '' ) ) {
+						$out .= ucfirst( $network ) . ': ' . $fill( (string) $a[ $network ] ) . "\n";
+					}
+				}
+
+				return $out;
+
+			case 'video':
+				return '' !== ( $a['url'] ?? '' ) ? $fill( (string) ( $a['alt'] ?? '' ) ?: __( 'Watch the video', 'protech-wholesale' ) ) . ': ' . $fill( (string) $a['url'] ) . "\n" : '';
+
+			case 'html':
+				return html_entity_decode( wp_strip_all_tags( (string) ( $a['code'] ?? '' ) ), ENT_QUOTES, 'UTF-8' ) . "\n";
 
 			case 'divider':
 				return "----\n";

@@ -1680,6 +1680,55 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Three new blocks, and a visibility/hide model every block shares (2026-09-22, 3.2.0)
+
+The roadmap's "content block library" phase named eight new block types plus per-recipient
+coupon generation and four new product-grid modes. Shipped: three blocks (Social links,
+Video, Custom HTML), one new product-grid mode (on sale), and a `hide_on`/`visible_to` pair
+every block type gets for free. The rest is deferred and written up below rather than
+half-built.
+
+1. **`visible_to` (all/wholesale/retail) and `hide_on` (none/mobile/desktop) are common
+   attributes**, added to `EmailBlocks::types()`'s shared `$common` array the same way
+   `pt`/`pb`/`bg`/`align` already are, so every existing and future block type gets them
+   with no per-type wiring. `EmailBlocks::render()` and `::plain()` both gate on `visible_to`
+   before their type switch runs, so a hidden block is genuinely absent from both the HTML
+   and the plain-text part, not just visually hidden; a preview always shows everything, the
+   same rule the two wholesale-only explainer blocks already followed (their own hardcoded
+   check is untouched and independent of this new, opt-in mechanism). `hide_on` adds a
+   `pw-hide-mobile`/`pw-hide-desktop` class read by two new, always-present CSS rules
+   (`.pw-hide-desktop{display:none}` by default, flipped inside the existing phone media
+   query); unlike 3.1.0's mobile-padding override, this is new capability with nothing to
+   stay silent about, so the class and rules are unconditional, unlike `pw-row`.
+2. **Coupon generation is deferred, not simplified.** A "show an existing code" version
+   would have been easy, but the roadmap's real value is one coupon generated per recipient,
+   which needs a message id threaded into `EmailBlocks::render()` that does not exist yet.
+   3.8.0 (tracking) is adding exactly that threading for open/click instrumentation; building
+   the coupon block once, against that plumbing, beats building it twice.
+3. **Posts and Section/Header/Footer blocks are deferred.** Posts needs a new REST search
+   endpoint for its own sake (low value to build in isolation); Section (a background
+   container that can hold columns) needs replacing the numeric depth counter with a real
+   ancestor-type rule, and Header/Footer blocks (which suppress the frame's own header/
+   footer rows) are specifically meant to live inside a Section-organized layout. All three
+   are one coherent piece of work, better done together than in slices.
+4. **Product-grid's other three modes (category, best-selling, last-order cross-sells) are
+   deferred**; each needs its own real WooCommerce query (a taxonomy query, an order-stats
+   query, and a per-customer order-history lookup respectively), none of which "on sale"
+   needed (`wc_get_product_ids_on_sale()` already exists and does the job in one call).
+5. **The HTML block is refused outright without `unfiltered_html`**, at the same point
+   `sanitize()` already refuses columns-inside-columns and an unknown type, rather than
+   saved with its code silently emptied: a save that visibly fails is more honest than one
+   that quietly loses content. The Palette also never offers the tile to an admin who lacks
+   the capability (`window.protechEditor.caps.unfiltered_html`, sent from
+   `current_user_can()` at page load), so a Shop Manager does not discover the restriction
+   only after typing into it.
+6. **The schema completeness guard test now iterates every registered type**, not a
+   hardcoded list of eight: `test_the_schema_lists_every_block_type_with_defaults_fields_and_hidden_attrs`
+   used to name each type explicitly, which meant a new block type could ship with a
+   forgotten field or hidden-attr entry and this guard would stay silent about it. Fixing
+   the test to loop `array_keys($schema['types'])` cost nothing and closes that gap for
+   every block type this plugin will ever add, not just these three.
+
 ## Global styles, a starter gallery, and categories (2026-09-22, 3.1.0)
 
 The full aspirational scope for this phase (from the roadmap: template-level button

@@ -658,6 +658,7 @@ final class Plugin {
 					'mergeTags'      => MergeTags::all(),
 					'slots'          => EmailTemplates::slots(),
 					'categoryLabels' => EmailTemplates::category_labels(),
+					'caps'           => array( 'unfiltered_html' => current_user_can( 'unfiltered_html' ) ),
 					'urls'           => array( 'list' => MessagingTab::url( 'templates' ) ),
 				)
 			);

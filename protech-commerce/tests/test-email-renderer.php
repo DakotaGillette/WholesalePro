@@ -349,6 +349,76 @@ class Test_Email_Renderer extends WP_UnitTestCase {
 		$this->assertStringContainsString( '.pw-row{padding-left:12px !important;padding-right:12px !important;}', $html );
 	}
 
+	public function test_a_product_grid_can_show_only_products_on_sale(): void {
+		$on_sale = Protech_Test_Factory::simple_product();
+		$on_sale->set_sale_price( '15.00' );
+		$on_sale->save();
+
+		Protech_Test_Factory::simple_product(); // Not on sale: $20.00 regular, no sale price.
+
+		delete_transient( 'wc_products_onsale' ); // wc_get_product_ids_on_sale() caches; force a fresh read of what was just saved.
+
+		$html = EmailRenderer::render( $this->template( array( $this->block( 'product_grid', array( 'mode' => 'on_sale', 'columns' => 1 ) ) ) ), $this->context() )['html'];
+
+		$this->assertStringContainsString( '$15.00', $html );
+		$this->assertStringNotContainsString( '$20.00', $html, 'The regular-priced product is not on sale, so it is excluded.' );
+	}
+
+	public function test_social_links_render_icons_only_for_filled_networks(): void {
+		$html = EmailRenderer::render( $this->template( array( $this->block( 'social', array( 'facebook' => 'https://facebook.com/example', 'instagram' => '' ) ) ) ), $this->context() )['html'];
+
+		$this->assertStringContainsString( 'href="https://facebook.com/example"', $html );
+		$this->assertStringNotContainsString( '>IG<', $html, 'No Instagram URL, so no Instagram icon.' );
+	}
+
+	public function test_a_video_block_links_its_thumbnail_and_falls_back_without_one(): void {
+		$with_link = EmailRenderer::render( $this->template( array( $this->block( 'video', array( 'url' => 'https://example.com/watch', 'alt' => 'Our latest video' ) ) ) ), $this->context() )['html'];
+
+		$this->assertStringContainsString( 'href="https://example.com/watch"', $with_link );
+		$this->assertStringContainsString( 'Watch the video', $with_link, 'No thumbnail picture set, so the text fallback panel shows.' );
+
+		$without_url = EmailRenderer::render( $this->template( array( $this->block( 'video' ) ) ), $this->context() )['html'];
+		$this->assertStringNotContainsString( 'Watch the video', $without_url, 'No link at all, so the block renders nothing.' );
+	}
+
+	public function test_the_html_block_is_refused_without_unfiltered_html_and_kept_verbatim_with_it(): void {
+		$raw = array(
+			'name'    => 'HTML block test',
+			'kind'    => 'marketing',
+			'subject' => 'Hi',
+			'blocks'  => array( array( 'type' => 'html', 'attrs' => array( 'code' => '<div class="x">Hi <script>alert(1)</script></div>' ) ) ),
+		);
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$result = EmailTemplates::validate( $raw );
+		$this->assertSame( array(), $result['template']['blocks'], 'A subscriber has no unfiltered_html, so the block is dropped.' );
+		$this->assertNotEmpty( $result['errors'] );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$admin_result = EmailTemplates::validate( $raw );
+		$this->assertSame( array(), $admin_result['errors'] );
+
+		$html = EmailRenderer::render( $admin_result['template'], $this->context() )['html'];
+		$this->assertStringContainsString( '<div class="x">Hi <script>alert(1)</script></div>', $html, 'Kept exactly as typed: this block is never run through inline_allowed().' );
+	}
+
+	public function test_hide_on_adds_the_matching_class_and_visible_to_gates_the_whole_block(): void {
+		$hidden = EmailRenderer::render( $this->template( array( $this->block( 'text', array( 'html' => 'Body', 'hide_on' => 'mobile' ) ) ) ), $this->context() )['html'];
+		$this->assertStringContainsString( 'class="pw-hide-mobile"', $hidden );
+
+		$wholesale_only = $this->template( array( $this->block( 'text', array( 'html' => 'Wholesale only text', 'visible_to' => 'wholesale' ) ) ) );
+
+		$this->assertStringContainsString( 'Wholesale only text', EmailRenderer::render( $wholesale_only, $this->context( array( '_wholesale' => true ) ) )['html'] );
+		$this->assertStringNotContainsString( 'Wholesale only text', EmailRenderer::render( $wholesale_only, $this->context() )['html'] );
+		$this->assertStringNotContainsString( 'Wholesale only text', EmailRenderer::render( $wholesale_only, $this->context() )['text'], 'The plain-text part must respect visible_to too.' );
+
+		// A preview always shows everything, matching the existing explainer-block behavior.
+		$preview = EmailRenderer::render( $wholesale_only, $this->context( array( '_preview' => true ) ) )['html'];
+		$this->assertStringContainsString( 'Wholesale only text', $preview );
+	}
+
 	public function test_link_color_falls_back_from_the_template_to_the_site_setting_to_the_brand_color(): void {
 		update_option( 'protech_wholesale_msg_email_link_color', '#00aa00' );
 

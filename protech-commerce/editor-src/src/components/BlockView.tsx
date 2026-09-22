@@ -142,7 +142,7 @@ function BlockBody( {
 		case 'product_grid': {
 			const columns = Number( a.columns ?? 3 );
 			const productIds = ( a.product_ids as unknown[] | undefined ) ?? [];
-			const label = 'newest' === a.mode ? 'The newest products' : `${ productIds.length } chosen product(s)`;
+			const label = 'newest' === a.mode ? 'The newest products' : 'on_sale' === a.mode ? 'Products currently on sale' : `${ productIds.length } chosen product(s)`;
 			return (
 				<div>
 					<div style={ { display: 'grid', gridTemplateColumns: `repeat(${ columns }, 1fr)`, gap: '12px' } }>
@@ -217,6 +217,52 @@ function BlockBody( {
 
 		case 'spacer':
 			return <div style={ { height: `${ Number( a.height ?? 24 ) }px` } } />;
+
+		case 'social': {
+			const networks = [ 'facebook', 'instagram', 'x', 'youtube' ] as const;
+			const size = Number( a.size ?? 28 );
+			const active = networks.filter( ( n ) => a[ n ] );
+			return active.length ? (
+				<div style={ { display: 'flex', gap: '8px' } }>
+					{ active.map( ( n ) => (
+						<span
+							key={ n }
+							style={ {
+								width: `${ size }px`,
+								height: `${ size }px`,
+								lineHeight: `${ size }px`,
+								borderRadius: '50%',
+								background: style.brand || '#42649d',
+								color: '#fff',
+								textAlign: 'center',
+								fontSize: `${ Math.round( size * 0.4 ) }px`,
+								fontWeight: 700,
+							} }
+						>
+							{ n === 'facebook' ? 'f' : n === 'instagram' ? 'IG' : n === 'x' ? 'X' : 'YT' }
+						</span>
+					) ) }
+				</div>
+			) : (
+				<Empty label="Social links (no accounts set yet)" />
+			);
+		}
+
+		case 'video':
+			return a.url ? (
+				<div style={ { background: '#eef3fa', borderRadius: '8px', padding: '40px 20px', textAlign: 'center', color: style.brand || '#42649d', fontFamily: font } }>&#9658; Watch the video</div>
+			) : (
+				<Empty label="Video (no link yet)" />
+			);
+
+		case 'html':
+			return a.code ? (
+				<div style={ { border: '1px dashed #c3c4c7', borderRadius: '4px', padding: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#646970', whiteSpace: 'pre-wrap', maxHeight: '120px', overflow: 'hidden' } }>
+					{ String( a.code ) }
+				</div>
+			) : (
+				<Empty label="Custom HTML (empty)" />
+			);
 
 		default:
 			return <Empty label={ block.type } />;

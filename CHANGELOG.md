@@ -3,6 +3,22 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.2.0 - 2026-09-22
+
+### Added
+- Three new blocks: Social links (icons for Facebook, Instagram, X and YouTube, only the
+  ones you fill in), Video (a linked thumbnail), and Custom HTML (your own code, for anyone
+  with the "unfiltered_html" capability).
+- Every block now has "Show this block to" (everyone, wholesale customers only, or retail
+  customers only) and "Hide on" (phones, or everything but phones), under "Spacing and
+  background" in the editor.
+- Products blocks can show "Currently on sale" as well as picked or newest.
+
+### Changed
+- A Custom HTML block is refused when saved by someone without the "unfiltered_html"
+  capability, the same way it would be anywhere else in WordPress, rather than silently
+  losing its content.
+
 ## 3.1.0 - 2026-09-22
 
 ### Added

@@ -164,8 +164,9 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 
-		foreach ( array( 'heading', 'text', 'button', 'image', 'product_grid', 'columns', 'divider', 'spacer' ) as $type ) {
-			$this->assertArrayHasKey( $type, $schema['types'] );
+		// Every registered type, not a fixed list: a new block type this test never heard of is
+		// covered automatically, instead of silently passing until someone remembers to add it here.
+		foreach ( array_keys( $schema['types'] ) as $type ) {
 			$this->assertArrayHasKey( 'defaults', $schema['types'][ $type ] );
 			$this->assertIsArray( $schema['types'][ $type ]['fields'] );
 			$this->assertIsArray( $schema['types'][ $type ]['hidden'] );
