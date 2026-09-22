@@ -3,6 +3,14 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.5.1 - 2026-09-22
+
+### Fixed
+- A contact created by a real signup form submission showed the raw status and source
+  values ("unconfirmed", "signup_form") on the Contacts screen instead of a real label.
+  "Unsubscribe" is also no longer offered for a contact who was never subscribed to begin
+  with.
+
 ## 3.5.0 - 2026-09-22
 
 ### Added
