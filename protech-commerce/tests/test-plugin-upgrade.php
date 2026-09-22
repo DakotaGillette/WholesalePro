@@ -15,18 +15,32 @@ use ProtechWholesale\Plugin;
  */
 class Test_Plugin_Upgrade extends WP_UnitTestCase {
 
+	/**
+	 * A DROP or CREATE TABLE issued on $wpdb's own connection does not error,
+	 * but this MySQL 8 test container does not make it visible to a
+	 * follow-up SHOW TABLES on that *same* connection within the WP test
+	 * suite's per-test transaction (confirmed directly in CI: the DROP
+	 * returns true with an empty last_error, yet MessageLog::table_exists()
+	 * still reports it present). A fresh connection sees the real,
+	 * already-committed state, since DDL auto-commits regardless of what the
+	 * issuing connection's own view of it is.
+	 */
+	private function table_really_exists( string $table ): bool {
+		$mysqli = new mysqli( DB_HOST, DB_USER, DB_PASSWORD, DB_NAME );
+		$result = $mysqli->query( 'SHOW TABLES LIKE \'' . $mysqli->real_escape_string( $table ) . '\'' );
+		$exists = $result instanceof mysqli_result && $result->num_rows > 0;
+		$mysqli->close();
+
+		return $exists;
+	}
+
 	public function test_upgrading_recreates_a_missing_message_log_table(): void {
 		global $wpdb;
 
 		$table = MessageLog::table();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
-		$drop_result = $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-		$drop_error  = $wpdb->last_error;
-		$still_there = MessageLog::table_exists();
-		$this->assertFalse(
-			$still_there,
-			sprintf( 'DROP TABLE returned %s, last_error "%s", but SHOW TABLES still finds it.', var_export( $drop_result, true ), $drop_error )
-		);
+		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+		$this->assertFalse( $this->table_really_exists( $table ) );
 
 		// Simulate a site still recorded at an older version, the ordinary
 		// condition under which maybe_upgrade() actually does anything.
@@ -35,7 +49,7 @@ class Test_Plugin_Upgrade extends WP_UnitTestCase {
 
 		Plugin::instance()->maybe_upgrade();
 
-		$this->assertTrue( MessageLog::table_exists() );
+		$this->assertTrue( $this->table_really_exists( $table ) );
 		$this->assertSame( Plugin::DB_VERSION, get_option( Plugin::OPT_DB_VERSION ) );
 	}
 }
