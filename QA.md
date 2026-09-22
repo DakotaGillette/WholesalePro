@@ -384,7 +384,7 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
-## 44. Automations v2: flows (3.6.0)
+## 44. Automations v2: flows (3.6.0, tag-step fix in 3.6.1)
 
 - [ ] Messaging → Automatic lists the four standard flows (imported from the old rules),
   each switched off, with the same names as before.
@@ -408,6 +408,8 @@ Log in as the wholesale customer (djg10212) for everything below.
   continue to change and no further message from it appears in the Log.
 - [ ] Duplicate a flow; confirm the copy is switched off, keeps the same steps, and edits
   independently of the original.
+- [ ] New flow: one step "Add a tag" with a real tag name, save it. Reopen the flow and
+  confirm the tag name is still there (3.6.1 fix: it used to always save blank).
 
 ## 43. Signup forms and double opt-in (3.5.0)
 

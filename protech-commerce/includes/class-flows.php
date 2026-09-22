@@ -317,8 +317,19 @@ class Flows {
 					break;
 
 				case 'add_tag':
-				case 'remove_tag':
 					$step['tag'] = sanitize_key( (string) ( $step_in['tag'] ?? '' ) );
+
+					if ( '' === $step['tag'] ) {
+						continue 2; // Never store a tag step with nothing to tag.
+					}
+					break;
+
+				case 'remove_tag':
+					// FlowsScreen submits this under [tag2], not [tag]: every slot's add_tag
+					// and remove_tag fields are always both present in the form, and sharing
+					// one name would let one silently blank the other. A direct caller (a
+					// test, an import) that builds the step array itself still just uses 'tag'.
+					$step['tag'] = sanitize_key( (string) ( $step_in['tag2'] ?? $step_in['tag'] ?? '' ) );
 
 					if ( '' === $step['tag'] ) {
 						continue 2; // Never store a tag step with nothing to tag.

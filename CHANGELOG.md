@@ -3,6 +3,14 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.6.1 - 2026-09-22
+
+### Fixed
+- A flow's "Add a tag" step could never actually save a tag: its field shared a name with
+  the (always-present, just hidden) "Remove a tag" field on the same step, so submitting the
+  form always cleared it. Editing a flow with an existing tag step, or a step slot's steps
+  after this fix, are unaffected either way.
+
 ## 3.6.0 - 2026-09-22
 
 ### Added

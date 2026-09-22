@@ -266,8 +266,14 @@ class FlowsScreen {
 		echo '<input type="text" name="' . esc_attr( $name ) . '[tag]" value="' . esc_attr( 'add_tag' === $type ? (string) ( $step['tag'] ?? '' ) : '' ) . '" placeholder="' . esc_attr__( 'tag name', 'protech-wholesale' ) . '" />';
 		echo '</p>';
 
+		// Named [tag2], not [tag]: every slot's add_tag and remove_tag fields are always
+		// both present in the form (hidden by CSS, not removed), so sharing one name would
+		// submit both under the same key and the second one (this one) would always win,
+		// silently blanking whichever tag was actually typed into the add_tag field above.
+		// Flows::validate_steps() reads tag2 for remove_tag, falling back to tag for a
+		// caller (a test, say) that builds the step array directly instead of through a form.
 		echo '<p class="pw-step-field pw-step-remove_tag" ' . ( 'remove_tag' !== $type ? 'hidden' : '' ) . '>';
-		echo '<input type="text" name="' . esc_attr( $name ) . '[tag]" value="' . esc_attr( 'remove_tag' === $type ? (string) ( $step['tag'] ?? '' ) : '' ) . '" placeholder="' . esc_attr__( 'tag name', 'protech-wholesale' ) . '" />';
+		echo '<input type="text" name="' . esc_attr( $name ) . '[tag2]" value="' . esc_attr( 'remove_tag' === $type ? (string) ( $step['tag'] ?? '' ) : '' ) . '" placeholder="' . esc_attr__( 'tag name', 'protech-wholesale' ) . '" />';
 		echo '</p>';
 
 		if ( $allow_condition ) {

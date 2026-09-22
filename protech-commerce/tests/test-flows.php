@@ -51,6 +51,27 @@ class Test_Flows extends WP_UnitTestCase {
 		$this->assertContains( 'Add at least one step.', $result['errors'] );
 	}
 
+	/**
+	 * Regression: FlowsScreen renders both an add_tag and a remove_tag field for every
+	 * step slot (only one is ever visible, chosen by the type dropdown), so a real
+	 * submission carries both `tag` (add_tag's own field) and `tag2` (remove_tag's own
+	 * field, named differently for exactly this reason) no matter which type is picked.
+	 * A remove_tag step must read its tag from `tag2`, not silently pick up whatever an
+	 * empty, hidden add_tag field happened to submit under `tag`.
+	 */
+	public function test_a_remove_tag_step_reads_its_tag_from_the_forms_own_field_even_with_an_empty_tag_present(): void {
+		$result = Flows::validate(
+			array(
+				'name'    => 'Form-shaped remove_tag',
+				'trigger' => array( 'type' => Flows::TRIGGER_MANUAL, 'params' => array() ),
+				'steps'   => array( array( 'type' => 'remove_tag', 'tag' => '', 'tag2' => 'vip' ) ),
+			)
+		);
+
+		$this->assertSame( array(), $result['errors'] );
+		$this->assertSame( 'vip', $result['flow']['steps'][0]['tag'] );
+	}
+
 	public function test_duplicating_a_flow_copies_it_disabled_with_a_new_id(): void {
 		$flow = $this->save_flow(
 			array(
