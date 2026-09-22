@@ -136,6 +136,7 @@ class MessagingTab {
 			'compose'     => __( 'Compose', 'protech-wholesale' ),
 			'templates'   => __( 'Email templates', 'protech-wholesale' ),
 			'contacts'    => __( 'Contacts', 'protech-wholesale' ),
+			'forms'       => __( 'Forms', 'protech-wholesale' ),
 			'log'         => __( 'Log', 'protech-wholesale' ),
 			'compliance'  => __( 'Compliance', 'protech-wholesale' ),
 			'settings'    => __( 'Settings', 'protech-wholesale' ),
@@ -198,6 +199,9 @@ class MessagingTab {
 				break;
 			case 'contacts':
 				ContactsScreen::render();
+				break;
+			case 'forms':
+				FormsScreen::render();
 				break;
 			case 'log':
 				LogScreen::render();

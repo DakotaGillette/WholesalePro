@@ -60,6 +60,8 @@ protech-commerce/
     class-wc-email-slots.php          Binds a template to one of nine WooCommerce order emails via woocommerce_locate_template, not a WC_Email subclass
     class-contacts.php                A contacts directory (wholesale, retail, guest), read-only snapshot of SmsConsent; not yet an audience source
     class-contacts-screen.php         Messaging → Contacts: search/filter/paginate, a contact profile, manual unsubscribe, CSV export
+    class-signup-forms.php            [protech_signup] shortcode, public submit (no nonce, honeypot + rate limit), double opt-in via Contacts
+    class-forms-screen.php            Messaging → Forms: create/edit/delete a signup form's name, consent wording and success message
     class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
     class-automations-screen.php      Automations view: rule table and rule form (admin-post: save/preview/toggle/delete/run-now/send-test)
@@ -84,7 +86,8 @@ protech-commerce/
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
                                       account-notifications, quantity-legend, welcome-email, email-quantity-diagram,
-                                      email-pricing-ladder, wc-email-slot(-plain) (stand in for a bound WooCommerce order email)
+                                      email-pricing-ladder, wc-email-slot(-plain) (stand in for a bound WooCommerce order email),
+                                      signup-form (the [protech_signup] shortcode's markup)
   assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI (portal, bar, ladder, selector, account, cart badge)
   assets/css/admin.css                Messaging admin styling (merge-tag chips, form layout), wholesale screens only
   assets/editor/editor.js, editor.css Template editor, built from editor-src/ and committed: no Node step on deploy

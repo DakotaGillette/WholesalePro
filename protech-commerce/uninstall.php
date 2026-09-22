@@ -91,8 +91,9 @@ $protech_option_keys = array(
 	'protech_wholesale_msg_consent_wording',
 	'protech_wholesale_msg_log_retention_days',
 	'protech_wholesale_msg_last_daily_run',
-	'protech_wholesale_automations', // Automations::OPTION.
-	'protech_wholesale_campaigns',   // Campaigns::OPTION.
+	'protech_wholesale_automations',   // Automations::OPTION.
+	'protech_wholesale_campaigns',     // Campaigns::OPTION.
+	'protech_wholesale_signup_forms',  // SignupForms::OPTION.
 );
 
 delete_transient( 'protech_wholesale_upgrading' );

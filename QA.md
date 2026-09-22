@@ -384,6 +384,24 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 43. Signup forms and double opt-in (3.5.0)
+
+- [ ] Messaging → Forms → New form: give it a name, consent wording and a success message,
+  save it, and note its shortcode.
+- [ ] Embed that shortcode on a page (or a text widget). Confirm it shows the first-name
+  field (if turned on), an email field and the consent checkbox with your own wording, and
+  that submitting without ticking the checkbox is blocked by the browser.
+- [ ] Submit with a real email address you can check. Confirm the page shows the form's
+  success message, and Messaging → Contacts shows a new row with status "Unconfirmed".
+- [ ] Open the confirmation email and click its link. Confirm the browser shows a plain
+  "you're subscribed" page, and the contact's status is now "Subscribed".
+- [ ] Click that same confirmation link again. Confirm it now says the link is not valid,
+  and the contact's status is unaffected.
+- [ ] View page source on the embedded form and confirm there is a hidden field a person
+  would never notice or fill in (the honeypot).
+- [ ] Submit the same form seven times in a row. Confirm the last couple still show the
+  normal success message (never an error that would tip off a script trying this).
+
 ## 42. A contacts directory (3.4.0)
 
 - [ ] Messaging → Contacts lists existing wholesale and retail accounts, backfilled

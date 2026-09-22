@@ -40,11 +40,13 @@ class Contacts {
 	public const STATUS_SUBSCRIBED        = 'subscribed';
 	public const STATUS_UNSUBSCRIBED      = 'unsubscribed';
 	public const STATUS_TRANSACTIONAL_ONLY = 'transactional_only';
+	public const STATUS_UNCONFIRMED        = 'unconfirmed';
 
 	public const SOURCE_WP_USER        = 'wp_user';
 	public const SOURCE_GUEST_CHECKOUT = 'guest_checkout';
 	public const SOURCE_ADMIN          = 'admin';
 	public const SOURCE_BACKFILL       = 'backfill';
+	public const SOURCE_SIGNUP_FORM    = 'signup_form';
 
 	/** Roles a backfill (and nothing else) treats as "an existing contact worth having". */
 	private const BACKFILL_ROLES = array( 'customer', Roles::CUSTOMER, Roles::PENDING );
@@ -428,6 +430,92 @@ class Contacts {
 				'recorded_by' => $recorded_by,
 			)
 		);
+	}
+
+	/**
+	 * A signup form's submission: creates or refreshes a contact as
+	 * unconfirmed, ready for SignupForms to send the confirmation link
+	 * to. An already-subscribed contact is left exactly as it is (no need
+	 * to reconfirm someone who already confirmed); anyone else (new,
+	 * unconfirmed, transactional-only, or previously unsubscribed) starts
+	 * over as unconfirmed, so a second signup by someone who unsubscribed
+	 * can still work. Returns the contact id.
+	 *
+	 * @param array{first_name?: string, last_name?: string} $fields
+	 */
+	public static function start_confirmation( string $email, array $fields = array() ): int {
+		$existing = self::get_by_email( $email );
+
+		if ( null !== $existing && self::STATUS_SUBSCRIBED === $existing['status'] ) {
+			return (int) $existing['id'];
+		}
+
+		return self::upsert(
+			array(
+				'user_id'    => null !== $existing ? (int) $existing['user_id'] : 0,
+				'email'      => $email,
+				'first_name' => (string) ( $fields['first_name'] ?? ( $existing['first_name'] ?? '' ) ),
+				'last_name'  => (string) ( $fields['last_name'] ?? ( $existing['last_name'] ?? '' ) ),
+				'company'    => (string) ( $existing['company'] ?? '' ),
+				'phone'      => (string) ( $existing['phone'] ?? '' ),
+				'status'     => self::STATUS_UNCONFIRMED,
+				'source'     => self::SOURCE_SIGNUP_FORM,
+			)
+		);
+	}
+
+	/**
+	 * A confirmation link's token: an HMAC of the contact id, not a stored
+	 * value, so confirming needs no new column and no expiry to manage.
+	 * Verifiable only with the site's own auth salt, the same trust root
+	 * WordPress's own nonces use.
+	 */
+	public static function confirmation_token( int $contact_id ): string {
+		return substr( hash_hmac( 'sha256', 'protech_confirm_contact:' . $contact_id, wp_salt( 'auth' ) ), 0, 32 );
+	}
+
+	/**
+	 * Subscribes a contact once its confirmation link's token checks out,
+	 * and logs the consent (source and wording, for the same kind of
+	 * record the Compliance screen already keeps for SMS). Returns the
+	 * contact id, or 0 for a bad token or a contact that no longer exists.
+	 */
+	public static function confirm( int $contact_id, string $token, string $wording ): int {
+		if ( ! hash_equals( self::confirmation_token( $contact_id ), $token ) ) {
+			return 0;
+		}
+
+		$contact = self::get( $contact_id );
+
+		if ( null === $contact ) {
+			return 0;
+		}
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->update( self::table(), array( 'status' => self::STATUS_SUBSCRIBED, 'updated_at' => current_time( 'mysql', true ) ), array( 'id' => $contact_id ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->insert(
+			self::consent_log_table(),
+			array(
+				'contact_id'  => $contact_id,
+				'at'          => current_time( 'mysql', true ),
+				'source'      => self::SOURCE_SIGNUP_FORM,
+				'note'        => $wording,
+				'recorded_by' => 0,
+			)
+		);
+
+		/**
+		 * Fires once a contact confirms a double opt-in signup.
+		 *
+		 * @param int $contact_id
+		 */
+		do_action( 'protech_wholesale_contact_subscribed', $contact_id );
+
+		return $contact_id;
 	}
 
 	/**

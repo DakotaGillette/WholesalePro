@@ -66,6 +66,8 @@ final class Plugin {
 	private WcEmailSlots $wc_email_slots;
 	private Contacts $contacts;
 	private ContactsScreen $contacts_screen;
+	private SignupForms $signup_forms;
+	private FormsScreen $forms_screen;
 	private RestApi $rest_api;
 
 	public static function instance(): Plugin {
@@ -124,6 +126,8 @@ final class Plugin {
 		$this->wc_email_slots         = new WcEmailSlots();
 		$this->contacts               = new Contacts();
 		$this->contacts_screen        = new ContactsScreen();
+		$this->signup_forms           = new SignupForms();
+		$this->forms_screen           = new FormsScreen();
 		$this->rest_api               = new RestApi();
 
 		foreach (
@@ -167,6 +171,8 @@ final class Plugin {
 				$this->wc_email_slots,
 				$this->contacts,
 				$this->contacts_screen,
+				$this->signup_forms,
+				$this->forms_screen,
 				$this->rest_api,
 			) as $component
 		) {

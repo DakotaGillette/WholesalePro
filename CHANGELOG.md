@@ -3,6 +3,21 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.5.0 - 2026-09-22
+
+### Added
+- Messaging → Forms: build a signup form (a name, an optional first-name field, your own
+  consent wording, and a message shown after submitting) and embed it anywhere with
+  `[protech_signup id="..."]`.
+- A submission uses double opt-in: the person is added as unconfirmed and emailed a
+  confirmation link; only clicking it marks them subscribed, with a record of when and how.
+- Basic spam protection on the public submit endpoint: a hidden field a real visitor never
+  fills in, and a per-IP limit on how many submissions it accepts in a short window.
+
+### Changed
+- None yet: a confirmed signup becomes a subscribed contact (Messaging → Contacts), but
+  nothing sends to it yet, the same as every other contact today (see DECISIONS.md).
+
 ## 3.4.0 - 2026-09-22
 
 ### Added

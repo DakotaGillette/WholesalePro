@@ -1680,6 +1680,48 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Signup forms and double opt-in, built on the contacts directory (2026-09-22, 3.5.0)
+
+The roadmap's full scope for this phase (placement rules for a popup/slide-in/bar, a
+Gutenberg block, List-Unsubscribe headers, a retail preferences page, an unconfirmed-contact
+grace period) was cut to the part that stands on its own: a form, embedded, that actually
+confirms someone before calling them subscribed.
+
+1. **Shortcode only, no placement rules, no block.** A popup/slide-in/bar with scroll and
+   exit-intent timing is real client-side JS running on every page of a live theme this plugin
+   does not own; getting that wrong risks visibly breaking the real site, not just this
+   feature. `[protech_signup id="..."]` embeds inline, in a widget, in a page, or in a theme
+   template, which covers the common case without touching the page's own JS at all. A
+   Gutenberg block is its own registration and its own editor-preview surface; it can wrap the
+   same shortcode later without changing anything here.
+2. **A plain, fixed-wording confirmation email, not a designable template.** The welcome and
+   application emails' lifecycle-slot system (`EmailRenderer::context()`, merge tags) is built
+   around a real `\WP_User`; a signup can be a guest with no account at all. Building a
+   guest-aware version of that whole system was more than this one email justified. It sends
+   through `WC()->mailer()` exactly the way the application-flow emails already do, and is
+   logged the same way.
+3. **The confirmation token is an HMAC of the contact id (`Contacts::confirmation_token()`),
+   not a stored column.** Verifiable only with the site's own auth salt, the same trust root
+   WordPress's own nonces use, and needs no schema change, no expiry to manage, and no
+   cleanup job. It also does not expire; a "confirm your email" link that quietly stops
+   working after some window is a worse experience than one that works whenever someone
+   finally clicks it.
+4. **No List-Unsubscribe headers.** Adding one touches `MessageTransport::dispatch()` and
+   both providers, on the code path every real marketing email already goes out through; that
+   is exactly the kind of live, load-bearing change 3.4.0 also declined to touch this same
+   release. A contact that is not yet a send target does not need a header on a send that does
+   not happen yet either.
+5. **No retail-facing "email preferences" page for contacts.** `NotificationsEndpoint`
+   already gives a logged-in retail account preferences under My Account; a parallel page for
+   a contact with no account is new surface with its own token/session questions, better
+   scoped with the rest of the audience work still ahead.
+6. **The public submit route deliberately carries no nonce**, exactly as the roadmap itself
+   specified: a page cache would otherwise serve the same nonce to every visitor, and it
+   would only ever work for whichever one the cache happened to serve first. A honeypot field
+   and a per-IP rate limit (five submissions per ten minutes) stand in instead; neither a
+   bot's submission nor a rate-limited one is ever told it was refused, so neither learns
+   anything from trying again.
+
 ## A contacts directory, built additively (2026-09-22, 3.4.0)
 
 The roadmap's full scope for this phase (a table replacing per-user consent storage, guest
