@@ -2,14 +2,14 @@
 
 > Formerly "Protech Wholesale" (folder `protech-wholesale`, versions up to 1.6.3). Renamed in 2.0.0 because it now covers messaging for every customer, not only wholesale. Settings, roles, tables and hooks kept their `protech_wholesale_*` names, so nothing was migrated.
 
-A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com) that turns approved retailers into a self-service wholesale channel: they apply, get approved, log in, and see wholesale pricing automatically on every ordinary shop/product page — no separate order-taking page and no manual work on the store owner's side. A price table on each product and a sticky bar across the site show live progress toward better quantity-tier pricing and free shipping, and "Reorder" on any past order adds it straight back to the cart.
+A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com) that turns approved retailers into a self-service wholesale channel: they apply, get approved, log in, and see wholesale pricing automatically on every ordinary shop/product page, with no separate order-taking page and no manual work on the store owner's side. A price table on each product and a sticky bar across the site show live progress toward better quantity-tier pricing and free shipping, and "Reorder" on any past order adds it straight back to the cart.
 
 ## Requirements
 
 - WordPress 6.0+
 - WooCommerce, active (the plugin will not run without it)
 - PHP 8.1+
-- Salient theme (ThemeNectar) is assumed but not required — the plugin works through standard WooCommerce hooks and degrades gracefully on any theme
+- Salient theme (ThemeNectar) is assumed but not required, since the plugin works through standard WooCommerce hooks and degrades gracefully on any theme
 
 ## Install
 
@@ -21,7 +21,7 @@ A WordPress/WooCommerce plugin for [Protech Sleeves](https://protechsleeves.com)
    - creates a `/wholesale` page containing the `[protech_wholesale_portal]` shortcode, if one doesn't already exist.
 4. Go to **WooCommerce → Wholesale → Settings** and confirm **Application form source** / **Application form ID** match whatever powers `/wholesale-application` on your site (Fluent Forms, form #4, on the live site).
 5. Add **Protech Wholesale Shipping** to each shipping zone under WooCommerce → Settings → Shipping (it is invisible to retail customers).
-6. On each product you sell at wholesale, open the **Wholesale** product data tab and set a **Wholesale price** (per variation, for a variable product — use the Variations tab's "Set wholesale prices" bulk action to set every color at once). Products with no wholesale price are simply not offered at wholesale.
+6. On each product you sell at wholesale, open the **Wholesale** product data tab and set a **Wholesale price** (per variation, for a variable product, use the Variations tab's "Set wholesale prices" bulk action to set every color at once). Products with no wholesale price are simply not offered at wholesale.
 
 ## Admin screens
 
@@ -34,7 +34,7 @@ Everything lives under **WooCommerce → Wholesale**. The menu item shows a coun
 | Products | Every product priced or flagged for wholesale: price, Standard and Volume overrides, packs per display, flags. The same summary is a "Wholesale" column on Products → All Products. |
 | Pricing & Shipping | Quantity pricing (the Base/Standard/Volume ladder), display and case defaults, and wholesale shipping: the flat rate, which zones have the method, and the retail free-shipping exclusion. |
 | Tiers | Bronze/Silver/Gold/Platinum discount percentages (internal, never shown to customers). |
-| Messaging | Automated and one-off emails/texts to wholesale customers through Brevo — Automations (rules), Compose (manual sends), Log, Compliance (SMS opt-in proof for Brevo), Settings. See "Messaging & automations" below. |
+| Messaging | Automated and one-off emails/texts to wholesale customers through Brevo. Automations (rules), Compose (manual sends), Log, Compliance (SMS opt-in proof for Brevo), Settings. See "Messaging & automations" below. |
 | Settings | Catalog (empty-price behaviour, where a wholesale login lands, coupons), Applications (form plugin, form ID, notification email), Updates (installed and latest release, check now), Uninstall. |
 
 Per-customer price overrides, the wholesale flag and the customer's submitted application are on their **user profile** (Users → Edit); the tier is there too.
@@ -53,7 +53,7 @@ Pricing a product happens on the product's own **Wholesale** tab. A variable pro
 | On uninstall | `protech_wholesale_purge_on_uninstall` | `no` | If checked, deleting the plugin removes its settings, roles, the auto-created `/wholesale` page (only if unmodified), and wholesale user meta. Product pricing meta and order flags are never removed. See `uninstall.php`. |
 | Automations enabled (Messaging → Settings) | `protech_wholesale_msg_enabled` | `no` | Master switch for the daily automation job and order-status messages. Compose (manual sends) works either way. |
 | Brevo API key (Messaging → Settings) | `protech_wholesale_msg_brevo_api_key` | empty (uses the Brevo plugin's own key) | Only needed if this plugin should use a different Brevo account/key than the Brevo WordPress plugin already connected to the site. |
-| SMS sender / brand (Messaging → Settings) | `protech_wholesale_msg_sms_sender` / `protech_wholesale_msg_brand` | empty / site name | The Brevo-registered sender (a toll-free number in the US/Canada — alphanumeric senders aren't supported there) and the brand prefix put on every text. |
+| SMS sender / brand (Messaging → Settings) | `protech_wholesale_msg_sms_sender` / `protech_wholesale_msg_brand` | empty / site name | The Brevo-registered sender (a toll-free number in the US/Canada, since alphanumeric senders aren't supported there) and the brand prefix put on every text. |
 | Quiet hours (Messaging → Settings) | `protech_wholesale_msg_quiet_start` / `_quiet_end` | `20` / `10` | No marketing texts are sent in this window (site time). |
 | Frequency cap (Messaging → Settings) | `protech_wholesale_msg_frequency_cap_days` | `7` | Fewest days between two automated marketing messages to the same customer; manual sends and order-update messages are exempt. |
 
@@ -61,19 +61,19 @@ Pricing a product happens on the product's own **Wholesale** tab. A variable pro
 
 For any product or variation, a wholesale customer's per-pack price is resolved in this order:
 
-1. **Per-customer override** — set on their user profile with the product picker. Always wins, regardless of cart quantity.
-2. **The quantity tier the cart has reached** (an un-named base tier, then Standard, then Volume) — see "Quantity-tier pricing and shipping" below. The base tier is the product's own "Wholesale price"; Standard/Volume are store defaults, overridable per product/variation.
-3. **The customer's tier discount** (Silver/Gold/Platinum percentage, Bronze = none) — applied on top of #2.
-4. **Not available at wholesale** — no "Wholesale price" set at all. Depending on the empty-price setting the product is hidden from wholesale views or shown at retail with a note.
+1. **Per-customer override.** Set on their user profile with the product picker. Always wins, regardless of cart quantity.
+2. **The quantity tier the cart has reached** (an un-named base tier, then Standard, then Volume, described in "Quantity-tier pricing and shipping" below). The base tier is the product's own "Wholesale price"; Standard/Volume are store defaults, overridable per product/variation.
+3. **The customer's tier discount** (Silver/Gold/Platinum percentage, Bronze = none), applied on top of #2.
+4. **Not available at wholesale.** No "Wholesale price" set at all. Depending on the empty-price setting the product is hidden from wholesale views or shown at retail with a note.
 
-Retail customers and guests never see a wholesale price under any circumstance — pricing filters only apply to logged-in users with the `wholesale_customer` role.
+Retail customers and guests never see a wholesale price under any circumstance. Pricing filters only apply to logged-in users with the `wholesale_customer` role.
 
 ## Quantity-tier pricing and shipping
 
-Wholesale sells sleeves by two units, both built on the "pack" WooCommerce tracks stock in: a **Display** (10 packs by default — "Packs per display", per product; a variation inherits its parent's) and a **Case** (8 Displays by default — "Displays per case"). Customers pick Display or Case and a quantity on the product page; it always submits a real pack count.
+Wholesale sells sleeves by two units, both built on the "pack" WooCommerce tracks stock in: a **Display** (10 packs by default, "Packs per display", per product; a variation inherits its parent's) and a **Case** (8 Displays by default, "Displays per case"). Customers pick Display or Case and a quantity on the product page; it always submits a real pack count.
 
 - **Ladder** (WooCommerce → Wholesale → Pricing & Shipping): $5.50/pack under 16 combined Displays (the base tier: the product's own price, deliberately un-named on the storefront so nobody aims for it), $5.00/pack at 16+ Displays (Standard), $4.50/pack at 16+ Cases (Volume). The slugs and meta keys keep their original `standard`/`volume`/`bulk` names; see `VolumePricing::get_tier_labels()`. Thresholds are **combined across the whole cart** (every product and color together). Each product page shows the customer their own three prices in a small table, with the cart's current tier marked, and the main price shows the retail MSRP crossed out next to the wholesale price with a "Save N%" chip.
-- **Shipping**: a flat $19.95 below the Standard threshold, free at or above it — a real WooCommerce shipping method (`Wholesale Shipping`), only shown to wholesale customers whose cart holds wholesale-eligible items, and only once it's been added to a zone. When present it hides the zone's retail Flat rate / Free shipping methods (list filterable via `protech_wholesale_retail_shipping_methods`).
+- **Shipping**: a flat $19.95 below the Standard threshold, free at or above it, a real WooCommerce shipping method (`Wholesale Shipping`) shown only to wholesale customers whose cart holds wholesale-eligible items, and only once it's been added to a zone. When present it hides the zone's retail Flat rate / Free shipping methods (list filterable via `protech_wholesale_retail_shipping_methods`).
 - Wholesale quantities must be multiples of the packs-per-display: enforced at add-to-cart (classic and Store API), on the Blocks cart's own quantity controls, and again at checkout.
 - Cart/checkout lines carry a "Displays: N" annotation; it is saved on the order line item.
 - There is **no dollar-based order minimum**; the fields from an earlier design were removed in 1.3.0.
@@ -81,9 +81,9 @@ Wholesale sells sleeves by two units, both built on the "pack" WooCommerce track
 
 ## The sticky tier bar
 
-A Protech Blue dock floating at the bottom of the viewport (full width on phones) on every front-end page except checkout, for logged-in wholesale customers only: a tier chip and message ("Add 3 more displays to unlock free shipping and Standard pricing"), a track with a marker per tier, the live cart subtotal, Display/Case count and — once a tier is reached — what that tier is saving the order. It updates without a page reload after any add-to-cart anywhere on the site, previews where the quantity being dialled in on a product page would land, celebrates a newly reached tier once, and is deliberately not dismissible. All motion is disabled under `prefers-reduced-motion`. See `class-global-tier-bar.php`.
+A Protech Blue dock floating at the bottom of the viewport (full width on phones) on every front-end page except checkout, for logged-in wholesale customers only: a tier chip and message ("Add 3 more displays to unlock free shipping and Standard pricing"), a track with a marker per tier, the live cart subtotal, Display/Case count and (once a tier is reached) what that tier is saving the order. It updates without a page reload after any add-to-cart anywhere on the site, previews where the quantity being dialled in on a product page would land, celebrates a newly reached tier once, and is deliberately not dismissible. All motion is disabled under `prefers-reduced-motion`. See `class-global-tier-bar.php`.
 
-- The track is two segments (Standard marker at 40%), not one linear scale — see `VolumePricing::scale_percent()`.
+- The track is two segments (Standard marker at 40%), not one linear scale (see `VolumePricing::scale_percent()`).
 - The per-pack prices on the Standard/Volume markers are the **store defaults** from the Pricing tab with the customer's tier discount applied. If most products carry their own Standard/Volume overrides, remove them with `add_filter( 'protech_wholesale_tier_bar_show_prices', '__return_false' );`.
 - Every new state is re-broadcast as a `protech:tier-state` DOM event (`event.detail` is the state) for theme code that wants to react to it.
 - The dock matches the width of the site header: a header that is a floating card (as on this site) is matched edge for edge, a full-width header on the content inside it. Point it at a different element with the `protech_wholesale_tier_bar_align_selector` filter (a CSS selector; return `''` for a centred 1180px dock).
@@ -98,7 +98,7 @@ A Protech Blue dock floating at the bottom of the viewport (full width on phones
 - **My Account**: a "Wholesale Partner" strip with the business name on every account page (amber "Application under review" for pending applicants), and a dashboard card with the cart's tier, progress and savings.
 - **`/wholesale`**: a two-panel login page whose benefit list is built from the live thresholds (`protech_wholesale_portal_benefits` filter), and a status card for pending / rejected / retail-only visitors. An approved customer who logs in there (or on My Account) lands on the page set under Settings → "After a wholesale login, go to" (the flagship product on staging), or the shop when that is empty.
 - All of it is styled in Protech Blue (`--protech-blue` in `assets/css/wholesale.css`); the theme's own buttons keep the theme's color.
-- **Header banner** ("FREE SHIPPING WITH $30+ ORDERS"): Salient's own "Text To Display In Header" field already runs `do_shortcode()`, so wrapping its text in `[protech_header_notice]...[/protech_header_notice]` shows that text unchanged to everyone except a logged-in wholesale customer, who sees a wholesale line instead — by default "FREE SHIPPING ON WHOLESALE ORDERS OF 2+ CASES", generated from the live Standard threshold (converted to cases, rounded up) so it can't go stale. Pass `wholesale="…"` for fixed text, or use the `protech_wholesale_header_notice` filter. No theme edit. See `class-header-notice.php`.
+- **Header banner** ("FREE SHIPPING WITH $30+ ORDERS"): Salient's own "Text To Display In Header" field already runs `do_shortcode()`, so wrapping its text in `[protech_header_notice]...[/protech_header_notice]` shows that text unchanged to everyone except a logged-in wholesale customer, who sees a wholesale line instead (by default "FREE SHIPPING ON WHOLESALE ORDERS OF 2+ CASES"), generated from the live Standard threshold (converted to cases, rounded up) so it can't go stale. Pass `wholesale="…"` for fixed text, or use the `protech_wholesale_header_notice` filter. No theme edit. See `class-header-notice.php`.
 
 ## How to approve a customer
 
@@ -159,30 +159,30 @@ To ship a release: bump `Version:` in `protech-commerce.php`, add the section to
 
 ## "Wholesale only" products
 
-Check **Wholesale only** on the product's **Wholesale** tab (product level — applies to all of a variable product's colors). Retail visitors then never see it in the shop, search, categories, sitemaps, or the public Store API product listing; a direct link shows an "available to approved wholesale accounts only" message with an apply link in place of the price, and it can't be added to cart. Leave WooCommerce's own "Catalog visibility" on its default: checking Wholesale only forces it back to visible on save, because the native "Hidden" setting hides a product from wholesale customers too.
+Check **Wholesale only** on the product's **Wholesale** tab (product level, applies to all of a variable product's colors). Retail visitors then never see it in the shop, search, categories, sitemaps, or the public Store API product listing; a direct link shows an "available to approved wholesale accounts only" message with an apply link in place of the price, and it can't be added to cart. Leave WooCommerce's own "Catalog visibility" on its default: checking Wholesale only forces it back to visible on save, because the native "Hidden" setting hides a product from wholesale customers too.
 
 ## Messaging & automations
 
-**WooCommerce → Wholesale → Messaging** sends email and SMS to wholesale customers, through Brevo (email falls back to the site's own WooCommerce mailer if Brevo isn't connected; SMS has no fallback). Nothing is ever sent from an admin or checkout request — everything queues through the message log and delivers via Action Scheduler.
+**Messaging** (its own top-level wp-admin menu) sends email and SMS to wholesale customers, through Brevo (email falls back to the site's own WooCommerce mailer if Brevo isn't connected; SMS has no fallback). Nothing is ever sent from an admin or checkout request. Everything queues through the message log and delivers via Action Scheduler.
 
-- **Automations**: four rule types — *Reorder reminder* (X days after a customer's last order, if they haven't ordered since), *Win-back* (no order in N days, repeats up to a limit), *First-order nudge* (X days after approval with no order yet), and *Order status* (an order reaching a chosen status, e.g. "completed" → a shipping email/text, with a delay so tracking numbers catch up). A day-based rule only fires inside a 7-day window starting on its trigger day — turning one on never reaches back into years of history, and a missed daily run is absorbed rather than double-sent. A rule never sends the same message twice for the same order/approval (`Automations::anchor_for()` + the message log's unique key). **Preview recipients** runs the same logic as a dry run before you commit to enabling a rule.
+- **Automations**: four rule types, *Reorder reminder* (X days after a customer's last order, if they haven't ordered since), *Win-back* (no order in N days, repeats up to a limit), *First-order nudge* (X days after approval with no order yet), and *Order status* (an order reaching a chosen status, e.g. "completed" → a shipping email/text, with a delay so tracking numbers catch up). A day-based rule only fires inside a 7-day window starting on its trigger day, so turning one on never reaches back into years of history, and a missed daily run is absorbed rather than double-sent. A rule never sends the same message twice for the same order/approval (`Automations::anchor_for()` + the message log's unique key). **Preview recipients** runs the same logic as a dry run before you commit to enabling a rule.
 - **Compose**: a one-off email or text to a chosen audience (all customers, a tier, no order in N days, never ordered, said they'd like texts but haven't opted in, or specific customers ticked on the Customers tab). "Send preview" delivers immediately to any address (or phone number) you type, or to you if you leave it blank, so you can check it before sending to customers. The same box is on every automation rule.
 - **Log**: every message ever queued, its status (queued/sending/sent/failed/skipped) and, for a skip, why (no consent, unsubscribed, frequency cap, …).
 - **Compliance**: see the next section.
 - **Merge tags**: `{first_name}`, `{store_name}`, `{last_order_number}`, `{last_order_total}`, `{last_order_url}`, `{days_since_last_order}`, `{shop_url}`, `{account_url}`, `{unsubscribe_url}`, `{brand}`, and, for the order-status trigger only, `{order_number}`, `{order_status}`, `{tracking_number}`, `{tracking_url}`, `{tracking_block}` (reads the "Advanced Shipment Tracking" plugin when it's active; empty otherwise).
-- **Cron matters.** The daily automation job and delayed order-status/SMS deliveries run on Action Scheduler, which is driven by WP-Cron — and WP-Cron only fires on an actual page hit. A cached storefront (Breeze, on this site) can mean overnight cron doesn't run until the first uncached visit. If automations seem to run late, add a real server cron hitting `wp-cron.php` (or `wp action-scheduler run`) every few minutes; check WooCommerce → Status → Scheduled Actions either way.
-- Brevo's own WooCommerce plugin can run its own marketing automations — decide whether wholesale contacts should be in both, or just this plugin's.
+- **Cron matters.** The daily automation job and delayed order-status/SMS deliveries run on Action Scheduler, which is driven by WP-Cron, and WP-Cron only fires on an actual page hit. A cached storefront (Breeze, on this site) can mean overnight cron doesn't run until the first uncached visit. If automations seem to run late, add a real server cron hitting `wp-cron.php` (or `wp action-scheduler run`) every few minutes; check WooCommerce → Status → Scheduled Actions either way.
+- Brevo's own WooCommerce plugin can run its own marketing automations, so decide whether wholesale contacts should be in both, or just this plugin's.
 
 ## SMS compliance (Brevo toll-free number verification)
 
-Texting from a US/Canada number through Brevo requires registering a toll-free number, which Brevo verifies against: the site working, a privacy policy/terms that cover SMS, a description of what's sent, and **proof customers opted in**. Marketing texts (offers, reorder reminders) require an explicit opt-in; order-update texts are a separate, narrower consent. Consent is captured — with the exact wording shown, a timestamp, IP, and source — on the wholesale application form (add the two checkboxes with the wording from Messaging → Compliance to your form if it doesn't have them yet), self-service under My Account → Notifications, or by an admin on the customer's profile (a note is required). Brevo's own STOP handling on the toll-free number is honored before every marketing text.
+Texting from a US/Canada number through Brevo requires registering a toll-free number, which Brevo verifies against: the site working, a privacy policy/terms that cover SMS, a description of what's sent, and **proof customers opted in**. Marketing texts (offers, reorder reminders) require an explicit opt-in; order-update texts are a separate, narrower consent. Consent is captured (with the exact wording shown, a timestamp, IP, and source) on the wholesale application form (add the two checkboxes with the wording from Messaging → Compliance to your form if it doesn't have them yet), self-service under My Account → Notifications, or by an admin on the customer's profile (a note is required). Brevo's own STOP handling on the toll-free number is honored before every marketing text.
 
 **Before submitting to Brevo:** open Messaging → Compliance. It shows the exact opt-in wording and where it appears, a sample of every message type configured, a **Download consent records (CSV)** button (Brevo's proof of opt-in), and ready-to-paste privacy-policy/terms text (the "mobile information will not be shared…" line, frequency/rates/STOP/HELP). The setup notice on the Applicants tab flags it if Brevo isn't connected or the privacy policy doesn't seem to mention SMS.
 
 ## Development
 
 ```sh
-cd protech-wholesale
+cd protech-commerce
 composer install                   # phpunit, WPCS, PHPStan (dev only; never deployed)
 composer lint                      # phpcs (advisory for now)
 composer analyse                   # phpstan
@@ -198,7 +198,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the same on every push. `bin/de
 - No tax-exemption or resale-certificate handling: wholesale orders are taxed like retail.
 - The variations bulk actions follow WooCommerce's documented custom-bulk-action contract but should be exercised once on staging after each WooCommerce update.
 - Salient-specific visuals (price label inside Salient's price markup, the login/portal page typography) are worth a look after theme updates.
-- Content for automations and Compose is written in this admin screen only — there's no Brevo-designed-template picker in this build.
+- Content for automations and Compose is written in this admin screen only. There's no Brevo-designed-template picker in this build.
 - Quiet hours and the daily automation hour are site time, not each recipient's own time zone.
 - Sending an SMS from any rule or Compose will fail until a Brevo-registered sender (a US/Canada toll-free number) is set on Messaging → Settings; the failure reads clearly in the Log, but it's expected until then.
 

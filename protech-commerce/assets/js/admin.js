@@ -244,5 +244,71 @@
 				}
 			}
 		} );
+
+		initSettingsLogoPicker( strings );
+	}
+
+	/**
+	 * Messaging → Settings → Email design → Logo image: a Media Library
+	 * picker instead of typing an attachment id into a number box. Only one
+	 * of these exists per page, unlike the template editor's repeatable
+	 * pickers, so there is no renumbering to keep in step.
+	 */
+	function initSettingsLogoPicker( strings ) {
+		var picker = document.querySelector( '.protech-media-picker' );
+
+		if ( ! picker ) {
+			return;
+		}
+
+		var input = picker.querySelector( '[data-media-id]' );
+		var thumb = picker.querySelector( '.protech-media-thumb' );
+		var clear = picker.querySelector( '.protech-settings-media-clear' );
+		var choose = picker.querySelector( '.protech-settings-media-choose' );
+
+		if ( ! input || ! thumb || ! clear || ! choose ) {
+			return;
+		}
+
+		choose.addEventListener( 'click', function () {
+			if ( ! window.wp || ! window.wp.media ) {
+				return;
+			}
+
+			var frame = window.wp.media( {
+				title: strings.chooseLogoTitle || 'Choose a logo',
+				button: { text: strings.chooseLogoButton || 'Use this logo' },
+				library: { type: 'image' },
+				multiple: false,
+			} );
+
+			frame.on( 'select', function () {
+				var attachment = frame.state().get( 'selection' ).first().toJSON();
+				var url = attachment.sizes && attachment.sizes.thumbnail ? attachment.sizes.thumbnail.url : attachment.url;
+
+				input.value = String( attachment.id );
+				thumb.innerHTML = '';
+
+				var img = document.createElement( 'img' );
+
+				img.src = url;
+				img.alt = '';
+				img.style.maxWidth = '120px';
+				img.style.height = 'auto';
+				img.style.display = 'block';
+				img.style.marginBottom = '6px';
+				thumb.appendChild( img );
+
+				clear.hidden = false;
+			} );
+
+			frame.open();
+		} );
+
+		clear.addEventListener( 'click', function () {
+			input.value = '0';
+			thumb.innerHTML = '';
+			clear.hidden = true;
+		} );
 	}
 } )();

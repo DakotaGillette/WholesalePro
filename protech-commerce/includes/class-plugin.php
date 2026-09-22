@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '6';
+	public const DB_VERSION     = '7';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -54,6 +54,11 @@ final class Plugin {
 	private Unsubscribe $unsubscribe;
 	private NotificationsEndpoint $notifications_endpoint;
 	private MessagingTab $messaging_tab;
+	private AutomationsScreen $automations_screen;
+	private ComposeScreen $compose_screen;
+	private LogScreen $log_screen;
+	private ComplianceScreen $compliance_screen;
+	private MessagingSettingsScreen $messaging_settings_screen;
 	private CustomersTab $customers_tab;
 	private WelcomeEmail $welcome_email;
 	private EmailComposer $email_composer;
@@ -103,6 +108,11 @@ final class Plugin {
 		$this->unsubscribe            = new Unsubscribe();
 		$this->notifications_endpoint = new NotificationsEndpoint();
 		$this->messaging_tab          = new MessagingTab();
+		$this->automations_screen     = new AutomationsScreen();
+		$this->compose_screen         = new ComposeScreen();
+		$this->log_screen             = new LogScreen();
+		$this->compliance_screen      = new ComplianceScreen();
+		$this->messaging_settings_screen = new MessagingSettingsScreen();
 		$this->customers_tab          = new CustomersTab();
 		$this->welcome_email          = new WelcomeEmail();
 		$this->email_composer         = new EmailComposer();
@@ -137,6 +147,11 @@ final class Plugin {
 				$this->unsubscribe,
 				$this->notifications_endpoint,
 				$this->messaging_tab,
+				$this->automations_screen,
+				$this->compose_screen,
+				$this->log_screen,
+				$this->compliance_screen,
+				$this->messaging_settings_screen,
 				$this->customers_tab,
 				$this->welcome_email,
 				$this->email_composer,
@@ -245,6 +260,8 @@ final class Plugin {
 	 *  4: seed the starter email templates (2.2.0), only into an empty library.
 	 *  5: add the approved and rejected application starters (2.6.0).
 	 *  6: create the four standard automations, switched off (2.7.0).
+	 *  7: nothing new of its own. Its only job is to make every site still on
+	 *     an older version run the table safety-net below one more time.
 	 */
 	public function maybe_upgrade(): void {
 		$current = get_option( self::OPT_DB_VERSION, '0' );
@@ -259,6 +276,13 @@ final class Plugin {
 		}
 
 		set_transient( 'protech_wholesale_upgrading', 1, 5 * MINUTE_IN_SECONDS );
+
+		// A safety net, not a numbered step: the version-3 step below only ever
+		// runs once, so a table dropped after that (or lost to a bad manual
+		// migration) would otherwise stay missing forever. Re-running dbDelta()
+		// is a no-op when the table already matches, so this is free on every
+		// ordinary upgrade and a real fix on the rare one where it is not.
+		MessageLog::install_table();
 
 		if ( version_compare( $current, '2', '<' ) ) {
 			$count = ProductFields::backfill_has_wholesale_price_flags();
@@ -563,8 +587,18 @@ final class Plugin {
 				'approveConfirm'   => __( 'Approve this application? The applicant is emailed a password link and sees wholesale pricing immediately.', 'protech-wholesale' ),
 				'rejectPrompt'     => __( 'Reject this application? Enter an optional reason to include in the email to the applicant, or leave blank:', 'protech-wholesale' ),
 				'deleteAutomationConfirm' => __( 'Delete this automation rule? This cannot be undone.', 'protech-wholesale' ),
+				'chooseLogoTitle'  => __( 'Choose a logo', 'protech-wholesale' ),
+				'chooseLogoButton' => __( 'Use this logo', 'protech-wholesale' ),
 			)
 		);
+
+		// The Settings view's logo field is a Media Library picker too, but
+		// otherwise needs none of the editor's own script or stylesheet.
+		$is_settings_screen = $screen && str_contains( (string) $screen->id, MessagingTab::page_slug( 'settings' ) );
+
+		if ( $is_settings_screen ) {
+			wp_enqueue_media();
+		}
 
 		// The template editor has its own script and stylesheet, loaded only there.
 		$is_editor = $screen && str_contains( (string) $screen->id, MessagingTab::page_slug( 'templates' ) ) && isset( $_GET['edit'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects a screen, changes nothing.

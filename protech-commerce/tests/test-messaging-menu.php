@@ -109,6 +109,34 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The 13 admin-post actions Messaging registered before class-messaging-tab.php
+	 * was split into AutomationsScreen, ComposeScreen, LogScreen, ComplianceScreen
+	 * and MessagingSettingsScreen (2.9.0), a pure move, so every one of them must
+	 * still be registered by something, whichever class it now lives on.
+	 */
+	public function test_every_admin_post_action_is_still_registered_after_the_split(): void {
+		$actions = array(
+			'protech_save_automation',
+			'protech_preview_automation',
+			'protech_send_test_automation',
+			'protech_toggle_automation',
+			'protech_delete_automation',
+			'protech_run_automations_now',
+			'protech_message_customers',
+			'protech_review_message',
+			'protech_edit_message',
+			'protech_send_message',
+			'protech_send_test_message',
+			'protech_export_consent',
+			'protech_test_brevo_connection',
+		);
+
+		foreach ( $actions as $action ) {
+			$this->assertNotFalse( has_action( 'admin_post_' . $action ), "admin_post_{$action} is not registered." );
+		}
+	}
+
+	/**
 	 * A form that has a hidden `action` field and a button whose `formaction` only adds `?action=` to
 	 * the address is not doing what it looks like: PHP lets the POST value beat the query string, so
 	 * the button runs the form's own action (a real send, say) instead. A button must carry its action

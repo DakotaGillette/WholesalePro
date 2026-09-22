@@ -94,6 +94,22 @@ class Test_Message_Log extends WP_UnitTestCase {
 		$this->assertSame( 'expired', MessageLog::get( $expired_id )['reason'] );
 	}
 
+	public function test_search_matches_recipient_and_subject(): void {
+		MessageLog::enqueue( $this->row( array( 'anchor' => 'a', 'recipient' => 'ada@example.com', 'subject' => 'Your order shipped' ) ) );
+		MessageLog::enqueue( $this->row( array( 'anchor' => 'b', 'recipient' => 'grace@example.com', 'subject' => 'A restock reminder' ) ) );
+
+		$by_recipient = MessageLog::query( array( 's' => 'ada@example' ) );
+		$this->assertCount( 1, $by_recipient['rows'] );
+		$this->assertSame( 'ada@example.com', $by_recipient['rows'][0]['recipient'] );
+
+		$by_subject = MessageLog::query( array( 's' => 'restock' ) );
+		$this->assertCount( 1, $by_subject['rows'] );
+		$this->assertSame( 'grace@example.com', $by_subject['rows'][0]['recipient'] );
+
+		$this->assertCount( 2, MessageLog::query( array( 's' => '' ) )['rows'], 'An empty search is no filter at all.' );
+		$this->assertCount( 0, MessageLog::query( array( 's' => 'nobody-matches-this' ) )['rows'] );
+	}
+
 	public function test_last_auto_marketing_at_only_counts_automated_marketing_rows(): void {
 		MessageLog::enqueue( $this->row( array( 'kind' => MessageLog::KIND_MANUAL, 'anchor' => 'a' ) ) );
 		MessageLog::enqueue( $this->row( array( 'category' => MessageLog::CATEGORY_TRANSACTIONAL, 'anchor' => 'b' ) ) );

@@ -85,7 +85,35 @@ class MessagingSettings {
 	}
 
 	public function register_hooks(): void {
-		// Rendered/saved from MessagingTab's "Settings" view; nothing to hook globally here.
+		// A WooCommerce Settings API field type this plugin adds itself: WC_Admin_Settings
+		// falls back to this action for any 'type' it doesn't know natively.
+		add_action( 'woocommerce_admin_field_protech_media', array( __CLASS__, 'render_media_field' ) );
+	}
+
+	/**
+	 * The logo field: a Media Library picker (wp.media, wired in admin.js)
+	 * instead of typing an attachment id into a number box. WC_Admin_Settings
+	 * saves it like any other field, since the hidden input's name is the
+	 * option id.
+	 *
+	 * @param array<string, mixed> $field
+	 */
+	public static function render_media_field( array $field ): void {
+		$id    = (int) get_option( (string) $field['id'], (string) ( $field['default'] ?? '0' ) );
+		$thumb = $id > 0 ? wp_get_attachment_image_url( $id, 'thumbnail' ) : '';
+
+		echo '<tr valign="top"><th scope="row" class="titledesc"><label for="' . esc_attr( (string) $field['id'] ) . '">' . esc_html( (string) $field['title'] ) . '</label></th><td class="forminp">';
+		echo '<div class="protech-media-picker">';
+		echo '<span class="protech-media-thumb">' . ( $thumb ? '<img src="' . esc_url( (string) $thumb ) . '" alt="" style="max-width:120px;height:auto;display:block;margin-bottom:6px;" />' : '' ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo '<input type="hidden" id="' . esc_attr( (string) $field['id'] ) . '" name="' . esc_attr( (string) $field['id'] ) . '" data-media-id="1" value="' . esc_attr( (string) $id ) . '" />';
+		echo '<button type="button" class="button protech-settings-media-choose">' . esc_html__( 'Choose logo', 'protech-wholesale' ) . '</button> ';
+		echo '<button type="button" class="button-link protech-settings-media-clear"' . ( $id > 0 ? '' : ' hidden' ) . '>' . esc_html__( 'Remove', 'protech-wholesale' ) . '</button>';
+
+		if ( ! empty( $field['desc'] ) ) {
+			echo '<p class="description">' . esc_html( (string) $field['desc'] ) . '</p>';
+		}
+
+		echo '</div></td></tr>';
 	}
 
 	/**
@@ -267,12 +295,10 @@ class MessagingSettings {
 			),
 			array(
 				'title'    => __( 'Logo image', 'protech-wholesale' ),
-				'desc'     => __( 'The ID of an image in your Media Library (its number in the address bar when you open it). Shown at the top of every email; leave 0 to show the store name instead.', 'protech-wholesale' ),
+				'desc'     => __( 'Shown at the top of every email. Choose none to show the store name instead.', 'protech-wholesale' ),
 				'id'       => self::OPT_EMAIL_LOGO_ID,
-				'type'     => 'number',
+				'type'     => 'protech_media',
 				'default'  => '0',
-				'custom_attributes' => array( 'min' => '0' ),
-				'css'      => 'width:100px;',
 			),
 			array(
 				'title'   => __( 'Brand color', 'protech-wholesale' ),

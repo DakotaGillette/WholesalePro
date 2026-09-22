@@ -46,7 +46,49 @@ class Emails {
 		$mailer  = WC()->mailer();
 		$message = $mailer->wrap_message( $heading, $body );
 
-		$mailer->send( $to, $subject, $message, array_merge( array( 'Content-Type: text/html; charset=UTF-8' ), $headers ) );
+		$sent = $mailer->send( $to, $subject, $message, array_merge( array( 'Content-Type: text/html; charset=UTF-8' ), $headers ) );
+
+		if ( in_array( $type, array( 'applicant_received', 'approved', 'rejected' ), true ) ) {
+			self::log_lifecycle( $type, $user_id, $to, $subject, $sent );
+		}
+	}
+
+	/**
+	 * Application-flow emails are sent once, synchronously, on an admin
+	 * action (never queued or retried), but a customer's Log should still
+	 * show them. Logged as already finished; the anchor carries a timestamp
+	 * so re-sending the same lifecycle email (a second rejection, say) is
+	 * its own row rather than silently deduplicated against the first.
+	 */
+	private static function log_lifecycle( string $type, int $user_id, string $to, string $subject, bool $sent ): void {
+		$log_id = MessageLog::enqueue(
+			array(
+				'user_id'   => $user_id,
+				'channel'   => MessageLog::CHANNEL_EMAIL,
+				'kind'      => MessageLog::KIND_LIFECYCLE,
+				'category'  => MessageLog::CATEGORY_TRANSACTIONAL,
+				'rule_id'   => 'lifecycle:' . $type,
+				'anchor'    => $type . ':' . microtime( true ),
+				'recipient' => $to,
+				'subject'   => $subject,
+			)
+		);
+
+		if ( ! $log_id ) {
+			return;
+		}
+
+		MessageLog::claim( $log_id );
+		MessageLog::finish(
+			$log_id,
+			$sent ? MessageLog::STATUS_SENT : MessageLog::STATUS_FAILED,
+			array(
+				'provider'  => 'wc_mailer',
+				'recipient' => $to,
+				'subject'   => $subject,
+				'error'     => $sent ? '' : __( 'The site\'s mailer reported the send failed.', 'protech-wholesale' ),
+			)
+		);
 	}
 
 	/**
@@ -65,13 +107,28 @@ class Emails {
 		}
 
 		$context = array_merge( EmailRenderer::context( $user->ID, false ), $extra );
-		$result  = MessageTransport::send_template_email( $user->ID, $user->user_email, EmailRenderer::subject( $template, $context ), $template, $context, MessageLog::CATEGORY_TRANSACTIONAL, array( $slot ) );
+		$subject = EmailRenderer::subject( $template, $context );
+		$result  = MessageTransport::send_template_email( $user->ID, $user->user_email, $subject, $template, $context, MessageLog::CATEGORY_TRANSACTIONAL, array( $slot ) );
 
 		if ( 'sent' !== $result['status'] ) {
 			Logger::warning( sprintf( 'Lifecycle email "%s" to user #%d was not sent: %s', $slot, $user->ID, $result['error'] ) );
 		}
 
+		self::log_lifecycle( self::type_for_slot( $slot ), $user->ID, $user->user_email, $subject, 'sent' === $result['status'] );
+
 		return true;
+	}
+
+	/** The $type string Emails::send() would have used, for a slot sent instead. */
+	private static function type_for_slot( string $slot ): string {
+		switch ( $slot ) {
+			case EmailTemplates::SLOT_APPLICATION_APPROVED:
+				return 'approved';
+			case EmailTemplates::SLOT_APPLICATION_REJECTED:
+				return 'rejected';
+			default:
+				return 'applicant_received';
+		}
 	}
 
 	/**
@@ -173,7 +230,13 @@ class Emails {
 			return;
 		}
 
-		$body  = self::paragraph( __( 'Thanks for applying for a Protech Sleeves wholesale account.', 'protech-wholesale' ) );
+		$body  = self::paragraph(
+			sprintf(
+				/* translators: %s: brand name. */
+				__( 'Thanks for applying for a %s wholesale account.', 'protech-wholesale' ),
+				MessagingSettings::brand()
+			)
+		);
 		$body .= self::paragraph( __( 'Our team typically reviews applications within 1–3 business days. We\'ll email you as soon as a decision is made.', 'protech-wholesale' ) );
 
 		self::send(
@@ -224,7 +287,11 @@ class Emails {
 
 		self::send(
 			$user->user_email,
-			__( 'Your Protech Sleeves wholesale account is approved!', 'protech-wholesale' ),
+			sprintf(
+				/* translators: %s: brand name. */
+				__( 'Your %s wholesale account is approved!', 'protech-wholesale' ),
+				MessagingSettings::brand()
+			),
 			__( 'Welcome to Protech Wholesale', 'protech-wholesale' ),
 			$body,
 			'approved',
@@ -250,7 +317,13 @@ class Emails {
 			return;
 		}
 
-		$body = self::paragraph( __( 'Thanks for your interest in a Protech Sleeves wholesale account. After review, we\'re not able to approve your application at this time.', 'protech-wholesale' ) );
+		$body = self::paragraph(
+			sprintf(
+				/* translators: %s: brand name. */
+				__( 'Thanks for your interest in a %s wholesale account. After review, we\'re not able to approve your application at this time.', 'protech-wholesale' ),
+				MessagingSettings::brand()
+			)
+		);
 
 		if ( '' !== $reason ) {
 			$body .= self::paragraph( sprintf( /* translators: %s: rejection reason. */ __( 'Reason: %s', 'protech-wholesale' ), $reason ) );
@@ -260,7 +333,11 @@ class Emails {
 
 		self::send(
 			$user->user_email,
-			__( 'Update on your Protech Sleeves wholesale application', 'protech-wholesale' ),
+			sprintf(
+				/* translators: %s: brand name. */
+				__( 'Update on your %s wholesale application', 'protech-wholesale' ),
+				MessagingSettings::brand()
+			),
 			__( 'Your wholesale application', 'protech-wholesale' ),
 			$body,
 			'rejected',

@@ -44,7 +44,7 @@ class MessageTransport {
 		// the next quiet-hours window rather than counting it as failed.
 		if ( MessageLog::CHANNEL_SMS === $channel && MessagingSettings::in_quiet_hours() ) {
 			MessageLog::requeue( (int) $row['id'], MessagingSettings::next_quiet_hours_end() );
-			return self::result( 'requeued', '', '', '', '', 'quiet_hours', false );
+			return self::result( 'requeued', '', '', '', '', '', 'quiet_hours', false );
 		}
 
 		$content = Automations::content_for( (string) $row['rule_id'] );

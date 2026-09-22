@@ -749,12 +749,12 @@ class EmailBlocks {
 					$cell .= '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td align="center" bgcolor="' . esc_attr( (string) $style['brand'] ) . '" style="background:' . esc_attr( (string) $style['brand'] ) . ';border-radius:6px;"><a href="' . $url . '" target="_blank" style="display:inline-block;padding:8px 16px;font-family:' . $font . ';font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:6px;">' . esc_html( (string) $a['button_label'] ) . '</a></td></tr></table>';
 				}
 
-				$html .= '<td width="' . $width . '%" valign="top" align="center" style="padding:0 8px 16px;text-align:center;">' . $cell . '</td>';
+				$html .= '<td class="pw-col" width="' . $width . '%" valign="top" align="center" style="padding:0 8px 16px;text-align:center;">' . $cell . '</td>';
 			}
 
 			// Keep the last row's cells the same width as the rows above it.
 			for ( $pad = count( $row ); $pad < $columns; $pad++ ) {
-				$html .= '<td width="' . $width . '%" style="padding:0 8px;">&nbsp;</td>';
+				$html .= '<td class="pw-col" width="' . $width . '%" style="padding:0 8px;">&nbsp;</td>';
 			}
 
 			$html .= '</tr>';

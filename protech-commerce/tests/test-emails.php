@@ -8,6 +8,7 @@
  */
 
 use ProtechWholesale\Emails;
+use ProtechWholesale\MessageLog;
 use ProtechWholesale\Roles;
 
 /**
@@ -106,5 +107,41 @@ class Test_Emails extends WP_UnitTestCase {
 		$mail = tests_retrieve_phpmailer_instance()->get_sent();
 
 		$this->assertStringContainsString( 'Outside our distribution area', $mail->body );
+	}
+
+	public function test_application_emails_are_logged(): void {
+		$received_user = $this->applicant( 'ada@example.com' );
+		Emails::send_applicant_received( $received_user );
+
+		$approved_user = $this->applicant( 'grace@example.com' );
+		Emails::send_approved( $approved_user );
+
+		$rejected_user = $this->applicant( 'katherine@example.com' );
+		Emails::send_rejected( $rejected_user, 'Outside our distribution area' );
+
+		foreach (
+			array(
+				array( $received_user, 'ada@example.com' ),
+				array( $approved_user, 'grace@example.com' ),
+				array( $rejected_user, 'katherine@example.com' ),
+			) as [ $user_id, $email ]
+		) {
+			$rows = MessageLog::query( array( 'user_id' => $user_id ) )['rows'];
+			$this->assertCount( 1, $rows, "Expected exactly one logged message for {$email}." );
+			$this->assertSame( MessageLog::KIND_LIFECYCLE, $rows[0]['kind'] );
+			$this->assertSame( MessageLog::STATUS_SENT, $rows[0]['status'] );
+			$this->assertSame( $email, $rows[0]['recipient'] );
+			$this->assertNotEmpty( $rows[0]['subject'] );
+		}
+	}
+
+	public function test_a_second_lifecycle_email_to_the_same_customer_is_its_own_log_row(): void {
+		$user_id = $this->applicant( 'ada@example.com' );
+
+		Emails::send_applicant_received( $user_id );
+		Emails::send_rejected( $user_id, 'Changed our minds' );
+
+		$rows = MessageLog::query( array( 'user_id' => $user_id ) )['rows'];
+		$this->assertCount( 2, $rows, 'Two different lifecycle emails to the same customer must not collide on the dedup key.' );
 	}
 }

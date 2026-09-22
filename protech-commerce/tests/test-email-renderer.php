@@ -204,6 +204,22 @@ class Test_Email_Renderer extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'per pack', $retail );
 	}
 
+	public function test_a_product_grid_stacks_on_a_phone(): void {
+		// Three products across 3 columns: one full row, no padding cells needed.
+		$three = array_map( static fn( $p ) => $p->get_id(), array( Protech_Test_Factory::simple_product( '5.50' ), Protech_Test_Factory::simple_product( '6.00' ), Protech_Test_Factory::simple_product( '7.00' ) ) );
+		$full  = EmailRenderer::render( $this->template( array( $this->block( 'product_grid', array( 'product_ids' => $three, 'columns' => 3 ) ) ) ), $this->context() )['html'];
+
+		// The document's only responsive rule targets .pw-col: without it on
+		// every cell (the last row's blank padding cells included), a grid
+		// narrower than the column count never stacks on a phone.
+		$this->assertSame( 3, substr_count( $full, 'class="pw-col"' ), 'All 3 product cells must carry pw-col.' );
+
+		$two  = array_map( static fn( $p ) => $p->get_id(), array( Protech_Test_Factory::simple_product( '5.50' ), Protech_Test_Factory::simple_product( '6.00' ) ) );
+		$short = EmailRenderer::render( $this->template( array( $this->block( 'product_grid', array( 'product_ids' => $two, 'columns' => 3 ) ) ) ), $this->context() )['html'];
+
+		$this->assertSame( 3, substr_count( $short, 'class="pw-col"' ), 'The 2 product cells plus the 1 blank padding cell must all carry pw-col.' );
+	}
+
 	public function test_the_document_is_a_fluid_card_that_fits_a_phone(): void {
 		$html = EmailRenderer::render( $this->template( array( $this->block( 'heading' ) ) ), $this->context() )['html'];
 

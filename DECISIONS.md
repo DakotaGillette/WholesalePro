@@ -1680,6 +1680,63 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Fix and unblock, and the admin file split (2026-09-21, 2.9.0)
+
+An audit of the messaging code (ahead of the bigger MailPoet-style editor and platform work) turned up
+several real defects and one large, mixed-concern file. This release fixes those before anything is
+built on top of them.
+
+1. **The quiet-hours SMS fatal.** `MessageTransport::deliver()` called `result()`, an 8-parameter
+   strict-typed method, with only 7 arguments when holding a text message for quiet hours. That threw
+   an `ArgumentCountError`, which killed the Action Scheduler worker mid-batch, so every other message
+   queued behind it was affected too. No test covered this path, since quiet hours are easy to miss in
+   manual testing (the default window is 8pm to 10am). Fixed by passing an explicit empty `$error`
+   before the `'quiet_hours'` reason, matching every other early-return in the method.
+2. **A product grid narrower than its column count never stacked on a phone.** The document's one
+   responsive rule targets `.pw-col`, but only the `columns` block's cells carried that class. A
+   product grid's cells, including the blank padding cells that square off a short last row, did not.
+   Both now carry `pw-col`.
+3. **The messages table could be lost for good.** `MessageLog::install_table()` only ran on activation
+   and the one-time version-3 migration step. A site whose table was dropped after that (a bad manual
+   migration, a restore from an old backup) had no way back, while the Log screen's own text claimed
+   the table "is created automatically on the next page load." `Plugin::maybe_upgrade()` now calls
+   `install_table()` unconditionally at the top, every time an upgrade actually runs (`dbDelta()` is a
+   no-op when the table already matches, so this costs nothing on an ordinary upgrade). `DB_VERSION`
+   moved to `'7'` so every site currently on 6 gets this safety net at least once on its next update.
+   Rejected: running it on every page load, which would cost a real query for no benefit on the
+   overwhelming majority of requests where nothing is wrong.
+4. **The Log's documented search filter (`s`) was never implemented**, so typing a search term in the
+   Log had no effect (the field itself did not exist in the UI either, since nothing wired it up).
+   `MessageLog::query()` now matches `s` against recipient or subject.
+5. **The site-wide logo setting was a raw attachment ID in a number box**, unlike the per-template
+   logo picker in the editor, which already uses `wp.media`. Added a small custom WooCommerce Settings
+   API field type (`protech_media`, via the `woocommerce_admin_field_protech_media` action every
+   unrecognised field type falls back to) so Settings gets the same picker.
+6. **The three application-flow emails (received, approved, rejected) were never logged.** Both send
+   paths, the built-in wording and a bound template, now log through `MessageLog` as a new kind,
+   `lifecycle`, immediately marked sent or failed since these are synchronous, one-shot sends rather
+   than queued ones. The anchor carries a timestamp (`{type}:{microtime}`) rather than being empty, so
+   a second lifecycle email to the same customer (say, rejected once, then approved later) is its own
+   row instead of silently deduplicating against the dedup key's `(rule_id, user_id, anchor, channel)`
+   uniqueness, which is keyed for automations firing once per event, not for this.
+7. **"Protech Sleeves" was hard-coded into the three built-in application emails**, even though the
+   plugin has carried a configurable brand name (`MessagingSettings::brand()`, used everywhere else
+   messaging text needs a store name) since 1.5.0. Those four strings now use it.
+8. **The unsubscribe link redirected to a hard-coded `/wholesale`,** regardless of where the real
+   portal page actually lives (`SetupChecks::portal_page_id()` finds it by shortcode, not by slug,
+   precisely because a store might put it somewhere else). It now redirects to that real page when one
+   exists, falling back to `/wholesale` only when it does not.
+9. **`class-messaging-tab.php` (1,610 lines, called out as an explicit cleanup target back at 2.1.0)
+   is split into one class per screen**: `AutomationsScreen`, `ComposeScreen`, `LogScreen`,
+   `ComplianceScreen`, `MessagingSettingsScreen`, plus `AdminStash` for the shared per-admin transient
+   pattern every screen uses to carry a form across its redirect. `MessagingTab` itself is now only the
+   menu, the URL builder, the legacy-URL redirect, and the router. This was a verbatim move, not a
+   rewrite: every `admin_post` action name, every nonce, every URL is unchanged, and a test now asserts
+   all 13 actions are still registered. The Automations rule form shares its "Send a preview" box,
+   template picker, merge-tag reference and skip-reason labels with Compose (they are the same kind of
+   form), so those stayed public methods on `ComposeScreen` rather than becoming a seventh class just
+   for a handful of small renderers.
+
 ## A visible "updating" state (2026-09-21, 2.8.2)
 
 2.8.1 made the request fire almost immediately, but on this store's staging host a preview

@@ -30,6 +30,18 @@ class Unsubscribe {
 		add_action( 'admin_post_' . self::ACTION, array( $this, 'handle' ) );
 	}
 
+	/**
+	 * The real portal page's URL when one is published (it need not be at
+	 * "/wholesale": SetupChecks::portal_page_id() finds it by shortcode,
+	 * not by slug), or that literal path as a last resort when no such
+	 * page exists yet.
+	 */
+	private static function portal_url(): string {
+		$page_id = SetupChecks::portal_page_id();
+
+		return $page_id > 0 ? (string) get_permalink( $page_id ) : home_url( '/wholesale' );
+	}
+
 	private static function token_for( int $user_id ): string {
 		$token = (string) get_user_meta( $user_id, self::META_TOKEN, true );
 
@@ -61,7 +73,7 @@ class Unsubscribe {
 		// A wholesale account lands on the wholesale page, which shows its own confirmation.
 		// Anyone else (a retail customer) gets a plain confirmation instead of a wholesale login screen.
 		if ( ! $valid || Roles::is_wholesale_customer( $user_id ) ) {
-			wp_safe_redirect( add_query_arg( self::QUERY_FLAG, '1', home_url( '/wholesale' ) ) );
+			wp_safe_redirect( add_query_arg( self::QUERY_FLAG, '1', self::portal_url() ) );
 			exit;
 		}
 

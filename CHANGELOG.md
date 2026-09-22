@@ -3,6 +3,33 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.9.0 - 2026-09-21
+
+### Fixed
+- A text message queued during quiet hours no longer crashes the delivery worker. It is held
+  and sent once quiet hours end, as intended, instead of throwing a fatal error that stopped
+  every other queued message behind it.
+- A product grid with fewer columns than its column count now stacks properly on a phone. The
+  blank cells that pad out a short last row were missing the class the phone layout looks for.
+- The messages table is recreated automatically whenever the plugin next updates itself, not
+  only the one time (long ago) it was first created. The Log screen's own text now says so
+  accurately.
+- Messaging → Log can now be searched by recipient or subject, a filter the screen already
+  offered but never applied.
+- The site-wide email logo is now a proper Media Library picker in Messaging → Settings,
+  instead of typing an attachment's numeric ID into a box.
+- The three application-flow emails (received, approved, rejected) are now recorded in the
+  message Log, the same as every other email this plugin sends.
+- Unsubscribing now lands a wholesale customer on the real portal page, wherever it actually
+  is, instead of assuming it sits at "/wholesale".
+- The built-in application emails use the store's own brand name instead of a hard-coded one.
+
+### Changed
+- The 1,600-line Messaging admin file was split into one class per screen (Automations,
+  Compose, Log, Compliance, Settings) with a shared helper for the transient "stash" every
+  screen uses to carry a form back across a redirect. No visible change; every button and
+  link works exactly as before.
+
 ## 2.8.2 - 2026-09-21
 
 ### Changed

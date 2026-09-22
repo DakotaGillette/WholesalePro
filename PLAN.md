@@ -1,4 +1,4 @@
-# PLAN.md — Protech Commerce (formerly Protech Wholesale)
+# PLAN.md: Protech Commerce (formerly Protech Wholesale)
 
 Current file layout and hook map (kept in sync with the code as of 1.1.0).
 History of the decisions behind it: `DECISIONS.md`. Staging checklist: `QA.md`.
@@ -37,30 +37,47 @@ protech-commerce/
     class-emails.php                  Application-flow emails via the WooCommerce mailer; "WHOLESALE ORDER" subject prefix
     class-logger.php                  wc_get_logger() wrapper, source "protech-wholesale"
     functions-helpers.php             Free functions for theme code
-    --- Messaging & automations (1.5.0) ---
-    class-messaging-settings.php      Messaging Settings tab: Brevo key, sender, quiet hours, frequency cap, consent wording
+    --- Messaging & automations (1.5.0 through 2.9.0) ---
+    class-messaging-settings.php      Messaging Settings option constants, defaults, WooCommerce Settings API field defs, typed getters
     class-brevo-client.php            Brevo v3 API client: send_email/send_sms/get_account/get_contact/upsert_contact
     class-merge-tags.php              {tag} context + rendering (html/text/subject) + AST tracking bridge + SMS segment count
-    class-message-log.php             Custom table {prefix}protech_wholesale_messages: enqueue (dedup)/claim/finish/sweep
+    class-message-log.php             Custom table {prefix}protech_wholesale_messages: enqueue (dedup)/claim/finish/sweep/search
     class-message-transport.php       Turns a claimed log row into an actual send; Brevo or WC-mailer fallback for email
     class-automations.php             Rule storage/validation, anchor/window evaluation, order-status listener
     class-automation-runner.php       Action Scheduler contract: daily job, delivery queue, order-event delay, self-heal
     class-audience.php                Compose/campaign segment resolution (all/tier/inactive/never-ordered/selected)
     class-campaigns.php               Manual sends: create/validate, launch (queue + batches), progress, send_test
     class-sms-consent.php             Phone normalization, the two SMS consents + email opt-out, gating, consent log, CSV
-    class-unsubscribe.php             Per-user token link → email-marketing opt-out (no login required)
+    class-unsubscribe.php             Per-user token link → email-marketing opt-out (no login required); redirects to the real portal page
     class-notifications-endpoint.php  My Account "Notifications" endpoint: SMS/email preferences, self-service
-    class-messaging-tab.php           Messaging admin tab: Automations / Compose / Log / Compliance / Settings views
+    class-welcome-email.php           The welcome email: preview, send, "send a preview to any address", stamps sent_at
+    class-email-templates.php         Template library storage (one option, not a post type): validate/save/duplicate/slots
+    class-email-starters.php          Seeded starter templates, additive by key on each DB_VERSION step that needs one
+    class-email-blocks.php            Block registry: types, sanitize, render (HTML + plain text), field schema
+    class-email-renderer.php          Template + context -> one finished email document (header/blocks/footer) and its plain text
+    class-email-editor.php            The template editor's form (block cards, panels, preview frame). Form fields are the state
+    class-email-composer.php          Editor routing: save/duplicate/delete/preview/send-test admin-post handlers
+    class-emails-screen.php           Messaging landing (Emails): lifecycle emails, the "Sent" campaign list, duplicate links
+    class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
+    class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
+    class-automations-screen.php      Automations view: rule table and rule form (admin-post: save/preview/toggle/delete/run-now/send-test)
+    class-compose-screen.php          Compose view + review-before-send screen; also the shared preview-box/template-picker/merge-tag UI the rule form reuses
+    class-log-screen.php              Log view: filtered, paginated message history
+    class-compliance-screen.php       Compliance view: SMS wording, consent-on-file counts, CSV export
+    class-messaging-settings-screen.php  Settings view: renders/saves MessagingSettings::get_fields(), Brevo connection test
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
-                                      account-notifications, quantity-legend
-  assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI — portal, bar, ladder, selector, account, cart badge
-  assets/css/admin.css                Messaging tab admin styling (merge-tag chips, form layout) — wholesale screens only
+                                      account-notifications, quantity-legend, welcome-email, email-quantity-diagram,
+                                      email-pricing-ladder
+  assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI (portal, bar, ladder, selector, account, cart badge)
+  assets/css/admin.css                Messaging admin styling (merge-tag chips, form layout), wholesale screens only
+  assets/css/email-composer.css       Template editor only: canvas-first layout, block cards, palette
   assets/js/unit-selector.js          Display/Case → packs, Store API add-to-cart, protech:cart-changed + protech:qty-preview events
   assets/js/global-tier-bar.js        Bar refresh on cart events, tier celebration, add preview, live price-table row
   assets/js/portal.js                 /wholesale login form: show/hide password
   assets/js/starter-kit.js            Kit page: quantity, live quote, AJAX add, protech:qty-preview
-  assets/js/admin.js                  Override rows, bulk actions, approve/reject prompts, Messaging tab interactions
+  assets/js/admin.js                  Override rows, bulk actions, approve/reject prompts, Messaging screen interactions, Settings logo picker
+  assets/js/email-composer.js         Template editor only: add/reorder/copy/remove blocks, live preview, drag-drop, Media Library
   tests/                              PHPUnit (WP_UnitTestCase) + helpers; run inside wp-env
   composer.json, phpunit.xml.dist, .phpcs.xml.dist, phpstan.neon.dist   Dev tooling (never deployed)
 .github/workflows/ci.yml             Lint/analyse (advisory) + PHPUnit in wp-env
@@ -131,7 +148,7 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `manage_edit-shop_order_columns` / `manage_woocommerce_page_wc-orders_columns` (+ custom_column, restrict_manage, `request` / `woocommerce_order_query_args`) | Wholesale column and filter, legacy + HPOS |
 | `woocommerce_email_subject_new_order` | "WHOLESALE ORDER" prefix (flag, falling back to the customer's role) |
 | `woocommerce_product_data_tabs` / `woocommerce_product_data_panels`, `woocommerce_process_product_meta`, `woocommerce_product_after_variable_attributes`, `woocommerce_save_product_variation`, `woocommerce_variable_product_bulk_edit_actions`, `woocommerce_bulk_edit_variations` | Product fields, variation fields, bulk actions, has-wholesale-price flag sync |
-| `init` (20, Plugin) | `maybe_upgrade()` — one-off migrations keyed by `Plugin::DB_VERSION` |
+| `init` (20, Plugin) | `maybe_upgrade()`, one-off migrations keyed by `Plugin::DB_VERSION` |
 | `before_woocommerce_init` | HPOS + cart/checkout Blocks compatibility declarations |
 
 ### Messaging & automations (1.5.0)
@@ -141,10 +158,10 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `woocommerce_order_status_changed` (Automations) | Order-status rule: schedule a delayed `protech_wholesale_order_event` action |
 | `protech_wholesale_daily_automations` (recurring, AS group `protech-wholesale`) | Evaluate day-based rules, queue message-log rows |
 | `protech_wholesale_deliver_messages` (single/batched, AS) | Claim + `MessageTransport::deliver()` a queued row |
-| `protech_wholesale_order_event` (single/delayed, AS) | `Automations::fire_order_event()` — re-checks the order hasn't moved on |
+| `protech_wholesale_order_event` (single/delayed, AS) | `Automations::fire_order_event()`, which re-checks the order hasn't moved on |
 | `protech_wholesale_sync_contact` (async, AS) | Push a customer's SMS number to Brevo when marketing consent is granted |
-| `protech_wholesale_purge_messages` (recurring, AS) | `MessageLog::sweep()` — stuck/expired rows, retention purge |
-| `init` (30, AutomationRunner) | `self_heal()` — re-schedules the daily job if a GitHub update dropped it |
+| `protech_wholesale_purge_messages` (recurring, AS) | `MessageLog::sweep()` (stuck/expired rows, retention purge) |
+| `init` (30, AutomationRunner) | `self_heal()`, which re-schedules the daily job if a GitHub update dropped it |
 | `show_user_profile`/`edit_user_profile` + `personal_options_update`/`edit_user_profile_update` (SmsConsent) | Admin "Messaging" profile section: phone, consents, required note |
 | `protech_wholesale_application_submitted` (SmsConsent) | Records phone + consent from a submitted application |
 | `admin_post_protech_unsubscribe` (+ `_nopriv_`) | Unsubscribe link → `SmsConsent::record()` email opt-out |

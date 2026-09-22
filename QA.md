@@ -384,6 +384,30 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 36. Fix and unblock, and the admin file split (2.9.0)
+
+- [ ] Set Messaging → Settings quiet hours to a window covering right now. Send a text preview from Compose: the Log shows it queued with a send_after time after quiet hours end, not failed.
+- [ ] Open a template with a 3-across product grid showing only 1 or 2 products. At 360px, each product is its own row rather than squeezed into part of a row.
+- [ ] Messaging → Settings → Email design: the Logo image field is a "Choose logo" / preview / "Remove" picker, not a number box. Pick a logo, save, reload: it is still selected and shows in a sent email's header.
+- [ ] Messaging → Log: type part of an email address or a subject word into a new search field and filter: only matching rows show.
+- [ ] Approve, then reject (a different applicant), then check Messaging → Log: both application emails appear as their own rows, kind "lifecycle".
+- [ ] Click the unsubscribe link in a marketing email as a wholesale customer: it lands on the real portal page (wherever it is set up), not a hard-coded address that happens to be wrong on this store.
+- [ ] Every Messaging sub-page (Emails, Compose, Email templates, Log, Compliance, Settings) still loads, and every button, link and form on each one still works exactly as before (this release only moved code between files).
+
+## 35. A visible "updating" state (2.8.2)
+
+- [ ] In the template editor, drag a block, drop it, and watch the canvas: it dims briefly the moment the drop happens, then clears when the redrawn email appears, rather than sitting frozen for a couple of seconds.
+- [ ] Type in a text field and stop: the same brief dim-then-clear happens once the pause-triggered refresh lands.
+- [ ] With a fast connection the dim is barely visible; with the network throttled in devtools it clearly reads as "updating" rather than broken.
+
+## 34. The canvas redraws live, not on a delay (2.8.1)
+
+- [ ] Drag a palette block onto the canvas: the email updates immediately, not after a noticeable pause.
+- [ ] Move, copy or remove a block from the side panel: each one updates the canvas right away.
+- [ ] Choose a picture from the Media Library for an Image block: the canvas updates right away.
+- [ ] Typing in a text, heading or color field still waits for a short pause before refreshing, so it is not one request per keystroke.
+- [ ] The Refresh button still works with JavaScript disabled.
+
 ## 33. Canvas-first editor (2.8.0)
 
 - [ ] Open a template: the email preview is the big, centered element; a narrower panel on the right holds Content (Add a block) and the block list.

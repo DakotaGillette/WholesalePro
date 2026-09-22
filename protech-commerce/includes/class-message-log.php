@@ -47,6 +47,8 @@ class MessageLog {
 	public const KIND_MANUAL = 'manual';
 	public const KIND_TEST   = 'test';
 	public const KIND_WELCOME = 'welcome';
+	/** The three application-flow emails (received/approved/rejected): sent once, logged as already sent, never queued or retried. */
+	public const KIND_LIFECYCLE = 'lifecycle';
 
 	public const CATEGORY_MARKETING     = 'marketing';
 	public const CATEGORY_TRANSACTIONAL = 'transactional';
@@ -331,6 +333,13 @@ class MessageLog {
 		if ( ! empty( $filters['user_id'] ) ) {
 			$where[] = 'user_id = %d';
 			$args[]  = (int) $filters['user_id'];
+		}
+
+		if ( '' !== trim( (string) ( $filters['s'] ?? '' ) ) ) {
+			$like    = '%' . $wpdb->esc_like( trim( (string) $filters['s'] ) ) . '%';
+			$where[] = '(recipient LIKE %s OR subject LIKE %s)';
+			$args[]  = $like;
+			$args[]  = $like;
 		}
 
 		$where_sql = implode( ' AND ', $where );

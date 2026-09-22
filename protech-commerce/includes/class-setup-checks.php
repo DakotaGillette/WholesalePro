@@ -135,6 +135,18 @@ class SetupChecks {
 	}
 
 	/**
+	 * Null unless messaging is turned on: a missing table on a store that
+	 * never enabled automations or SMS has queued nothing to lose.
+	 */
+	public static function messages_table_exists(): ?bool {
+		if ( ! MessagingSettings::enabled() ) {
+			return null;
+		}
+
+		return MessageLog::table_exists();
+	}
+
+	/**
 	 * Soft/advisory: null when there is no privacy policy page to check
 	 * at all. A simple keyword check, not a legal review — see the
 	 * Compliance view for suggested text to add.
@@ -207,6 +219,14 @@ class SetupChecks {
 				'text' => __( 'Automations are on but Brevo is not connected, so no automated emails or texts are actually going out.', 'protech-wholesale' ),
 				'url'  => MessagingTab::url( 'settings' ),
 				'link' => __( 'Connect Brevo', 'protech-wholesale' ),
+			);
+		}
+
+		if ( false === self::messages_table_exists() ) {
+			$problems[] = array(
+				'text' => __( 'The messages table is missing, so nothing queued for automations or campaigns can be sent until it is recreated.', 'protech-wholesale' ),
+				'url'  => admin_url( 'plugins.php' ),
+				'link' => __( 'Deactivate and reactivate the plugin', 'protech-wholesale' ),
 			);
 		}
 
