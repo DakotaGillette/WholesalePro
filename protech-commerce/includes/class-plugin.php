@@ -784,7 +784,13 @@ final class Plugin {
 			'presetAudience' => ComposeScreen::preset_audience(),
 			'tiers'          => Tiers::get_tier_labels(),
 			'smsReady'       => null !== MessageProviders::sms(),
+			'sender'         => array(
+				'name'     => MessagingSettings::from_name(),
+				'email'    => MessagingSettings::from_email(),
+				'reply_to' => MessagingSettings::reply_to(),
+			),
 			'urls'           => array(
+				'settings'  => MessagingTab::url( 'settings', array( 'tab' => 'sending' ) ),
 				'compose'   => MessagingTab::url( 'compose' ),
 				'emails'    => MessagingTab::url( 'emails' ),
 				'drafts'    => MessagingTab::url( 'emails', array( 'status' => Campaigns::STATUS_DRAFT ) ),

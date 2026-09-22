@@ -1,11 +1,16 @@
-import type { Starter, Template } from './types';
+import type { AudienceInput, EmailPayload, Estimate, GalleryData, Starter, Template } from './types';
 
 function root(): string {
 	return window.protechEditor.restRoot.replace( /\/$/, '' );
 }
 
+/** The URL for a path, which may carry its own query string. With plain permalinks the root is `?rest_route=...`, so a second `?` must become `&`. */
+export function joinUrl( base: string, path: string ): string {
+	return base.includes( '?' ) ? `${ base }${ path.replace( '?', '&' ) }` : `${ base }${ path }`;
+}
+
 async function request< T >( method: string, path: string, body?: unknown ): Promise< T > {
-	const response = await fetch( `${ root() }${ path }`, {
+	const response = await fetch( joinUrl( root(), path ), {
 		method,
 		headers: {
 			'Content-Type': 'application/json',
@@ -55,4 +60,40 @@ export const api = {
 		request< TestSendResult >( 'POST', '/templates/test-send', { ...template, to } ),
 
 	starters: (): Promise< Starter[] > => request< Starter[] >( 'GET', '/templates/starters' ),
+
+	emails: {
+		gallery: (): Promise< GalleryData > => request< GalleryData >( 'GET', '/emails/gallery' ),
+
+		thumbnail: ( source: string ): Promise< { html: string } > => request< { html: string } >( 'GET', `/emails/thumbnail?source=${ encodeURIComponent( source ) }` ),
+
+		create: ( source: 'starter' | 'template' | 'campaign', ref: string, audience?: AudienceInput ): Promise< EmailPayload > =>
+			request< EmailPayload >( 'POST', '/emails', { source, key: ref, id: ref, audience } ),
+
+		update: ( id: string, changes: { name?: string; design?: Template; audience?: AudienceInput; service_message?: boolean } ): Promise< EmailPayload > =>
+			request< EmailPayload >( 'PUT', `/emails/${ id }`, changes ),
+
+		remove: ( id: string ): Promise< { deleted: boolean } > => request< { deleted: boolean } >( 'DELETE', `/emails/${ id }` ),
+
+		send: ( id: string ): Promise< SendResult > => request< SendResult >( 'POST', `/emails/${ id }/send`, { when: 'now' } ),
+
+		estimate: ( audience: AudienceInput, serviceMessage: boolean ): Promise< Estimate > =>
+			request< Estimate >( 'POST', '/audience/estimate', { audience, service_message: serviceMessage } ),
+	},
+
+	products: ( search: string ): Promise< ProductHit[] > => request< ProductHit[] >( 'GET', `/products?search=${ encodeURIComponent( search ) }` ),
+
+	product: ( id: number ): Promise< ProductHit[] > => request< ProductHit[] >( 'GET', `/products?include=${ id }` ),
 };
+
+export interface SendResult {
+	ok: boolean;
+	errors?: string[];
+	queued?: number;
+	log_url?: string;
+}
+
+export interface ProductHit {
+	id: number;
+	name: string;
+	sku: string;
+}

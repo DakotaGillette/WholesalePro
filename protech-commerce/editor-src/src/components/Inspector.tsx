@@ -28,23 +28,23 @@ export function Inspector( { schema, selectedType, attrs, mergeTags, onChange, o
 	return (
 		<div className="pw-inspector">
 			<div className="pw-inspector-head">
-				<button type="button" className="button-link pw-back" onClick={ onBack }>
+				<button type="button" className="pc-link pw-back" onClick={ onBack }>
 					&larr; Back to blocks
 				</button>
 				<strong>{ def.label }</strong>
 			</div>
 
 			<div className="pw-inspector-actions">
-				<button type="button" className="button" onClick={ onMoveUp } aria-label="Move up">
+				<button type="button" className="pc-btn" onClick={ onMoveUp } aria-label="Move up">
 					&uarr;
 				</button>
-				<button type="button" className="button" onClick={ onMoveDown } aria-label="Move down">
+				<button type="button" className="pc-btn" onClick={ onMoveDown } aria-label="Move down">
 					&darr;
 				</button>
-				<button type="button" className="button" onClick={ onDuplicate }>
+				<button type="button" className="pc-btn" onClick={ onDuplicate }>
 					Copy
 				</button>
-				<button type="button" className="button-link pw-remove-link" onClick={ onRemove }>
+				<button type="button" className="pc-link pc-link--danger" onClick={ onRemove }>
 					Remove
 				</button>
 			</div>

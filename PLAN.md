@@ -46,7 +46,7 @@ protech-commerce/
     class-automations.php             Legacy rule storage/validation and anchor/window evaluation, kept for Flows::import_legacy_rules() and the day-based catch-up math; no longer wired to any live hook
     class-automation-runner.php       Action Scheduler contract: daily job (day-based flow triggers), delivery queue, flow-wake, self-heal
     class-audience.php                Compose/campaign segment resolution (all/tier/inactive/never-ordered/selected)
-    class-campaigns.php               Manual sends: create/validate, launch (queue + batches), progress, send_test
+    class-campaigns.php               Emails you send: drafts, send_now, launch (queue + batches), trimming, progress, send_test
     class-sms-consent.php             Phone normalization, the two SMS consents + email opt-out, gating, consent log, CSV
     class-unsubscribe.php             Per-user token link → email-marketing opt-out (no login required); redirects to the real portal page
     class-notifications-endpoint.php  My Account "Notifications" endpoint: SMS/email preferences, self-service
@@ -56,7 +56,7 @@ protech-commerce/
     class-email-blocks.php            Block registry: types, sanitize, render (HTML + plain text), field schema
     class-email-renderer.php          Template + context -> one finished email document (header/blocks/footer) and its plain text
     class-email-composer.php          Template library: new/duplicate/delete/preview admin-post handlers; the client-side editor's mount point and which template it opens on
-    class-emails-screen.php           Messaging landing (Emails): lifecycle emails, order emails, the "Sent" campaign list
+    class-emails-screen.php           Emails lists: lifecycle emails, order emails, and your emails (drafts/sent, filters, duplicate, delete draft)
     class-wc-email-slots.php          Binds a template to one of nine WooCommerce order emails via woocommerce_locate_template, not a WC_Email subclass
     class-contacts.php                A contacts directory (wholesale, retail, guest) plus tags, read-only snapshot of SmsConsent; not yet an audience source
     class-contacts-screen.php         Messaging → Contacts: search/filter/paginate, a contact profile, manual unsubscribe, CSV export
@@ -67,10 +67,10 @@ protech-commerce/
     class-flow-triggers.php           Event-driven flow starts (order/role/account/tag/contact hooks) + the daily job's day-based triggers
     class-messaging-tab.php           Messaging menu shell: PAGE, url(), sidebar and hidden views, legacy-URL redirects, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
-    class-automations-screen.php      Emails view: the Sent / Automatic / Templates tabs (3.7.0)
+    class-automations-screen.php      Emails view: the Newsletters / Automatic / Templates tabs (3.7.0, renamed 3.9.0)
     class-home-screen.php             Home view: setup checklist, counts, latest sends, "Run automations now" (3.7.0)
     class-flows-screen.php            Automations view: flow list + fixed-slot step editor (admin-post: save/toggle/delete/duplicate)
-    class-compose-screen.php          Compose view + review-before-send screen; also the shared preview-box/template-picker/merge-tag UI the rule form reuses
+    class-compose-screen.php          The older one-form Compose (`mode=form`: text messages, pre-3.9.0 resends) + review screen
     class-log-screen.php              Log view: filtered, paginated message history
     class-compliance-screen.php       Compliance report on Settings → Compliance: SMS wording, consent-on-file counts, CSV export
     class-messaging-settings-screen.php  Settings view: General / Sending / Compliance tabs, each saving its own slice of get_fields(), Brevo connection test
@@ -80,14 +80,21 @@ protech-commerce/
     class-message-providers.php       Picks Automatic vs a forced provider per channel; MessageTransport delegates through this
     class-rest-api.php                The protech/v1 REST namespace shell: one permission check, registers each controller
     class-rest-templates.php          REST routes for the template library: CRUD, duplicate, schema, starters, preview, test-send
+    class-rest-emails.php             REST for the new-email flow: gallery, thumbnail, create/get/update/delete/send, estimate
+    class-rest-products.php           REST product search for the Send step's "Bought a product"
+    class-email-designs.php           Each email's own design, one option per email, outside the template library
   editor-src/                        --- The template editor (3.0.0), a Preact + Vite + TypeScript app; never deployed ---
     package.json, pnpm-lock.yaml, tsconfig.json, vite.config.ts   Builds src/editor.tsx to ../assets/editor/editor.js|.css
     src/types.ts                      TS mirrors of the PHP template/block/schema shapes; window.protechEditor bootstrap
-    src/api.ts                        wp/v1 REST calls: save, preview, test-send, starters
-    src/model/                        ids.ts, template.ts (Address-addressed block tree ops), history.ts (undo/redo), style.ts
-    src/components/                   App, Toolbar, Canvas, BlockView, Palette, Inspector, Field, TagPicker,
-                                      SettingsPanels, TruePreview, SendTest, Gallery (starter picker, shown for a new template)
-    tests/                            Vitest: template/history/serialize (fixture round-trip with tests/fixtures/template.json)
+    src/api.ts                        protech/v1 REST calls: templates (save, preview, test-send, starters) and emails
+    src/model/                        ids.ts, template.ts (Address-addressed block tree ops), history.ts (undo/redo), style.ts,
+                                      steps.ts (the new-email flow's steps and URLs), audience.ts (Send step audience)
+    src/components/                   App (template library editor), useDesignEditor (shared history/block ops/keys),
+                                      DesignWorkspace (canvas + sidebar), Toolbar, Canvas, BlockView, Palette, Inspector,
+                                      Field, TagPicker, SettingsPanels, TruePreview, SendTest, Gallery, ui, icons
+    src/components/flow/              The new-email flow (3.9.0): EmailFlow (header, step bar), TypeStep, TemplateStep,
+                                      Thumb, DesignStep, SendStep, ProductSearch, ConfirmModal
+    tests/                            Vitest: template/history/serialize (fixture round-trip), flow (steps, audience, URLs)
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
                                       account-notifications, quantity-legend, welcome-email, email-quantity-diagram,

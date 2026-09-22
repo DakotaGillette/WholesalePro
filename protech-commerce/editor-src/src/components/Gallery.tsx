@@ -1,3 +1,4 @@
+import { Notice } from './ui';
 import { useEffect, useState } from 'preact/hooks';
 import type { Starter, Template } from '../types';
 import { api } from '../api';
@@ -46,11 +47,11 @@ export function Gallery( { categoryLabels, onPick, onBlank }: Props ) {
 			<h2>Start a new template</h2>
 			<p className="pw-gallery-intro">Choose a starting point, or begin from a blank template.</p>
 
-			<button type="button" className="button button-primary pw-gallery-blank" onClick={ onBlank }>
+			<button type="button" className="pc-btn pc-btn--primary pw-gallery-blank" onClick={ onBlank }>
 				Blank template
 			</button>
 
-			{ error ? <div className="notice notice-error inline"><p>{ error }</p></div> : null }
+			{ error ? <Notice tone="error">{ error }</Notice> : null }
 
 			{ starters && starters.length > 0 ? (
 				<>

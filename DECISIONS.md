@@ -1680,6 +1680,42 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## The new-email flow, after MailPoet (2026-09-22, 3.9.0)
+
+The owner wanted MailPoet's creation workflow (type, template, design, then
+a separate send step) and a less stock-WordPress look. Decided with them:
+each email owns a copy of its design; texts stay on the older form; the
+look is built for this flow first; scheduling comes next release (3.10.0,
+with per-email sender and Save as template).
+
+1. **A design lives in its own option per email (`EmailDesigns`), never in
+   the template library.** `EmailTemplates::save()` trims the library past 200
+   by age; a pile of sent emails would silently push out starters and
+   templates bound to automatic emails. It also keeps each save small.
+2. **An email is still a Campaign**, now with draft/scheduled/sent (a
+   campaign with no status predates this and was sent). Delivery hands the
+   design to `MessageTransport::template_for()` in place of a template id,
+   so previews, test sends and real sends share one path. Only sent emails
+   count toward the 100 kept, and their designs go with them.
+3. **Drafts save to the server as you work.** A draft cannot go out until
+   Send, which re-checks everything (`validate_for_send`), so saving
+   half-finished work is safe. The template library keeps saving to the
+   browser only, since a saved template can be live in an automation.
+4. **The compose page is the new flow; the older form is `mode=form`.**
+   Every redirect back to the old form names it, pinned by a test, since
+   landing on the new flow instead would drop what the admin typed.
+5. **One recipient count** (`Audience::estimate()`), used by the review
+   screen and the Send step, local checks only, never Brevo per person.
+6. **The template editor and the Design step share one hook**
+   (`useDesignEditor`), so block operations, undo and keyboard shortcuts
+   cannot drift apart.
+7. **The look is a set of `.pc-*` tokens scoped to the app**, so it never
+   leaks into other wp-admin screens and other Messaging pages can take it
+   up later. Other plugins' admin notices are removed on the new-email
+   screen only.
+8. **Merge tags on the new flow leave out order tags**, which only fill in
+   on an order email.
+
 ## Block drop targets and the hover toolbar (2026-09-22, 3.8.0)
 
 The owner found dropping a block "almost impossible" unless the pointer

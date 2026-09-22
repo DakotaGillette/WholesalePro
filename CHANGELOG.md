@@ -3,6 +3,28 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.9.0 - 2026-09-22
+
+### Added
+- A new way to write an email, in four steps like MailPoet: **Type** (email, text message,
+  or automatic email), **Template** (a starter, one of your templates, or an email you sent
+  before, each with a real preview), **Design** (the editor, with the subject and preview text
+  on top), then **Send** (who gets it, how many will, and who is left out). Nothing about
+  sending shows while you design.
+- Each email keeps its own copy of the design, so editing it never changes the template it
+  came from. A draft saves itself while you work, and you can save it and come back later.
+- Emails, Newsletters now lists drafts as well as sent emails, with All, Drafts and Sent
+  filters. Drafts can be edited or deleted; emails sent from the new flow can be duplicated.
+- "Bought a product" on the Send step finds the product as you type its name.
+
+### Changed
+- The email editor and the new flow have their own look (buttons, fields, switches, cards and
+  a step bar) instead of stock WordPress controls. The block list shows an icon for each block.
+- Other plugins' notices no longer appear on top of the new-email screens.
+- A text message is written on the older one-form page, now locked to texts. "Message"
+  on the Customers tab opens the new flow with those customers already chosen.
+- The Emails tab that listed sent emails is now called Newsletters.
+
 ## 3.8.0 - 2026-09-22
 
 ### Changed

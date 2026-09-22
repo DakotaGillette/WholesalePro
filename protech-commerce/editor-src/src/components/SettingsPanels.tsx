@@ -9,6 +9,8 @@ interface Props {
 	slots: Record< string, string >;
 	mergeTags: Record< string, string >;
 	onChange: ( patch: Partial< Template > ) => void;
+	/** An email's own design leaves out the type and "sent automatically as" panels; its subject lives in the Design step's header. */
+	variant?: 'template' | 'email';
 }
 
 const FONT_LABELS: Record< string, string > = {
@@ -21,13 +23,15 @@ const FONT_LABELS: Record< string, string > = {
 };
 
 /** The right-hand panels the old editor had (Email settings, Sent automatically as, Design, Header and footer), unchanged in what they store. */
-export function SettingsPanels( { template, schema, slots, mergeTags, onChange }: Props ) {
+export function SettingsPanels( { template, schema, slots, mergeTags, onChange, variant = 'template' }: Props ) {
 	const subjectRef = useRef< HTMLInputElement | null >( null );
 	const preheaderRef = useRef< HTMLInputElement | null >( null );
 	const footerTextRef = useRef< HTMLTextAreaElement | null >( null );
 
 	return (
 		<>
+			{ 'template' === variant ? (
+			<>
 			<details className="pw-panel">
 				<summary>Email settings</summary>
 				<div className="pw-field">
@@ -88,9 +92,11 @@ export function SettingsPanels( { template, schema, slots, mergeTags, onChange }
 					</p>
 				</div>
 			</details>
+			</>
+			) : null }
 
 			<details className="pw-panel">
-				<summary>Design</summary>
+				<summary>Styles</summary>
 				<p className="pw-field-help">Leave a color empty to use your Email design settings.</p>
 				<ColorField label="Brand color" value={ template.style.brand } onChange={ ( v ) => onChange( { style: { ...template.style, brand: v } } ) } />
 				<ColorField label="Text color" value={ template.style.text } onChange={ ( v ) => onChange( { style: { ...template.style, text: v } } ) } />

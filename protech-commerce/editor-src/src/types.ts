@@ -94,21 +94,87 @@ export interface Starter {
 	template: Template;
 }
 
+/** Who an email goes to: Audience::normalize()'s shape. */
+export interface AudienceInput {
+	type: string;
+	scope?: string;
+	tiers?: string[];
+	days?: number;
+	product_id?: number;
+	user_ids?: number[];
+}
+
+/** One email written in the new flow (RestEmails::payload()'s `email`). */
+export interface EmailRecord {
+	id: string;
+	name: string;
+	status: 'draft' | 'scheduled' | 'sent';
+	audience: AudienceInput;
+	service_message: boolean;
+	updated_at: number;
+	sent_at: number;
+}
+
+export interface EmailPayload {
+	email: EmailRecord;
+	design: Template | null;
+	errors: string[];
+}
+
+export interface Estimate {
+	label: string;
+	total: number;
+	sent_to: number;
+	reasons: Array< { reason: string; label: string; count: number } >;
+}
+
+export interface GalleryData {
+	starters: Array< { key: string; name: string; category: string } >;
+	templates: Array< { id: string; name: string; category: string; updated_at: number } >;
+	recent: Array< { id: string; name: string; sent_at: number } >;
+	labels: Record< string, string >;
+}
+
 export interface EditorBootstrap {
 	restRoot: string;
 	nonce: string;
-	template: Template;
+	/** 'template' (the template library's editor) unless the new-email flow says 'email'. */
+	mode?: 'template' | 'email';
+	/** Template mode only. */
+	template?: Template;
 	schema: Schema;
 	/** The site-wide email design (Messaging -> Settings), in the same shape as a template's own `style`, used wherever a template leaves a value empty. */
 	styleDefaults: TemplateStyle;
 	/** Plain-language merge tag names, for the "Insert a personal detail" pickers on tag-eligible fields. */
 	mergeTags: Record< string, string >;
-	slots: Record< string, string >;
+	/** Template mode only. */
+	slots?: Record< string, string >;
 	/** category key => label, for the new-template Gallery. */
 	categoryLabels: Record< string, string >;
 	/** Whether the current admin can save a Custom HTML block; when false, the Palette never offers it. */
 	caps: { unfiltered_html: boolean };
-	urls: { list: string };
+	/** Email mode: the email the address names, when it names one. */
+	emailData?: EmailPayload | null;
+	/** Email mode: the address named an email that no longer exists. wp_localize_script() turns true into "1". */
+	missingEmail?: boolean | string;
+	/** Email mode: the audience a Customers-tab "Message" link starts with. */
+	presetAudience?: AudienceInput;
+	/** Email mode: tier slug => label. */
+	tiers?: Record< string, string >;
+	/** Email mode: who emails come from (Messaging -> Settings -> Sending). */
+	sender?: { name: string; email: string; reply_to: string };
+	/** Email mode: whether texts can be sent (a text provider is connected). "1" or "" after wp_localize_script(). */
+	smsReady?: boolean | string;
+	urls: {
+		list?: string;
+		settings?: string;
+		compose?: string;
+		emails?: string;
+		drafts?: string;
+		automatic?: string;
+		textForm?: string;
+		templates?: string;
+	};
 }
 
 declare global {

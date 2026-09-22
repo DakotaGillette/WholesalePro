@@ -1,5 +1,6 @@
 import type { Schema } from '../types';
 import { DND_NEW_BLOCK_TYPE, endDrag, startDrag } from '../dnd';
+import { Icon } from './icons';
 
 interface Props {
 	schema: Schema;
@@ -30,7 +31,8 @@ export function Palette( { schema, nested, canUseHtml, onAdd }: Props ) {
 					onClick={ () => onAdd( type ) }
 					title={ def.help }
 				>
-					{ def.label }
+					<Icon name={ type } size={ 22 } />
+					<span>{ def.label }</span>
 				</button>
 			) ) }
 		</div>

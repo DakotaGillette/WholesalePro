@@ -35,7 +35,7 @@ export function Toolbar( {
 }: Props ) {
 	return (
 		<div className="pw-toolbar">
-			<button type="button" className="button-link pw-toolbar-back" onClick={ onBackToList }>
+			<button type="button" className="pc-link pw-toolbar-back" onClick={ onBackToList }>
 				&larr; All templates
 			</button>
 
@@ -48,27 +48,27 @@ export function Toolbar( {
 			/>
 
 			<span className="pw-toolbar-group">
-				<button type="button" className="button" onClick={ onUndo } disabled={ ! canUndo } aria-label="Undo">
+				<button type="button" className="pc-btn" onClick={ onUndo } disabled={ ! canUndo } aria-label="Undo">
 					Undo
 				</button>
-				<button type="button" className="button" onClick={ onRedo } disabled={ ! canRedo } aria-label="Redo">
+				<button type="button" className="pc-btn" onClick={ onRedo } disabled={ ! canRedo } aria-label="Redo">
 					Redo
 				</button>
 			</span>
 
 			<span className="pw-toolbar-group">
-				<button type="button" className={ `button${ 'edit' === mode ? ' button-primary' : '' }` } onClick={ () => onModeChange( 'edit' ) }>
+				<button type="button" className={ `pc-seg${ 'edit' === mode ? ' is-active' : '' }` } onClick={ () => onModeChange( 'edit' ) }>
 					Edit
 				</button>
-				<button type="button" className={ `button${ 'preview' === mode ? ' button-primary' : '' }` } onClick={ () => onModeChange( 'preview' ) }>
+				<button type="button" className={ `pc-seg${ 'preview' === mode ? ' is-active' : '' }` } onClick={ () => onModeChange( 'preview' ) }>
 					Preview
 				</button>
 				{ 'preview' === mode ? (
 					<>
-						<button type="button" className={ `button${ 'desktop' === previewWidth ? ' button-primary' : '' }` } onClick={ () => onPreviewWidthChange( 'desktop' ) }>
+						<button type="button" className={ `pc-seg${ 'desktop' === previewWidth ? ' is-active' : '' }` } onClick={ () => onPreviewWidthChange( 'desktop' ) }>
 							Desktop
 						</button>
-						<button type="button" className={ `button${ 'phone' === previewWidth ? ' button-primary' : '' }` } onClick={ () => onPreviewWidthChange( 'phone' ) }>
+						<button type="button" className={ `pc-seg${ 'phone' === previewWidth ? ' is-active' : '' }` } onClick={ () => onPreviewWidthChange( 'phone' ) }>
 							Phone
 						</button>
 					</>
@@ -77,7 +77,7 @@ export function Toolbar( {
 
 			{ errors.length > 0 ? <span className="pw-toolbar-errors">{ errors.length } issue(s)</span> : null }
 
-			<button type="button" className="button button-primary pw-save" onClick={ onSave } disabled={ saving }>
+			<button type="button" className="pc-btn pc-btn--primary pw-save" onClick={ onSave } disabled={ saving }>
 				{ saving ? 'Saving...' : dirty ? 'Save changes' : 'Saved' }
 			</button>
 		</div>

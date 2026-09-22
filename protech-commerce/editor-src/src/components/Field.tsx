@@ -134,11 +134,11 @@ export function ImageField( { value, onChange }: { value: number; onChange: ( v:
 
 	return (
 		<span>
-			<button type="button" className="button" onClick={ choose }>
+			<button type="button" className="pc-btn" onClick={ choose }>
 				{ value ? 'Change picture' : 'Choose picture' }
 			</button>
 			{ value ? (
-				<button type="button" className="button-link pw-remove-link" onClick={ () => onChange( 0 ) }>
+				<button type="button" className="pc-link pc-link--danger" onClick={ () => onChange( 0 ) }>
 					Remove
 				</button>
 			) : null }
@@ -175,7 +175,7 @@ function ProductsField( { value, onChange }: { value: number[]; onChange: ( v: u
 				) ) }
 			</div>
 			<input ref={ inputRef } type="number" className="pw-input pw-input-number" placeholder="Product ID" />
-			<button type="button" className="button" onClick={ add }>
+			<button type="button" className="pc-btn" onClick={ add }>
 				Add
 			</button>
 		</div>

@@ -1,3 +1,4 @@
+import { Notice } from './ui';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Template } from '../types';
 import { api } from '../api';
@@ -39,7 +40,7 @@ export function TruePreview( { template, width }: Props ) {
 
 	return (
 		<div className="pw-true-preview">
-			{ error ? <div className="notice notice-error inline"><p>{ error }</p></div> : null }
+			{ error ? <Notice tone="error">{ error }</Notice> : null }
 			<iframe
 				title="Email preview"
 				sandbox=""

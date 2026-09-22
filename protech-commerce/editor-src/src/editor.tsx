@@ -1,9 +1,14 @@
 import { render } from 'preact';
 import { App } from './components/App';
+import { EmailFlow } from './components/flow/EmailFlow';
 import './style.css';
 
-const mount = document.getElementById( 'protech-editor-root' );
+const boot = window.protechEditor;
+const emailRoot = document.getElementById( 'protech-email-root' );
+const templateRoot = document.getElementById( 'protech-editor-root' );
 
-if ( mount && window.protechEditor ) {
-	render( <App boot={ window.protechEditor } />, mount );
+if ( boot && 'email' === boot.mode && emailRoot ) {
+	render( <EmailFlow boot={ boot } />, emailRoot );
+} else if ( boot && templateRoot ) {
+	render( <App boot={ boot } />, templateRoot );
 }

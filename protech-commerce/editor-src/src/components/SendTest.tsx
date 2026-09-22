@@ -29,7 +29,7 @@ export function SendTest( { template }: Props ) {
 			<div className="pw-field">
 				<input type="email" className="pw-input" placeholder="you@example.com" value={ to } onInput={ ( e ) => setTo( ( e.target as HTMLInputElement ).value ) } />
 			</div>
-			<button type="button" className="button" onClick={ send } disabled={ sending }>
+			<button type="button" className="pc-btn" onClick={ send } disabled={ sending }>
 				{ sending ? 'Sending...' : 'Send preview' }
 			</button>
 			{ result ? <p className={ result.ok ? 'pw-success' : 'pw-error' }>{ result.message }</p> : null }
