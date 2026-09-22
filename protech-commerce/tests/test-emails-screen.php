@@ -123,14 +123,14 @@ class Test_Emails_Screen extends WP_UnitTestCase {
 		$html = $this->html( array( EmailsScreen::class, 'render_order_emails' ) );
 
 		$this->assertSame( 9, substr_count( $html, 'Design this email' ) );
-		$this->assertStringNotContainsString( "Use WooCommerce's design", $html );
+		$this->assertStringNotContainsString( 'Use the WooCommerce design', $html );
 
 		$id = EmailTemplates::save( EmailTemplates::validate( array( 'name' => 'Mine', 'slot' => 'wc:customer_invoice', 'blocks' => array( array( 'type' => 'order_items' ) ) ) )['template'] );
 
 		$html = $this->html( array( EmailsScreen::class, 'render_order_emails' ) );
 
 		$this->assertSame( 8, substr_count( $html, 'Design this email' ) );
-		$this->assertSame( 1, substr_count( $html, "Use WooCommerce's design" ) );
+		$this->assertSame( 1, substr_count( $html, 'Use the WooCommerce design' ) );
 		$this->assertStringContainsString( 'Mine', $html );
 		$this->assertStringContainsString( $id, $html, 'It links to the template.' );
 	}

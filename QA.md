@@ -387,7 +387,7 @@ Log in as the wholesale customer (djg10212) for everything below.
 ## 41. WooCommerce's own order emails become designable (3.3.0)
 
 - [ ] Messaging → Emails shows a new "Order emails" list below "When someone joins", with
-  nine rows, each showing "WooCommerce's default design" and a "Design this email" button.
+  nine rows, each showing "The WooCommerce default design" and a "Design this email" button.
 - [ ] Click "Design this email" on Processing order: opens the editor with a heading, a line
   of text and Order items / Order totals blocks already in place, bound to that email.
 - [ ] Place a wholesale test order and move it to Processing. Confirm the email that arrives
@@ -399,7 +399,7 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] Place an order as a guest (log out first) and confirm the designed Processing order
   email still fills in the name from what was typed at checkout, not blank or an error.
 - [ ] Back on the Order emails list, the row now shows "Designed: [name]" with "Edit design"
-  and "Use WooCommerce's design"; clicking the latter reverts to WooCommerce's own email on
+  and "Use the WooCommerce design"; clicking the latter reverts to WooCommerce's own email on
   the next order.
 - [ ] In the editor, open the merge-tag picker on a Text block: {payment_method},
   {shipping_method}, {billing_address} and {shipping_address} are offered; add one to a

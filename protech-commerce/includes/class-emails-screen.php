@@ -117,9 +117,9 @@ class EmailsScreen {
 
 			if ( null !== $template ) {
 				echo '<td>' . esc_html__( 'Designed:', 'protech-wholesale' ) . ' <a href="' . esc_url( EmailComposer::edit_url( (string) $template['id'] ) ) . '">' . esc_html( (string) $template['name'] ) . '</a></td>';
-				echo '<td><a href="' . esc_url( EmailComposer::edit_url( (string) $template['id'] ) ) . '">' . esc_html__( 'Edit design', 'protech-wholesale' ) . '</a> | <a href="' . esc_url( self::link( self::UNBIND_ACTION, $slot ) ) . '">' . esc_html__( "Use WooCommerce's design", 'protech-wholesale' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( EmailComposer::edit_url( (string) $template['id'] ) ) . '">' . esc_html__( 'Edit design', 'protech-wholesale' ) . '</a> | <a href="' . esc_url( self::link( self::UNBIND_ACTION, $slot ) ) . '">' . esc_html__( 'Use the WooCommerce design', 'protech-wholesale' ) . '</a></td>';
 			} else {
-				echo '<td>' . esc_html__( "WooCommerce's default design", 'protech-wholesale' ) . '</td>';
+				echo '<td>' . esc_html__( 'The WooCommerce default design', 'protech-wholesale' ) . '</td>';
 				echo '<td><a class="button button-small" href="' . esc_url( self::link( self::DESIGN_ACTION, $slot ) ) . '">' . esc_html__( 'Design this email', 'protech-wholesale' ) . '</a></td>';
 			}
 

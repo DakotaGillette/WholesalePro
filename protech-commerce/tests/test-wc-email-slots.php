@@ -118,7 +118,11 @@ class Test_Wc_Email_Slots extends WP_UnitTestCase {
 
 		$html = EmailBlocks::render( array( 'type' => 'order_totals', 'attrs' => array() ), $ctx, $style );
 
-		$this->assertStringContainsString( wp_strip_all_tags( $order->get_formatted_order_total() ), wp_strip_all_tags( $html ) );
+		// The amount, not the exact markup: wc_price()'s currency-symbol entity can differ in digit
+		// padding (&#36; vs &#036;) between two separately formatted strings for the same value.
+		$this->assertStringContainsString( 'Subtotal', $html );
+		$this->assertStringContainsString( 'Total', $html );
+		$this->assertSame( 2, substr_count( wp_strip_all_tags( $html ), '60.00' ), 'The order total appears once in the subtotal row and once in the total row.' );
 	}
 
 	public function test_order_tags_validate_only_for_an_order_bound_slot(): void {

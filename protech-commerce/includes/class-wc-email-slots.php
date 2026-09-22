@@ -169,12 +169,15 @@ class WcEmailSlots {
 	 * A bound email's HTML is already fully inline-styled by EmailRenderer;
 	 * returning no extra CSS keeps WC_Email::style_inline() (which always
 	 * runs) from inlining WooCommerce's own email stylesheet onto our
-	 * elements. Untouched for any email nothing is bound to.
+	 * elements. Untouched for any email nothing is bound to, including a
+	 * bare `new WC_Email()` (MessageTransport::legacy_document() makes one
+	 * just to reuse style_inline(); its `id` is never set, so it must never
+	 * reach template_for()'s string parameter as null).
 	 *
 	 * @param mixed $email
 	 */
 	public function skip_default_styles( string $css, $email ): string {
-		if ( ! $email instanceof \WC_Email || null === self::template_for( $email->id ) ) {
+		if ( ! $email instanceof \WC_Email || null === self::template_for( (string) $email->id ) ) {
 			return $css;
 		}
 
