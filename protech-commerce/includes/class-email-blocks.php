@@ -43,15 +43,44 @@ class EmailBlocks {
 	public const MAX_DEPTH  = 1;
 	public const MAX_BLOCKS = 60;
 
-	/** Horizontal padding of a top-level block, in px. */
-	private const SIDE = 24;
+	/** Horizontal padding of a top-level block, in px: the historical default `mobile_padding` compares against. */
+	public const SIDE = 24;
 
-	/** @var array<string, string> Font choice => CSS stack. */
+	/** @var array<string, string> Font choice => CSS stack. Web fonts (see WEB_FONTS) list their fallback after themselves, so Outlook and a slow load both still get a real typeface. */
 	public const FONTS = array(
-		'helvetica' => 'Helvetica,Arial,sans-serif',
-		'georgia'   => "Georgia,'Times New Roman',serif",
-		'system'    => "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+		'helvetica'    => 'Helvetica,Arial,sans-serif',
+		'georgia'      => "Georgia,'Times New Roman',serif",
+		'system'       => "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+		'inter'        => "'Inter',Helvetica,Arial,sans-serif",
+		'roboto'       => "'Roboto',Helvetica,Arial,sans-serif",
+		'merriweather' => "'Merriweather',Georgia,'Times New Roman',serif",
 	);
+
+	/**
+	 * The FONTS keys that need a web font loaded: Google Fonts family + weight
+	 * list for the <link> EmailRenderer::document() adds when one is in use.
+	 * Outlook desktop never sees it (wrapped in an mso conditional) and falls
+	 * straight to the fallback stack above.
+	 *
+	 * @var array<string, string>
+	 */
+	public const WEB_FONTS = array(
+		'inter'        => 'Inter:wght@400;700',
+		'roboto'       => 'Roboto:wght@400;700',
+		'merriweather' => 'Merriweather:wght@400;700',
+	);
+
+	/** @return array<string, string> Font choice => human label, for a settings/inspector <select>. */
+	public static function font_labels(): array {
+		return array(
+			'helvetica'    => __( 'Helvetica / Arial', 'protech-wholesale' ),
+			'georgia'      => __( 'Georgia', 'protech-wholesale' ),
+			'system'       => __( 'System font', 'protech-wholesale' ),
+			'inter'        => __( 'Inter (web font)', 'protech-wholesale' ),
+			'roboto'       => __( 'Roboto (web font)', 'protech-wholesale' ),
+			'merriweather' => __( 'Merriweather (web font)', 'protech-wholesale' ),
+		);
+	}
 
 	// -----------------------------------------------------------------
 	// The registry.
@@ -556,9 +585,10 @@ class EmailBlocks {
 				$color = '' !== ( $a['color'] ?? '' ) ? (string) $a['color'] : (string) $style['text'];
 
 				return self::row(
-					'<' . $tag . ' style="margin:0;padding:0;font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:' . (int) $a['size'] . 'px;line-height:1.3;font-weight:700;color:' . esc_attr( $color ) . ';text-align:' . esc_attr( (string) $a['align'] ) . ';">' . $text . '</' . $tag . '>',
+					'<' . $tag . ' style="margin:0;padding:0;font-family:' . esc_attr( (string) $style['heading_font'] ) . ';font-size:' . (int) $a['size'] . 'px;line-height:1.3;font-weight:700;color:' . esc_attr( $color ) . ';text-align:' . esc_attr( (string) $a['align'] ) . ';">' . $text . '</' . $tag . '>',
 					$a,
-					$inner
+					$inner,
+					$style
 				);
 
 			case 'text':
@@ -588,7 +618,8 @@ class EmailBlocks {
 				return self::row(
 					'<table role="presentation" width="' . $width . '%" align="' . esc_attr( (string) $a['align'] ) . '" cellspacing="0" cellpadding="0" border="0"><tr><td height="' . (int) $a['thickness'] . '" style="height:' . (int) $a['thickness'] . 'px;border-top:' . (int) $a['thickness'] . 'px solid ' . esc_attr( (string) $a['color'] ) . ';font-size:0;line-height:0;">&nbsp;</td></tr></table>',
 					$a,
-					$inner
+					$inner,
+					$style
 				);
 
 			case 'spacer':
@@ -606,11 +637,20 @@ class EmailBlocks {
 	 *
 	 * @param array<string, mixed> $a
 	 */
-	private static function row( string $content, array $a, bool $inner ): string {
+	/**
+	 * @param array<string, mixed> $a
+	 * @param array<string, mixed> $style
+	 */
+	private static function row( string $content, array $a, bool $inner, array $style = array() ): string {
 		$side = $inner ? 0 : self::SIDE;
 		$bg   = '' !== ( $a['bg'] ?? '' ) ? 'background:' . esc_attr( (string) $a['bg'] ) . ';' : '';
 
-		return '<tr><td align="' . esc_attr( (string) ( $a['align'] ?? 'left' ) ) . '" style="padding:' . (int) ( $a['pt'] ?? 0 ) . 'px ' . $side . 'px ' . (int) ( $a['pb'] ?? 0 ) . 'px;' . $bg . '">' . $content . '</td></tr>';
+		// pw-row only matters outside a column (an inner block has no side padding to override),
+		// and only when mobile padding actually differs from the historical fixed 24px: a
+		// template that never touches the new setting renders exactly the markup it always did.
+		$class = ( ! $inner && self::SIDE !== (int) ( $style['mobile_padding'] ?? self::SIDE ) ) ? ' class="pw-row"' : '';
+
+		return '<tr><td' . $class . ' align="' . esc_attr( (string) ( $a['align'] ?? 'left' ) ) . '" style="padding:' . (int) ( $a['pt'] ?? 0 ) . 'px ' . $side . 'px ' . (int) ( $a['pb'] ?? 0 ) . 'px;' . $bg . '">' . $content . '</td></tr>';
 	}
 
 	/**
@@ -653,8 +693,9 @@ class EmailBlocks {
 		$color = '' !== ( $a['color'] ?? '' ) ? (string) $a['color'] : (string) $style['text'];
 		$base  = 'font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:' . (int) $a['size'] . 'px;line-height:' . (float) $a['line_height'] . ';color:' . esc_attr( $color ) . ';text-align:' . esc_attr( (string) $a['align'] ) . ';';
 
-		// Links carry the brand color; the allowlist has no style attribute, so nothing is duplicated.
-		$html = str_replace( '<a ', '<a style="color:' . esc_attr( (string) $style['brand'] ) . ';" ', $html );
+		// Links carry the link color (brand, unless a link color is set); the allowlist has no
+		// style attribute, so nothing is duplicated.
+		$html = str_replace( '<a ', '<a style="color:' . esc_attr( (string) $style['link_color'] ) . ';" ', $html );
 		$html = self::tags( $html, $ctx );
 
 		$out = '';
@@ -674,7 +715,7 @@ class EmailBlocks {
 			$out .= '<p style="margin:0 0 14px;' . $base . '">' . nl2br( $chunk, false ) . '</p>';
 		}
 
-		return '' === $out ? '' : self::row( $out, $a, $inner );
+		return '' === $out ? '' : self::row( $out, $a, $inner, $style );
 	}
 
 	/**
@@ -698,7 +739,7 @@ class EmailBlocks {
 
 		$table = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="' . esc_attr( (string) $a['align'] ) . '"' . ( $full ? ' width="100%"' : '' ) . '><tr><td align="center" bgcolor="' . esc_attr( $bg ) . '" style="background:' . esc_attr( $bg ) . ';border-radius:' . $radius . 'px;">' . $link . '</td></tr></table>';
 
-		return self::row( $table, $a, $inner );
+		return self::row( $table, $a, $inner, $style );
 	}
 
 	/**
@@ -733,7 +774,7 @@ class EmailBlocks {
 			$img = '<a href="' . $link . '" target="_blank" style="text-decoration:none;">' . $img . '</a>';
 		}
 
-		return self::row( $img, $a, $inner );
+		return self::row( $img, $a, $inner, $style );
 	}
 
 	// -- product grid -----------------------------------------------------------
@@ -892,7 +933,7 @@ class EmailBlocks {
 			$html .= '</tr>';
 		}
 
-		return self::row( $html . '</table>', $a, $inner );
+		return self::row( $html . '</table>', $a, $inner, $style );
 	}
 
 	// -- explainers -------------------------------------------------------------
@@ -917,13 +958,14 @@ class EmailBlocks {
 			return self::row(
 				'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#eef3fa;border:1px solid #c9d6ea;border-radius:8px;"><tr><td style="padding:20px 22px;font-family:' . esc_attr( (string) $style['font'] ) . ';">' . $body . '</td></tr></table>',
 				$a,
-				$inner
+				$inner,
+				$style
 			);
 		}
 
 		$body = ( '' !== $title ? '<h2 style="margin:0 0 10px;font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:18px;color:' . esc_attr( (string) $style['brand'] ) . ';">' . $title . '</h2>' : '' ) . self::pricing_ladder( $args );
 
-		return self::row( '<div style="font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:14px;line-height:1.5;color:' . esc_attr( (string) $style['text'] ) . ';">' . $body . '</div>', $a, $inner );
+		return self::row( '<div style="font-family:' . esc_attr( (string) $style['font'] ) . ';font-size:14px;line-height:1.5;color:' . esc_attr( (string) $style['text'] ) . ';">' . $body . '</div>', $a, $inner, $style );
 	}
 
 	/**
@@ -976,7 +1018,7 @@ class EmailBlocks {
 			$html .= '<td class="pw-col" width="' . $width . '%" valign="' . esc_attr( (string) ( $a['valign'] ?? 'top' ) ) . '" style="width:' . $width . '%;padding:0 ' . $half . 'px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">' . $rows . '</table></td>';
 		}
 
-		return $any ? self::row( $html . '</tr></table>', $a, $inner ) : '';
+		return $any ? self::row( $html . '</tr></table>', $a, $inner, $style ) : '';
 	}
 
 	// -----------------------------------------------------------------

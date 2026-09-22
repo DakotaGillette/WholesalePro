@@ -65,6 +65,7 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 				array( 'DELETE', '/templates/t_nonexistent' ),
 				array( 'POST', '/templates/t_nonexistent/duplicate' ),
 				array( 'GET', '/templates/schema' ),
+				array( 'GET', '/templates/starters' ),
 				array( 'POST', '/templates/preview' ),
 				array( 'POST', '/templates/test-send' ),
 			) as [ $method, $route ]
@@ -187,6 +188,27 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 
 		$this->assertArrayHasKey( 'max_blocks', $schema['limits'] );
 		$this->assertArrayHasKey( 'helvetica', $schema['fonts'] );
+	}
+
+	public function test_starters_are_already_valid_templates_the_gallery_can_use_directly(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$response = $this->request( 'GET', '/templates/starters' );
+		$starters = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertNotEmpty( $starters );
+
+		$keys = array_column( $starters, 'key' );
+		$this->assertContains( 'welcome', $keys );
+
+		foreach ( $starters as $starter ) {
+			$this->assertArrayHasKey( 'name', $starter );
+			$this->assertArrayHasKey( 'category', $starter );
+			$this->assertArrayHasKey( 'template', $starter );
+			$this->assertSame( '', $starter['template']['id'], 'Never pre-saved: picking one is local until the admin saves.' );
+			$this->assertNotEmpty( $starter['template']['blocks'] );
+		}
 	}
 
 	public function test_preview_renders_with_the_preview_flag_and_the_marketing_footer(): void {

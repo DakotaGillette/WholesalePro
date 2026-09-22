@@ -43,6 +43,23 @@ class EmailTemplates {
 	public const KIND_MARKETING     = 'marketing';
 	public const KIND_TRANSACTIONAL = 'transactional';
 
+	/** Groups templates in the "Start a new template" list; a template a starter never seeded is '' (uncategorized). */
+	public const CATEGORIES = array( 'welcome', 'account', 'orders', 'promotions', 'newsletter', 'blank' );
+
+	/**
+	 * @return array<string, string> category key => label, in display order.
+	 */
+	public static function category_labels(): array {
+		return array(
+			'welcome'    => __( 'Welcome', 'protech-wholesale' ),
+			'account'    => __( 'Account', 'protech-wholesale' ),
+			'orders'     => __( 'Orders', 'protech-wholesale' ),
+			'promotions' => __( 'Promotions', 'protech-wholesale' ),
+			'newsletter' => __( 'Newsletter', 'protech-wholesale' ),
+			'blank'      => __( 'Blank', 'protech-wholesale' ),
+		);
+	}
+
 	/**
 	 * @return array<string, string> slot => label.
 	 */
@@ -66,17 +83,21 @@ class EmailTemplates {
 			'name'       => '',
 			'kind'       => self::KIND_MARKETING,
 			'slot'       => '',
+			'category'   => '',
 			'subject'    => '',
 			'preheader'  => '',
 			'blocks'     => array(),
 			'style'      => array(
-				'width'   => 0,    // 0 = the site-wide width from Messaging settings.
-				'page_bg' => '#f4f5f7',
-				'canvas'  => '#ffffff',
-				'brand'   => '',   // '' = the site-wide brand color.
-				'text'    => '#1f2937',
-				'muted'   => '#6b7280',
-				'font'    => 'helvetica',
+				'width'          => 0,    // 0 = the site-wide width from Messaging settings.
+				'page_bg'        => '#f4f5f7',
+				'canvas'         => '#ffffff',
+				'brand'          => '',   // '' = the site-wide brand color.
+				'text'           => '#1f2937',
+				'muted'          => '#6b7280',
+				'font'           => 'helvetica',
+				'heading_font'   => '',   // '' = the site-wide heading font, or the body font if that is unset too.
+				'link_color'     => '',   // '' = the site-wide link color, or the brand color if that is unset too.
+				'mobile_padding' => 0,    // 0 = the site-wide mobile side padding.
 			),
 			'header'     => array(
 				'show_logo' => true,
@@ -221,17 +242,25 @@ class EmailTemplates {
 		$template['subject']   = EmailBlocks::text( $input['subject'] ?? '', 200 );
 		$template['preheader'] = EmailBlocks::text( $input['preheader'] ?? '', 200 );
 
+		// Set by a starter (create_from_starter()/seed_starters()) and otherwise just carried
+		// through unchanged: there is no field for it, so a normal save neither invents nor
+		// loses which starter (if any) a template came from.
+		$template['category'] = EmailBlocks::pick( $input['category'] ?? $template['category'], self::CATEGORIES, '' );
+
 		$style_in = is_array( $input['style'] ?? null ) ? $input['style'] : null;
 		$defaults = self::defaults()['style'];
 
 		$template['style'] = null === $style_in ? $template['style'] : array(
-			'width'   => 0 === (int) ( $style_in['width'] ?? 0 ) ? 0 : EmailBlocks::num( $style_in['width'], 480, 700, 600 ),
-			'page_bg' => EmailBlocks::hex( $style_in['page_bg'] ?? '', (string) $defaults['page_bg'] ),
-			'canvas'  => EmailBlocks::hex( $style_in['canvas'] ?? '', (string) $defaults['canvas'] ),
-			'brand'   => EmailBlocks::hex( $style_in['brand'] ?? '', '' ),
-			'text'    => EmailBlocks::hex( $style_in['text'] ?? '', (string) $defaults['text'] ),
-			'muted'   => EmailBlocks::hex( $style_in['muted'] ?? '', (string) $defaults['muted'] ),
-			'font'    => EmailBlocks::pick( $style_in['font'] ?? '', array_keys( EmailBlocks::FONTS ), 'helvetica' ),
+			'width'          => 0 === (int) ( $style_in['width'] ?? 0 ) ? 0 : EmailBlocks::num( $style_in['width'], 480, 700, 600 ),
+			'page_bg'        => EmailBlocks::hex( $style_in['page_bg'] ?? '', (string) $defaults['page_bg'] ),
+			'canvas'         => EmailBlocks::hex( $style_in['canvas'] ?? '', (string) $defaults['canvas'] ),
+			'brand'          => EmailBlocks::hex( $style_in['brand'] ?? '', '' ),
+			'text'           => EmailBlocks::hex( $style_in['text'] ?? '', (string) $defaults['text'] ),
+			'muted'          => EmailBlocks::hex( $style_in['muted'] ?? '', (string) $defaults['muted'] ),
+			'font'           => EmailBlocks::pick( $style_in['font'] ?? '', array_keys( EmailBlocks::FONTS ), 'helvetica' ),
+			'heading_font'   => EmailBlocks::pick( $style_in['heading_font'] ?? '', array_keys( EmailBlocks::FONTS ), '' ),
+			'link_color'     => EmailBlocks::hex( $style_in['link_color'] ?? '', '' ),
+			'mobile_padding' => 0 === (int) ( $style_in['mobile_padding'] ?? 0 ) ? 0 : EmailBlocks::num( $style_in['mobile_padding'], 0, 24, 24 ),
 		);
 
 		// A group that was not submitted at all keeps what the template already has; a group

@@ -1,4 +1,4 @@
-import type { Template } from './types';
+import type { Starter, Template } from './types';
 
 function root(): string {
 	return window.protechEditor.restRoot.replace( /\/$/, '' );
@@ -53,4 +53,6 @@ export const api = {
 
 	testSend: ( template: Template, to: string ): Promise< TestSendResult > =>
 		request< TestSendResult >( 'POST', '/templates/test-send', { ...template, to } ),
+
+	starters: (): Promise< Starter[] > => request< Starter[] >( 'GET', '/templates/starters' ),
 };

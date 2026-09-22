@@ -23,6 +23,7 @@ interface Props {
 export function BlockView( { block, address, style, fonts, selectedId, onSelect, onInsert, onMove }: Props ) {
 	const a = block.attrs;
 	const font = fonts[ String( style.font ) ] || fonts.helvetica;
+	const headingFont = fonts[ String( style.heading_font ) ] || font;
 	const selected = block.id === selectedId;
 
 	const wrapStyle = {
@@ -53,7 +54,7 @@ export function BlockView( { block, address, style, fonts, selectedId, onSelect,
 			} }
 			data-block-id={ block.id }
 		>
-			<BlockBody block={ block } style={ style } fonts={ fonts } font={ font } selectedId={ selectedId } onSelect={ onSelect } onInsert={ onInsert } onMove={ onMove } />
+			<BlockBody block={ block } style={ style } fonts={ fonts } font={ font } headingFont={ headingFont } selectedId={ selectedId } onSelect={ onSelect } onInsert={ onInsert } onMove={ onMove } />
 		</div>
 	);
 }
@@ -63,6 +64,7 @@ function BlockBody( {
 	style,
 	fonts,
 	font,
+	headingFont,
 	selectedId,
 	onSelect,
 	onInsert,
@@ -72,6 +74,7 @@ function BlockBody( {
 	style: TemplateStyle;
 	fonts: Record< string, string >;
 	font: string;
+	headingFont: string;
 	selectedId: string | null;
 	onSelect: ( id: string ) => void;
 	onInsert: ( address: Address, index: number, type: string ) => void;
@@ -83,7 +86,7 @@ function BlockBody( {
 		case 'heading': {
 			const size = Number( a.size ?? 26 );
 			return (
-				<div style={ { fontFamily: font, fontSize: `${ size }px`, fontWeight: 700, color: String( a.color || style.text ) } }>
+				<div style={ { fontFamily: headingFont, fontSize: `${ size }px`, fontWeight: 700, color: String( a.color || style.text ) } }>
 					{ String( a.text ?? '' ) || <Empty label="Heading" /> }
 				</div>
 			);

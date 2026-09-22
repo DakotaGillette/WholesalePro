@@ -10,6 +10,7 @@ import { Palette } from './Palette';
 import { SettingsPanels } from './SettingsPanels';
 import { SendTest } from './SendTest';
 import { Toolbar } from './Toolbar';
+import { Gallery } from './Gallery';
 
 function draftKey( id: string ): string {
 	return `protech-editor-draft-${ id || 'new' }`;
@@ -25,6 +26,7 @@ export function App( { boot }: { boot: EditorBootstrap } ) {
 	const [ dirty, setDirty ] = useState( false );
 	const [ savedSnapshot, setSavedSnapshot ] = useState( boot.template );
 	const [ draftOffer, setDraftOffer ] = useState< Template | null >( null );
+	const [ showGallery, setShowGallery ] = useState( '' === boot.template.id && 0 === boot.template.blocks.length );
 
 	const template = history.present;
 
@@ -38,6 +40,7 @@ export function App( { boot }: { boot: EditorBootstrap } ) {
 
 				if ( JSON.stringify( draft ) !== JSON.stringify( boot.template ) ) {
 					setDraftOffer( draft );
+					setShowGallery( false );
 				}
 			}
 		} catch {
@@ -212,6 +215,21 @@ export function App( { boot }: { boot: EditorBootstrap } ) {
 			} )
 			.catch( ( e: Error ) => setSaveErrors( [ e.message ] ) )
 			.finally( () => setSaving( false ) );
+	}
+
+	if ( showGallery ) {
+		return (
+			<div className="pw-app">
+				<Gallery
+					categoryLabels={ boot.categoryLabels }
+					onBlank={ () => setShowGallery( false ) }
+					onPick={ ( picked ) => {
+						setHistory( initHistory( picked ) );
+						setShowGallery( false );
+					} }
+				/>
+			</div>
+		);
 	}
 
 	return (

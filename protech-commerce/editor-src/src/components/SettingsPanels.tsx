@@ -15,6 +15,9 @@ const FONT_LABELS: Record< string, string > = {
 	helvetica: 'Helvetica / Arial',
 	georgia: 'Georgia',
 	system: 'System font',
+	inter: 'Inter (web font)',
+	roboto: 'Roboto (web font)',
+	merriweather: 'Merriweather (web font)',
 };
 
 /** The right-hand panels the old editor had (Email settings, Sent automatically as, Design, Header and footer), unchanged in what they store. */
@@ -95,7 +98,7 @@ export function SettingsPanels( { template, schema, slots, mergeTags, onChange }
 				<ColorField label="Page background" value={ template.style.page_bg } onChange={ ( v ) => onChange( { style: { ...template.style, page_bg: v } } ) } />
 				<div className="pw-field">
 					<label className="pw-field-label" htmlFor="pw-font">
-						Font
+						Body font
 					</label>
 					<select id="pw-font" className="pw-input" value={ template.style.font } onChange={ ( e ) => onChange( { style: { ...template.style, font: ( e.target as HTMLSelectElement ).value } } ) }>
 						{ Object.keys( schema.fonts ).map( ( key ) => (
@@ -105,6 +108,25 @@ export function SettingsPanels( { template, schema, slots, mergeTags, onChange }
 						) ) }
 					</select>
 				</div>
+				<div className="pw-field">
+					<label className="pw-field-label" htmlFor="pw-heading-font">
+						Heading font
+					</label>
+					<select
+						id="pw-heading-font"
+						className="pw-input"
+						value={ template.style.heading_font }
+						onChange={ ( e ) => onChange( { style: { ...template.style, heading_font: ( e.target as HTMLSelectElement ).value } } ) }
+					>
+						<option value="">Same as body</option>
+						{ Object.keys( schema.fonts ).map( ( key ) => (
+							<option key={ key } value={ key }>
+								{ FONT_LABELS[ key ] ?? key }
+							</option>
+						) ) }
+					</select>
+				</div>
+				<ColorField label="Link color" value={ template.style.link_color } onChange={ ( v ) => onChange( { style: { ...template.style, link_color: v } } ) } />
 				<div className="pw-field">
 					<label className="pw-field-label" htmlFor="pw-width">
 						Width (px, 0 = default)
@@ -117,6 +139,20 @@ export function SettingsPanels( { template, schema, slots, mergeTags, onChange }
 						max={ 700 }
 						value={ template.style.width }
 						onInput={ ( e ) => onChange( { style: { ...template.style, width: Number( ( e.target as HTMLInputElement ).value ) } } ) }
+					/>
+				</div>
+				<div className="pw-field">
+					<label className="pw-field-label" htmlFor="pw-mobile-padding">
+						Mobile side padding (px, 0 = default)
+					</label>
+					<input
+						id="pw-mobile-padding"
+						type="number"
+						className="pw-input pw-input-number"
+						min={ 0 }
+						max={ 24 }
+						value={ template.style.mobile_padding }
+						onInput={ ( e ) => onChange( { style: { ...template.style, mobile_padding: Number( ( e.target as HTMLInputElement ).value ) } } ) }
 					/>
 				</div>
 			</details>

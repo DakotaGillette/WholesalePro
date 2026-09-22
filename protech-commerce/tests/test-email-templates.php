@@ -211,7 +211,10 @@ class Test_Email_Templates extends WP_UnitTestCase {
 
 	public function test_every_starter_is_valid_and_none_is_bound_to_a_lifecycle_email(): void {
 		foreach ( EmailStarters::all() as $key => $starter ) {
-			$this->assertSame( array(), EmailTemplates::validate( $starter )['errors'], "Starter {$key} has errors." );
+			$result = EmailTemplates::validate( $starter );
+
+			$this->assertSame( array(), $result['errors'], "Starter {$key} has errors." );
+			$this->assertContains( $result['template']['category'], EmailTemplates::CATEGORIES, "Starter {$key} has no valid category." );
 		}
 
 		EmailTemplates::seed_starters();
@@ -219,6 +222,16 @@ class Test_Email_Templates extends WP_UnitTestCase {
 		foreach ( EmailTemplates::all() as $template ) {
 			$this->assertSame( '', $template['slot'], 'Seeding must never change what a customer receives.' );
 		}
+	}
+
+	public function test_an_unrecognised_category_is_refused_and_a_recognised_one_is_carried_through_unedited(): void {
+		$bogus = EmailTemplates::validate( $this->input( array( 'category' => 'not-a-real-category' ) ) )['template'];
+		$this->assertSame( '', $bogus['category'] );
+
+		$id = $this->save( array( 'category' => 'promotions' ) );
+
+		$saved_again = EmailTemplates::validate( array( 'id' => $id, 'name' => 'Same', 'blocks' => $this->input()['blocks'] ) )['template'];
+		$this->assertSame( 'promotions', $saved_again['category'], 'Category has no form field, so a normal save keeps it.' );
 	}
 
 	public function test_the_welcome_starter_renders_the_login_details_and_the_case_math(): void {
@@ -250,14 +263,31 @@ class Test_Email_Templates extends WP_UnitTestCase {
 		$this->assertSame( '#42649d', MessagingSettings::email_brand_color() );
 		$this->assertSame( 600, MessagingSettings::email_width() );
 		$this->assertSame( 0, MessagingSettings::email_logo_id() );
+		$this->assertSame( '', MessagingSettings::email_heading_font() );
+		$this->assertSame( '', MessagingSettings::email_link_color() );
+		$this->assertSame( 24, MessagingSettings::email_mobile_padding() );
 
 		update_option( MessagingSettings::OPT_EMAIL_BRAND_COLOR, 'not a color' );
 		update_option( MessagingSettings::OPT_EMAIL_WIDTH, '9999' );
 		update_option( MessagingSettings::OPT_EMAIL_LOGO_ID, '-5' );
+		update_option( MessagingSettings::OPT_EMAIL_HEADING_FONT, 'not-a-font' );
+		update_option( MessagingSettings::OPT_EMAIL_LINK_COLOR, 'not a color' );
+		update_option( MessagingSettings::OPT_EMAIL_MOBILE_PADDING, '9999' );
 
 		$this->assertSame( '#42649d', MessagingSettings::email_brand_color(), 'A bad value falls back to the default.' );
 		$this->assertSame( 700, MessagingSettings::email_width(), 'Clamped to the widest supported.' );
 		$this->assertSame( 0, MessagingSettings::email_logo_id() );
+		$this->assertSame( '', MessagingSettings::email_heading_font(), 'Not a real font key, so "same as body".' );
+		$this->assertSame( '', MessagingSettings::email_link_color(), 'Not a color, so "use the brand color".' );
+		$this->assertSame( 24, MessagingSettings::email_mobile_padding(), 'Clamped to the historical default.' );
+
+		update_option( MessagingSettings::OPT_EMAIL_HEADING_FONT, 'georgia' );
+		update_option( MessagingSettings::OPT_EMAIL_LINK_COLOR, '#008000' );
+		update_option( MessagingSettings::OPT_EMAIL_MOBILE_PADDING, '12' );
+
+		$this->assertSame( 'georgia', MessagingSettings::email_heading_font() );
+		$this->assertSame( '#008000', MessagingSettings::email_link_color() );
+		$this->assertSame( 12, MessagingSettings::email_mobile_padding() );
 	}
 
 	public function test_the_library_list_shows_each_template_with_a_signed_preview_link(): void {

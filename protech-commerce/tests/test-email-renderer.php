@@ -311,6 +311,56 @@ class Test_Email_Renderer extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'background:#445566', $html );
 	}
 
+	public function test_a_template_that_never_touches_the_new_design_keys_renders_exactly_as_before(): void {
+		$template = $this->template( array( $this->block( 'heading', array( 'text' => 'Hi' ) ), $this->block( 'text', array( 'html' => 'Body' ) ) ) );
+		$html     = EmailRenderer::render( $template, $this->context() )['html'];
+
+		$this->assertStringNotContainsString( 'fonts.googleapis.com', $html, 'No web font chosen, so nothing is fetched.' );
+		$this->assertStringNotContainsString( 'class="pw-row"', $html, 'Mobile padding left at the historical default, so no override class.' );
+		$this->assertStringNotContainsString( '.pw-row{', $html, 'and no media-query rule for it either.' );
+	}
+
+	public function test_the_heading_font_matches_the_body_font_until_one_is_chosen(): void {
+		$template = $this->template( array( $this->block( 'heading', array( 'text' => 'Hi' ) ) ), array( 'style' => array( 'font' => 'georgia' ) ) );
+		$html     = EmailRenderer::render( $template, $this->context() )['html'];
+
+		$this->assertStringContainsString( '<h2 style="margin:0;padding:0;font-family:Georgia', $html );
+
+		$distinct = $this->template( array( $this->block( 'heading', array( 'text' => 'Hi' ) ) ), array( 'style' => array( 'font' => 'georgia', 'heading_font' => 'inter' ) ) );
+		$html     = EmailRenderer::render( $distinct, $this->context() )['html'];
+
+		// esc_attr() turns the quotes in the font stack into entities; a browser decodes them back before CSS ever sees them.
+		$this->assertStringContainsString( 'font-family:&#039;Inter&#039;,Helvetica,Arial,sans-serif', $html );
+	}
+
+	public function test_a_web_font_ships_with_its_fallback_stack_and_is_hidden_from_outlook(): void {
+		$template = $this->template( array( $this->block( 'heading', array( 'text' => 'Hi' ) ) ), array( 'style' => array( 'heading_font' => 'roboto' ) ) );
+		$html     = EmailRenderer::render( $template, $this->context() )['html'];
+
+		$this->assertMatchesRegularExpression( '#<!--\[if !mso]><!--><link rel="stylesheet" href="[^"]*fonts\.googleapis\.com[^"]*family=Roboto[^"]*"\s*/><!--<!\[endif]-->#', $html );
+		$this->assertStringContainsString( 'font-family:&#039;Roboto&#039;,Helvetica,Arial,sans-serif', $html, 'A fallback stack follows the web font, for Outlook and a slow load alike.' );
+	}
+
+	public function test_mobile_padding_only_changes_the_media_query_when_set(): void {
+		$template = $this->template( array( $this->block( 'text', array( 'html' => 'Body' ) ) ), array( 'style' => array( 'mobile_padding' => 12 ) ) );
+		$html     = EmailRenderer::render( $template, $this->context() )['html'];
+
+		$this->assertStringContainsString( 'class="pw-row"', $html );
+		$this->assertStringContainsString( '.pw-row{padding-left:12px !important;padding-right:12px !important;}', $html );
+	}
+
+	public function test_link_color_falls_back_from_the_template_to_the_site_setting_to_the_brand_color(): void {
+		update_option( 'protech_wholesale_msg_email_link_color', '#00aa00' );
+
+		$template = $this->template( array( $this->block( 'text', array( 'html' => 'See <a href="{shop_url}">the shop</a>.' ) ) ) );
+		$html     = EmailRenderer::render( $template, $this->context() )['html'];
+		$this->assertStringContainsString( '<a style="color:#00aa00;"', $html, 'No template link color, so the site setting applies.' );
+
+		$own  = $this->template( array( $this->block( 'text', array( 'html' => 'See <a href="{shop_url}">the shop</a>.' ) ) ), array( 'style' => array( 'link_color' => '#0000aa' ) ) );
+		$html = EmailRenderer::render( $own, $this->context() )['html'];
+		$this->assertStringContainsString( '<a style="color:#0000aa;"', $html, 'The template\'s own link color wins over the site setting.' );
+	}
+
 	public function test_the_header_shows_the_store_name_when_there_is_no_logo(): void {
 		update_option( 'blogname', 'Protech Test Store' );
 

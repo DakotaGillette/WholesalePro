@@ -384,6 +384,37 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 39. Global styles, a starter gallery, and categories (3.1.0)
+
+- [ ] Messaging → Email templates → New template opens a gallery instead of a blank canvas:
+  12 starters, grouped by category, with a search box and a category dropdown. "Blank
+  template" is a button at the top.
+- [ ] Search for part of a starter's name; only matching tiles remain. Pick a category from
+  the dropdown; only that category's starters remain. Clear both and everything is back.
+- [ ] Click a starter tile: the editor opens with that starter's content, unsaved (Save is
+  still enabled/active, and closing without saving offers nothing since there is nothing to
+  save yet). Click "Blank template" instead: the ordinary empty canvas.
+- [ ] Open an existing template (not new): the gallery does not appear.
+- [ ] In the Design panel, "Heading font" defaults to "Same as body"; choose a different one
+  (e.g. Georgia while Body font is Helvetica) and Preview: the heading uses the chosen font,
+  the body text does not.
+- [ ] Choose a web font (Inter, Roboto or Merriweather) for either Body font or Heading font,
+  save, then view the page source of a Preview or a sent test: a Google Fonts `<link>` is
+  present, wrapped in `<!--[if !mso]>`/`<![endif]-->`, and the font-family list still ends in
+  a real fallback typeface.
+- [ ] Set "Link color" on a template with a text block that has a link; Preview shows the
+  link in that color, not the brand color.
+- [ ] Messaging → Settings → Email design: set "Heading font", "Link color" and "Mobile side
+  padding". A template that leaves those fields alone now reflects the site-wide choice; a
+  template with its own Link color still wins over the site setting.
+- [ ] Set "Mobile side padding" to something other than 24 on a template, view the HTML
+  source of a sent test: a `.pw-row{...}` rule appears in the `<style>` block. Leave it at
+  the default (or empty) and confirm that rule is absent.
+- [ ] Open a template saved before this release: it looks exactly as it did (colors, fonts,
+  spacing, layout unchanged) at both 1280 and 360.
+- [ ] The template library list still shows all 12 starters as "Start a new template"
+  buttons (the old, unchanged list-based flow).
+
 ## 38. The new template editor (3.0.0)
 
 - [ ] Messaging → Email templates → New template opens the new editor: a toolbar (name, undo,

@@ -64,6 +64,9 @@ $protech_option_keys = array(
 	'protech_wholesale_msg_email_brand_color',  // MessagingSettings::OPT_EMAIL_BRAND_COLOR.
 	'protech_wholesale_msg_email_footer_text',  // MessagingSettings::OPT_EMAIL_FOOTER_TEXT.
 	'protech_wholesale_msg_email_width',        // MessagingSettings::OPT_EMAIL_WIDTH.
+	'protech_wholesale_msg_email_heading_font', // MessagingSettings::OPT_EMAIL_HEADING_FONT.
+	'protech_wholesale_msg_email_link_color',   // MessagingSettings::OPT_EMAIL_LINK_COLOR.
+	'protech_wholesale_msg_email_mobile_padding', // MessagingSettings::OPT_EMAIL_MOBILE_PADDING.
 	'protech_wholesale_msg_email_provider',     // MessagingSettings::OPT_EMAIL_PROVIDER.
 	'protech_wholesale_msg_sms_provider',       // MessagingSettings::OPT_SMS_PROVIDER.
 	'protech_wholesale_tier_settings', // Tiers::OPT_TIER_SETTINGS.

@@ -3,6 +3,7 @@
 	"name": "Fixture template",
 	"kind": "marketing",
 	"slot": "",
+	"category": "",
 	"subject": "Hello {first_name}",
 	"preheader": "A quick update from {store_name}",
 	"blocks": [
@@ -102,7 +103,10 @@
 		"brand": "",
 		"text": "#1f2937",
 		"muted": "#6b7280",
-		"font": "helvetica"
+		"font": "helvetica",
+		"heading_font": "",
+		"link_color": "",
+		"mobile_padding": 0
 	},
 	"header": {
 		"show_logo": true,

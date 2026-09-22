@@ -60,6 +60,16 @@ class RestTemplates {
 
 		register_rest_route(
 			$ns,
+			'/templates/starters',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'starters' ),
+				'permission_callback' => $perm,
+			)
+		);
+
+		register_rest_route(
+			$ns,
 			'/templates/preview',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -203,6 +213,30 @@ class RestTemplates {
 	/** @return array<string, mixed> */
 	public function schema(): array {
 		return EmailBlocks::schema();
+	}
+
+	/**
+	 * Every starter, already run through validate() so the editor's Gallery
+	 * can drop one straight into its (still unsaved) state: choosing one is
+	 * local until the admin actually saves, the same as typing.
+	 *
+	 * @return array<int, array{key: string, name: string, category: string, template: array<string, mixed>}>
+	 */
+	public function starters(): array {
+		$out = array();
+
+		foreach ( EmailStarters::all() as $key => $starter ) {
+			$template = EmailTemplates::validate( $starter )['template'];
+
+			$out[] = array(
+				'key'      => (string) $key,
+				'name'     => (string) $starter['name'],
+				'category' => (string) $template['category'],
+				'template' => $template,
+			);
+		}
+
+		return $out;
 	}
 
 	/**

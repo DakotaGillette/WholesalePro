@@ -3,6 +3,27 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.1.0 - 2026-09-22
+
+### Added
+- A heading font, separate from the body font, with three web fonts (Inter, Roboto,
+  Merriweather) alongside the existing Helvetica, Georgia and System choices. A web font
+  loads only when one is actually chosen; Outlook never sees the request and uses the
+  fallback typeface in the same list.
+- A link color setting, for templates and site-wide (Messaging → Settings → Email design),
+  separate from the brand color.
+- A mobile side padding setting (0 to 24 pixels), for tighter margins on a phone.
+- Four new starters: Thank you for your order, Sale announcement, Back in stock, and
+  Newsletter update. Every starter (12 in total) is now grouped into a category (Welcome,
+  Account, Orders, Promotions, Newsletter, Blank).
+- Starting a new, blank template now opens a gallery of starters grouped by category, with
+  search, instead of an empty canvas. Blank template is still one click away.
+
+### Changed
+- Messaging → Settings → Email design gained "Heading font", "Link color" and "Mobile side
+  padding" fields. Every existing template keeps the exact look it already had: none of
+  these change anything unless set.
+
 ## 3.0.0 - 2026-09-22
 
 ### Added

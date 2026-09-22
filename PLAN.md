@@ -51,8 +51,8 @@ protech-commerce/
     class-unsubscribe.php             Per-user token link → email-marketing opt-out (no login required); redirects to the real portal page
     class-notifications-endpoint.php  My Account "Notifications" endpoint: SMS/email preferences, self-service
     class-welcome-email.php           The welcome email: preview, send, "send a preview to any address", stamps sent_at
-    class-email-templates.php         Template library storage (one option, not a post type): validate/save/duplicate/slots
-    class-email-starters.php          Seeded starter templates, additive by key on each DB_VERSION step that needs one
+    class-email-templates.php         Template library storage (one option, not a post type): validate/save/duplicate/slots/category
+    class-email-starters.php          12 seeded starter templates, categorized, additive by key on each DB_VERSION step that needs one
     class-email-blocks.php            Block registry: types, sanitize, render (HTML + plain text), field schema
     class-email-renderer.php          Template + context -> one finished email document (header/blocks/footer) and its plain text
     class-email-composer.php          Template library: new/duplicate/delete/preview admin-post handlers; the client-side editor's mount point and which template it opens on
@@ -69,14 +69,14 @@ protech-commerce/
     class-wc-mailer-provider.php      MessageProvider wrapping the site's own WooCommerce mailer (email only, always configured)
     class-message-providers.php       Picks Automatic vs a forced provider per channel; MessageTransport delegates through this
     class-rest-api.php                The protech/v1 REST namespace shell: one permission check, registers each controller
-    class-rest-templates.php          REST routes for the template library: CRUD, duplicate, schema, preview, test-send
+    class-rest-templates.php          REST routes for the template library: CRUD, duplicate, schema, starters, preview, test-send
   editor-src/                        --- The template editor (3.0.0), a Preact + Vite + TypeScript app; never deployed ---
     package.json, pnpm-lock.yaml, tsconfig.json, vite.config.ts   Builds src/editor.tsx to ../assets/editor/editor.js|.css
     src/types.ts                      TS mirrors of the PHP template/block/schema shapes; window.protechEditor bootstrap
-    src/api.ts                        wp/v1 REST calls: save, preview, test-send
+    src/api.ts                        wp/v1 REST calls: save, preview, test-send, starters
     src/model/                        ids.ts, template.ts (Address-addressed block tree ops), history.ts (undo/redo), style.ts
     src/components/                   App, Toolbar, Canvas, BlockView, DropZone, Palette, Inspector, Field, TagPicker,
-                                      SettingsPanels, TruePreview, SendTest
+                                      SettingsPanels, TruePreview, SendTest, Gallery (starter picker, shown for a new template)
     tests/                            Vitest: template/history/serialize (fixture round-trip with tests/fixtures/template.json)
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,

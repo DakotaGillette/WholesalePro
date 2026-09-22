@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '7';
+	public const DB_VERSION     = '8';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -315,6 +315,12 @@ final class Plugin {
 			// The four standard automations, ready to read and switch on: only into a store with no rules of its own.
 			$standard = Automations::seed_standard();
 			Logger::info( sprintf( 'Upgraded plugin data to version 6 (%d standard automation(s) created, all switched off).', $standard ) );
+		}
+
+		if ( version_compare( $current, '8', '<' ) ) {
+			// 3.1.0's four new starters: thank-you, sale, back-in-stock, newsletter update.
+			$added = EmailTemplates::seed_starters( array( 'thank_you_order', 'sale_announcement', 'back_in_stock', 'newsletter_update' ) );
+			Logger::info( sprintf( 'Upgraded plugin data to version 8 (%d starter email template(s) added).', $added ) );
 		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );
@@ -630,14 +636,29 @@ final class Plugin {
 				'protech-wholesale-editor',
 				'protechEditor',
 				array(
-					'restRoot'      => esc_url_raw( rest_url( RestApi::NAMESPACE ) ),
-					'nonce'         => wp_create_nonce( 'wp_rest' ),
-					'template'      => EmailComposer::template_for_edit( $edit_id ),
-					'schema'        => EmailBlocks::schema(),
-					'styleDefaults' => EmailRenderer::style( array() ),
-					'mergeTags'     => MergeTags::all(),
-					'slots'         => EmailTemplates::slots(),
-					'urls'          => array( 'list' => MessagingTab::url( 'templates' ) ),
+					'restRoot'       => esc_url_raw( rest_url( RestApi::NAMESPACE ) ),
+					'nonce'          => wp_create_nonce( 'wp_rest' ),
+					'template'       => EmailComposer::template_for_edit( $edit_id ),
+					'schema'         => EmailBlocks::schema(),
+					// Same shape as a template's own `style` (font choices as keys, not resolved
+					// CSS stacks): the JS falls back to these exactly as EmailRenderer::style()
+					// falls back to the site-wide settings.
+					'styleDefaults'  => array(
+						'width'          => MessagingSettings::email_width(),
+						'page_bg'        => '#f4f5f7',
+						'canvas'         => '#ffffff',
+						'brand'          => MessagingSettings::email_brand_color(),
+						'text'           => '#1f2937',
+						'muted'          => '#6b7280',
+						'font'           => 'helvetica',
+						'heading_font'   => '' !== MessagingSettings::email_heading_font() ? MessagingSettings::email_heading_font() : 'helvetica',
+						'link_color'     => '' !== MessagingSettings::email_link_color() ? MessagingSettings::email_link_color() : MessagingSettings::email_brand_color(),
+						'mobile_padding' => MessagingSettings::email_mobile_padding(),
+					),
+					'mergeTags'      => MergeTags::all(),
+					'slots'          => EmailTemplates::slots(),
+					'categoryLabels' => EmailTemplates::category_labels(),
+					'urls'           => array( 'list' => MessagingTab::url( 'templates' ) ),
 				)
 			);
 		}

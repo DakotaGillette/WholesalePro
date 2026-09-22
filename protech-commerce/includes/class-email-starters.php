@@ -32,9 +32,13 @@ class EmailStarters {
 			'application_received' => self::application_received(),
 			'application_approved' => self::application_approved(),
 			'application_rejected' => self::application_rejected(),
+			'thank_you_order'      => self::thank_you_order(),
 			'restock_reminder'     => self::restock_reminder(),
 			'winback'              => self::winback(),
+			'sale_announcement'    => self::sale_announcement(),
+			'back_in_stock'        => self::back_in_stock(),
 			'announcement'         => self::announcement(),
+			'newsletter_update'    => self::newsletter_update(),
 			'blank'                => self::blank(),
 		);
 	}
@@ -56,6 +60,7 @@ class EmailStarters {
 	private static function welcome(): array {
 		return array(
 			'name'      => __( 'Welcome to wholesale', 'protech-wholesale' ),
+			'category'  => 'welcome',
 			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
 			'subject'   => __( 'Your Protech Sleeves wholesale account is ready', 'protech-wholesale' ),
 			'preheader' => __( 'How to log in and how ordering works.', 'protech-wholesale' ),
@@ -80,6 +85,7 @@ class EmailStarters {
 	private static function application_received(): array {
 		return array(
 			'name'      => __( 'Application received', 'protech-wholesale' ),
+			'category'  => 'account',
 			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
 			'subject'   => __( 'We received your wholesale application', 'protech-wholesale' ),
 			'preheader' => __( 'We will email you as soon as a decision is made.', 'protech-wholesale' ),
@@ -94,6 +100,7 @@ class EmailStarters {
 	private static function application_approved(): array {
 		return array(
 			'name'      => __( 'Application approved', 'protech-wholesale' ),
+			'category'  => 'account',
 			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
 			'subject'   => __( 'Your Protech Sleeves wholesale account is approved', 'protech-wholesale' ),
 			'preheader' => __( 'Set your password and log in.', 'protech-wholesale' ),
@@ -110,6 +117,7 @@ class EmailStarters {
 	private static function application_rejected(): array {
 		return array(
 			'name'      => __( 'Application rejected', 'protech-wholesale' ),
+			'category'  => 'account',
 			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
 			'subject'   => __( 'Update on your Protech Sleeves wholesale application', 'protech-wholesale' ),
 			'preheader' => __( 'About your wholesale application.', 'protech-wholesale' ),
@@ -121,9 +129,26 @@ class EmailStarters {
 	}
 
 	/** @return array<string, mixed> */
+	private static function thank_you_order(): array {
+		return array(
+			'name'      => __( 'Thank you for your order', 'protech-wholesale' ),
+			'category'  => 'orders',
+			'kind'      => EmailTemplates::KIND_TRANSACTIONAL,
+			'subject'   => __( 'Thank you for your order, {first_name}', 'protech-wholesale' ),
+			'preheader' => __( 'We are getting it ready.', 'protech-wholesale' ),
+			'blocks'    => array(
+				self::block( 'heading', array( 'text' => __( 'Thank you for your order', 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'text', array( 'html' => __( "Hi {first_name},\n\nThanks for ordering from {store_name}. We are getting it ready now, and you will hear from us again once it ships.", 'protech-wholesale' ) ) ),
+				self::block( 'button', array( 'label' => __( 'View your orders', 'protech-wholesale' ), 'url' => '{orders_url}', 'align' => 'left', 'pb' => 20 ) ),
+			),
+		);
+	}
+
+	/** @return array<string, mixed> */
 	private static function restock_reminder(): array {
 		return array(
 			'name'      => __( 'Restock reminder', 'protech-wholesale' ),
+			'category'  => 'promotions',
 			'kind'      => EmailTemplates::KIND_MARKETING,
 			'subject'   => __( 'Time to restock, {first_name}', 'protech-wholesale' ),
 			'preheader' => __( 'It has been {days_since_last_order} days since your last order.', 'protech-wholesale' ),
@@ -140,6 +165,7 @@ class EmailStarters {
 	private static function winback(): array {
 		return array(
 			'name'      => __( 'Win-back offer', 'protech-wholesale' ),
+			'category'  => 'promotions',
 			'kind'      => EmailTemplates::KIND_MARKETING,
 			'subject'   => __( 'We miss you, {first_name}', 'protech-wholesale' ),
 			'preheader' => __( 'Your wholesale account is still open.', 'protech-wholesale' ),
@@ -153,9 +179,44 @@ class EmailStarters {
 	}
 
 	/** @return array<string, mixed> */
+	private static function sale_announcement(): array {
+		return array(
+			'name'      => __( 'Sale announcement', 'protech-wholesale' ),
+			'category'  => 'promotions',
+			'kind'      => EmailTemplates::KIND_MARKETING,
+			'subject'   => __( 'A sale on wholesale pricing', 'protech-wholesale' ),
+			'preheader' => __( 'For a limited time.', 'protech-wholesale' ),
+			'blocks'    => array(
+				self::block( 'heading', array( 'text' => __( 'A sale on wholesale pricing', 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'text', array( 'html' => __( "Hi {first_name},\n\nSay what is on sale, by how much, and for how long. Keep it to a sentence or two.", 'protech-wholesale' ) ) ),
+				self::block( 'product_grid', array( 'mode' => 'newest', 'limit' => 3, 'columns' => 3 ) ),
+				self::block( 'button', array( 'label' => __( 'Shop the sale', 'protech-wholesale' ), 'url' => '{shop_url}', 'align' => 'center', 'pb' => 20 ) ),
+			),
+		);
+	}
+
+	/** @return array<string, mixed> */
+	private static function back_in_stock(): array {
+		return array(
+			'name'      => __( 'Back in stock', 'protech-wholesale' ),
+			'category'  => 'promotions',
+			'kind'      => EmailTemplates::KIND_MARKETING,
+			'subject'   => __( 'Back in stock at Protech Sleeves', 'protech-wholesale' ),
+			'preheader' => __( 'The color or size you asked about is available again.', 'protech-wholesale' ),
+			'blocks'    => array(
+				self::block( 'image', array( 'alt' => __( 'Back in stock', 'protech-wholesale' ) ) ),
+				self::block( 'heading', array( 'text' => __( 'It is back in stock', 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'text', array( 'html' => __( "Hi {first_name},\n\nName the product, color or size that is back, and how much is available. It tends to move fast once customers hear.", 'protech-wholesale' ) ) ),
+				self::block( 'button', array( 'label' => __( 'Shop now', 'protech-wholesale' ), 'url' => '{shop_url}', 'align' => 'center', 'pb' => 20 ) ),
+			),
+		);
+	}
+
+	/** @return array<string, mixed> */
 	private static function announcement(): array {
 		return array(
 			'name'      => __( 'New arrivals announcement', 'protech-wholesale' ),
+			'category'  => 'newsletter',
 			'kind'      => EmailTemplates::KIND_MARKETING,
 			'subject'   => __( 'New at Protech Sleeves', 'protech-wholesale' ),
 			'preheader' => __( 'Something new just landed.', 'protech-wholesale' ),
@@ -170,9 +231,28 @@ class EmailStarters {
 	}
 
 	/** @return array<string, mixed> */
+	private static function newsletter_update(): array {
+		return array(
+			'name'      => __( 'Newsletter update', 'protech-wholesale' ),
+			'category'  => 'newsletter',
+			'kind'      => EmailTemplates::KIND_MARKETING,
+			'subject'   => __( 'What is new at Protech Sleeves', 'protech-wholesale' ),
+			'preheader' => __( 'A quick update from the shop.', 'protech-wholesale' ),
+			'blocks'    => array(
+				self::block( 'heading', array( 'text' => __( 'What is new this month', 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'text', array( 'html' => __( "Hi {first_name},\n\nA short update on what has changed: a product, a policy, or something worth knowing about.", 'protech-wholesale' ) ) ),
+				self::block( 'divider' ),
+				self::block( 'text', array( 'html' => __( "Second item goes here. Keep each one short, one or two sentences.", 'protech-wholesale' ), 'pt' => 16 ) ),
+				self::block( 'button', array( 'label' => __( 'Visit the shop', 'protech-wholesale' ), 'url' => '{shop_url}', 'align' => 'center', 'pt' => 8, 'pb' => 20 ) ),
+			),
+		);
+	}
+
+	/** @return array<string, mixed> */
 	private static function blank(): array {
 		return array(
 			'name'      => __( 'Blank', 'protech-wholesale' ),
+			'category'  => 'blank',
 			'kind'      => EmailTemplates::KIND_MARKETING,
 			'subject'   => '',
 			'preheader' => '',

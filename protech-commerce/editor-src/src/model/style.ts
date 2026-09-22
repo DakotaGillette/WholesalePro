@@ -12,5 +12,8 @@ export function resolveStyle( template: Template, defaults: TemplateStyle ): Tem
 		text: s.text || defaults.text,
 		muted: s.muted || defaults.muted,
 		font: s.font || defaults.font,
+		heading_font: s.heading_font || defaults.heading_font || s.font || defaults.font,
+		link_color: s.link_color || defaults.link_color || s.brand || defaults.brand,
+		mobile_padding: s.mobile_padding > 0 ? s.mobile_padding : defaults.mobile_padding,
 	};
 }

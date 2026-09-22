@@ -36,20 +36,35 @@ class EmailRenderer {
 	 * template left a value empty.
 	 *
 	 * @param array<string, mixed> $template
-	 * @return array{width: int, page_bg: string, canvas: string, brand: string, text: string, muted: string, font: string}
+	 * @return array{width: int, page_bg: string, canvas: string, brand: string, text: string, muted: string, font: string, font_key: string, heading_font: string, heading_font_key: string, link_color: string, mobile_padding: int}
 	 */
 	public static function style( array $template ): array {
 		$s     = is_array( $template['style'] ?? null ) ? $template['style'] : array();
 		$fonts = EmailBlocks::FONTS;
+		$brand = '' !== ( $s['brand'] ?? '' ) ? (string) $s['brand'] : MessagingSettings::email_brand_color();
+
+		$font_key = EmailBlocks::pick( $s['font'] ?? '', array_keys( $fonts ), 'helvetica' );
+
+		$heading_font_key = EmailBlocks::pick( $s['heading_font'] ?? '', array_keys( $fonts ), '' );
+		$heading_font_key = '' !== $heading_font_key ? $heading_font_key : ( '' !== MessagingSettings::email_heading_font() ? MessagingSettings::email_heading_font() : $font_key );
+
+		$link_color = '' !== ( $s['link_color'] ?? '' )
+			? EmailBlocks::hex( $s['link_color'], $brand )
+			: ( '' !== MessagingSettings::email_link_color() ? MessagingSettings::email_link_color() : $brand );
 
 		return array(
-			'width'   => (int) ( $s['width'] ?? 0 ) > 0 ? (int) $s['width'] : MessagingSettings::email_width(),
-			'page_bg' => '' !== ( $s['page_bg'] ?? '' ) ? (string) $s['page_bg'] : '#f4f5f7',
-			'canvas'  => '' !== ( $s['canvas'] ?? '' ) ? (string) $s['canvas'] : '#ffffff',
-			'brand'   => '' !== ( $s['brand'] ?? '' ) ? (string) $s['brand'] : MessagingSettings::email_brand_color(),
-			'text'    => '' !== ( $s['text'] ?? '' ) ? (string) $s['text'] : '#1f2937',
-			'muted'   => '' !== ( $s['muted'] ?? '' ) ? (string) $s['muted'] : '#6b7280',
-			'font'    => $fonts[ (string) ( $s['font'] ?? 'helvetica' ) ] ?? $fonts['helvetica'],
+			'width'            => (int) ( $s['width'] ?? 0 ) > 0 ? (int) $s['width'] : MessagingSettings::email_width(),
+			'page_bg'          => '' !== ( $s['page_bg'] ?? '' ) ? (string) $s['page_bg'] : '#f4f5f7',
+			'canvas'           => '' !== ( $s['canvas'] ?? '' ) ? (string) $s['canvas'] : '#ffffff',
+			'brand'            => $brand,
+			'text'             => '' !== ( $s['text'] ?? '' ) ? (string) $s['text'] : '#1f2937',
+			'muted'            => '' !== ( $s['muted'] ?? '' ) ? (string) $s['muted'] : '#6b7280',
+			'font'             => $fonts[ $font_key ],
+			'font_key'         => $font_key,
+			'heading_font'     => $fonts[ $heading_font_key ],
+			'heading_font_key' => $heading_font_key,
+			'link_color'       => $link_color,
+			'mobile_padding'   => (int) ( $s['mobile_padding'] ?? 0 ) > 0 ? (int) $s['mobile_padding'] : MessagingSettings::email_mobile_padding(),
 		);
 	}
 
@@ -172,14 +187,22 @@ class EmailRenderer {
 			? ''
 			: '<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">' . esc_html( $preheader ) . str_repeat( '&zwnj;&nbsp;', 40 ) . '</div>';
 
+		// Only when mobile_padding actually differs from the historical fixed 24px (EmailBlocks::SIDE),
+		// so a template that never touches the new setting gets the exact CSS it always did.
+		$mobile_padding = (int) ( $style['mobile_padding'] ?? EmailBlocks::SIDE );
+		$mobile_rule    = EmailBlocks::SIDE !== $mobile_padding
+			? '.pw-row{padding-left:' . $mobile_padding . 'px !important;padding-right:' . $mobile_padding . 'px !important;}'
+			: '';
+
 		return '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
 			. '<html xmlns="http://www.w3.org/1999/xhtml"><head>'
 			. '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />'
 			. '<meta name="viewport" content="width=device-width, initial-scale=1.0" />'
 			. '<meta http-equiv="X-UA-Compatible" content="IE=edge" />'
 			. '<title>' . esc_html( $subject ) . '</title>'
+			. self::web_font_link( $style )
 			. '<style type="text/css">body{margin:0;padding:0;}img{border:0;}'
-			. '@media only screen and (max-width:' . ( $width + 20 ) . 'px){.pw-col{display:block !important;width:100% !important;padding:0 0 12px !important;}}</style>'
+			. '@media only screen and (max-width:' . ( $width + 20 ) . 'px){.pw-col{display:block !important;width:100% !important;padding:0 0 12px !important;}' . $mobile_rule . '}</style>'
 			. '</head><body style="margin:0;padding:0;background:' . esc_attr( (string) $style['page_bg'] ) . ';">'
 			. $hidden
 			. '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:' . esc_attr( (string) $style['page_bg'] ) . ';"><tr><td align="center" style="padding:24px 12px;">'
@@ -191,6 +214,36 @@ class EmailRenderer {
 			. '</table>'
 			. '<!--[if mso]></td></tr></table><![endif]-->'
 			. '</td></tr></table></body></html>';
+	}
+
+	/**
+	 * A Google Fonts <link> for whichever of the body/heading fonts is a web
+	 * font (EmailBlocks::WEB_FONTS), or '' when both are email-safe stacks
+	 * that need nothing loaded. Outlook desktop cannot use a web font and
+	 * sometimes mishandles an unfamiliar <link>, so it never sees this one;
+	 * every font-family list already carries the fallback stack after the
+	 * web font's own name, so Outlook (and a slow load, anywhere) still gets
+	 * a real typeface.
+	 *
+	 * @param array<string, mixed> $style
+	 */
+	private static function web_font_link( array $style ): string {
+		$keys     = array_unique( array_filter( array( (string) ( $style['font_key'] ?? '' ), (string) ( $style['heading_font_key'] ?? '' ) ) ) );
+		$families = array();
+
+		foreach ( $keys as $key ) {
+			if ( isset( EmailBlocks::WEB_FONTS[ $key ] ) ) {
+				$families[] = 'family=' . EmailBlocks::WEB_FONTS[ $key ];
+			}
+		}
+
+		if ( empty( $families ) ) {
+			return '';
+		}
+
+		$url = 'https://fonts.googleapis.com/css2?' . implode( '&', $families ) . '&display=swap';
+
+		return '<!--[if !mso]><!--><link rel="stylesheet" href="' . esc_url( $url ) . '" /><!--<![endif]-->';
 	}
 
 	/**

@@ -1680,6 +1680,69 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Global styles, a starter gallery, and categories (2026-09-22, 3.1.0)
+
+The full aspirational scope for this phase (from the roadmap: template-level button
+defaults, a heading-size preset, live-thumbnail galleries, saved reusable blocks, a dark
+preview) was cut back to the parts that are well-specified and low-risk against a renderer
+that real customers already receive email from. Each cut is recorded below rather than
+silently dropped.
+
+1. **Heading font is separate from body font; "heading scale" is not.** A per-block Size
+   field already sets an exact pixel size per heading, so a template-wide "S/M/L" preset
+   would either do nothing (if it only set a default new headings start from) or fight the
+   per-block control (if it scaled existing headings), and the roadmap did not specify
+   which. Heading font has no such ambiguity: `EmailBlocks::render()`'s heading case now
+   reads `$style['heading_font']` instead of `$style['font']`, with the same
+   template-then-site-then-body fallback chain every other style value already uses.
+2. **Link color, not per-block button color/radius/size defaults.** Buttons already store
+   a concrete `radius`/`size`/`color` at save time (`EmailBlocks::sanitize()`), not an
+   empty sentinel, so an existing button's `radius: 8` is indistinguishable from "the admin
+   typed 8" and a template-level default could never safely apply to it retroactively; only
+   a *new* button created after the feature shipped could ever use it, which is a much
+   smaller and stranger feature than it sounds. Link color has no such problem: text-block
+   links have always resolved their color at render time (previously hardcoded to
+   `$style['brand']`), so swapping that one hardcoded read for a resolved `link_color`
+   (template, else the new site setting, else brand, identical to today when nothing new
+   is set) is the entire change.
+3. **Existing templates render byte-for-byte identical**, not just visually equivalent.
+   `EmailBlocks::row()`'s new `class="pw-row"` and `EmailRenderer::document()`'s new
+   mobile-padding media-query line are both conditional on `mobile_padding` actually
+   differing from `EmailBlocks::SIDE` (24px, the historical fixed value); a web font's
+   Google Fonts `<link>` is conditional on a web font actually being chosen. A template
+   that never touches any of the three new keys produces exactly the markup it always did,
+   which `test_a_template_that_never_touches_the_new_design_keys_renders_exactly_as_before`
+   pins directly (checked by asserting the new markup's absence, not a frozen whole-document
+   snapshot file, which would break on any unrelated future formatting change).
+4. **A gallery of starters, not a gallery of live-rendered thumbnails.** The roadmap's
+   "thumbnails are the true PHP render inside a scaled iframe" idea is real value for
+   browsing an admin's own saved templates later ("My designs"), but rendering all 12
+   starters live every time a blank template opens is a lot of REST round trips for a
+   one-time picker with low payoff. `GET /templates/starters` returns every starter already
+   run through `EmailTemplates::validate()`, and the editor's new Gallery shows name and
+   category only, filterable and searchable; picking one only replaces the (still unsaved)
+   client-side template state, the same as typing: nothing reaches the server until Save.
+   Live thumbnails are deferred to whichever release adds a real template library browser.
+5. **`category` is a plain template field, not a bundled `email_design` settings option.**
+   The roadmap's own text suggested one new option array, but every other Messaging setting
+   in this codebase is its own `OPT_*` constant with a typed getter (`OPT_EMAIL_HEADING_FONT`,
+   `OPT_EMAIL_LINK_COLOR`, `OPT_EMAIL_MOBILE_PADDING`), and the "Hand-off notes" section of
+   the same roadmap says to keep that convention; following the actual codebase over the
+   plan's rough sketch was the right call. `category` (`EmailTemplates::CATEGORIES`) has no
+   form field of its own: a starter sets it, and an ordinary save just carries it through
+   unedited, the same pattern `seeded` already used.
+6. **Saved reusable blocks and a Dark preview toggle are not in this release.** Saved blocks
+   are a real but small convenience needing their own storage, REST routes and palette UI for
+   modest payoff next to the styles panel and gallery. A dark-mode preview would need to
+   accurately model how each email client actually reinterprets inline styles under
+   `prefers-color-scheme` (wildly inconsistent client to client), and a shallow CSS-filter
+   approximation would be actively misleading rather than merely incomplete. Both are left
+   for a later release if asked for.
+7. **DB_VERSION 8 seeds the four new starters into every existing site**, the same additive,
+   idempotent, by-key pattern version 5 already used for the two application starters:
+   `EmailTemplates::seed_starters(['thank_you_order', 'sale_announcement', 'back_in_stock',
+   'newsletter_update'])`, run once, never touching a template an admin already deleted.
+
 ## The new template editor (2026-09-22, 3.0.0)
 
 The form-is-the-state editor (`class-email-editor.php`, `email-composer.js`) is replaced by a

@@ -48,6 +48,12 @@ class MessagingSettings {
 	public const OPT_EMAIL_BRAND_COLOR  = 'protech_wholesale_msg_email_brand_color';
 	public const OPT_EMAIL_FOOTER_TEXT  = 'protech_wholesale_msg_email_footer_text';
 	public const OPT_EMAIL_WIDTH        = 'protech_wholesale_msg_email_width';
+	/** '' = headings use the same font as the body. */
+	public const OPT_EMAIL_HEADING_FONT = 'protech_wholesale_msg_email_heading_font';
+	/** '' = links use the brand color. */
+	public const OPT_EMAIL_LINK_COLOR   = 'protech_wholesale_msg_email_link_color';
+	/** Horizontal padding (px) a block keeps at phone widths. */
+	public const OPT_EMAIL_MOBILE_PADDING = 'protech_wholesale_msg_email_mobile_padding';
 	/** 'auto' picks Brevo when configured, else the site's own mailer; otherwise a provider id from MessageProviders::all(). */
 	public const OPT_EMAIL_PROVIDER = 'protech_wholesale_msg_email_provider';
 	/** 'auto' picks Brevo when configured; SMS has no non-Brevo provider yet, so "not configured" fails rather than falling back. */
@@ -84,6 +90,9 @@ class MessagingSettings {
 			self::OPT_EMAIL_BRAND_COLOR     => '#42649d',
 			self::OPT_EMAIL_FOOTER_TEXT     => '',
 			self::OPT_EMAIL_WIDTH           => '600',
+			self::OPT_EMAIL_HEADING_FONT    => '',
+			self::OPT_EMAIL_LINK_COLOR      => '',
+			self::OPT_EMAIL_MOBILE_PADDING  => '24',
 			self::OPT_EMAIL_PROVIDER        => 'auto',
 			self::OPT_SMS_PROVIDER          => 'auto',
 			self::OPT_LAST_DAILY_RUN        => '0',
@@ -357,6 +366,31 @@ class MessagingSettings {
 				'css'     => 'width:100%;max-width:480px;height:70px;',
 			),
 			array(
+				'title'   => __( 'Heading font', 'protech-wholesale' ),
+				'desc'    => __( 'Leave on "Same as body" to use one font throughout.', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_HEADING_FONT,
+				'type'    => 'select',
+				'default' => '',
+				'options' => array( '' => __( 'Same as body', 'protech-wholesale' ) ) + EmailBlocks::font_labels(),
+			),
+			array(
+				'title'   => __( 'Link color', 'protech-wholesale' ),
+				'desc'    => __( 'Leave empty to use the brand color.', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_LINK_COLOR,
+				'type'    => 'color',
+				'default' => '',
+				'css'     => 'width:6em;',
+			),
+			array(
+				'title'   => __( 'Mobile side padding', 'protech-wholesale' ),
+				'desc'    => __( 'pixels (0 to 24), the room a block keeps on a phone.', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_MOBILE_PADDING,
+				'type'    => 'number',
+				'default' => '24',
+				'custom_attributes' => array( 'min' => '0', 'max' => '24' ),
+				'css'     => 'width:70px;',
+			),
+			array(
 				'type' => 'sectionend',
 				'id'   => 'protech_wholesale_msg_settings_design_end',
 			),
@@ -494,6 +528,25 @@ class MessagingSettings {
 	/** The email width in pixels, kept inside 480 to 700. */
 	public static function email_width(): int {
 		return EmailBlocks::num( get_option( self::OPT_EMAIL_WIDTH, 600 ), 480, 700, 600 );
+	}
+
+	/** The site-wide heading font, a key from EmailBlocks::FONTS, or '' for "same as body". */
+	public static function email_heading_font(): string {
+		$key = (string) get_option( self::OPT_EMAIL_HEADING_FONT, '' );
+
+		return array_key_exists( $key, EmailBlocks::FONTS ) ? $key : '';
+	}
+
+	/** The site-wide link color, a #rrggbb value, or '' for "use the brand color". */
+	public static function email_link_color(): string {
+		$value = (string) get_option( self::OPT_EMAIL_LINK_COLOR, '' );
+
+		return '' !== $value ? EmailBlocks::hex( $value, '' ) : '';
+	}
+
+	/** Horizontal padding (px) a block keeps at phone widths, kept inside 0 to 24. */
+	public static function email_mobile_padding(): int {
+		return EmailBlocks::num( get_option( self::OPT_EMAIL_MOBILE_PADDING, 24 ), 0, 24, 24 );
 	}
 
 	public static function privacy_url(): string {

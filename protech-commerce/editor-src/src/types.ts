@@ -23,6 +23,12 @@ export interface TemplateStyle {
 	text: string;
 	muted: string;
 	font: string;
+	/** '' = the same as `font`. */
+	heading_font: string;
+	/** '' = the brand color. */
+	link_color: string;
+	/** 0 = the site-wide default. */
+	mobile_padding: number;
 }
 
 export interface TemplateHeader {
@@ -40,6 +46,8 @@ export interface Template {
 	name: string;
 	kind: 'marketing' | 'transactional';
 	slot: string;
+	/** Which starter this came from, if any ('' otherwise); carried through, never set from the UI. */
+	category: string;
 	subject: string;
 	preheader: string;
 	blocks: Block[];
@@ -79,16 +87,25 @@ export interface Schema {
 	fonts: Record< string, string >;
 }
 
+export interface Starter {
+	key: string;
+	name: string;
+	category: string;
+	template: Template;
+}
+
 export interface EditorBootstrap {
 	restRoot: string;
 	nonce: string;
 	template: Template;
 	schema: Schema;
-	/** The site-wide email design (Messaging -> Settings), used wherever a template leaves a style value empty, exactly as EmailRenderer::style() resolves it server-side. */
+	/** The site-wide email design (Messaging -> Settings), in the same shape as a template's own `style`, used wherever a template leaves a value empty. */
 	styleDefaults: TemplateStyle;
 	/** Plain-language merge tag names, for the "Insert a personal detail" pickers on tag-eligible fields. */
 	mergeTags: Record< string, string >;
 	slots: Record< string, string >;
+	/** category key => label, for the new-template Gallery. */
+	categoryLabels: Record< string, string >;
 	urls: { list: string };
 }
 
