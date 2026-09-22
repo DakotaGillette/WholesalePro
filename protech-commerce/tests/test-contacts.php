@@ -63,6 +63,7 @@ class Test_Contacts extends WP_UnitTestCase {
 	}
 
 	public function test_a_logged_in_checkout_is_not_captured_as_a_guest(): void {
+		// user_register already synced this contact as source wp_user, the moment the account was created.
 		$user_id = self::factory()->user->create( array( 'user_email' => 'member@example.com', 'role' => 'customer' ) );
 		$product = Protech_Test_Factory::simple_product();
 		$order   = wc_create_order( array( 'customer_id' => $user_id ) );
@@ -73,9 +74,12 @@ class Test_Contacts extends WP_UnitTestCase {
 
 		Contacts::sync_from_order( $order );
 
-		// sync_from_order() alone must not have created anything for a logged-in checkout:
-		// that path is the user hooks' job, so a member never gets a second, guest-sourced row.
-		$this->assertNull( Contacts::get_by_email( 'member@example.com' ) );
+		// A logged-in checkout must not turn an account's own contact into a guest-sourced one,
+		// or create a second row for the same email: that path is the user hooks' job alone.
+		global $wpdb;
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Contacts::table() . ' WHERE email = %s', 'member@example.com' ) );
+		$this->assertSame( 1, $count );
+		$this->assertSame( Contacts::SOURCE_WP_USER, Contacts::get_by_email( 'member@example.com' )['source'] );
 	}
 
 	public function test_a_returning_guests_status_is_not_reset_by_a_later_order(): void {
@@ -145,6 +149,12 @@ class Test_Contacts extends WP_UnitTestCase {
 		self::factory()->user->create( array( 'user_email' => 'wholesale@example.com', 'role' => Roles::CUSTOMER ) );
 		self::factory()->user->create( array( 'user_email' => 'pending@example.com', 'role' => Roles::PENDING ) );
 		self::factory()->user->create( array( 'user_email' => 'admin@example.com', 'role' => 'administrator' ) );
+
+		// The user_register hook already synced the three customer-ish accounts live, the
+		// moment they were created. Remove those rows to stand in for accounts that existed
+		// before this plugin ever had a contacts feature, which is what backfill() is for.
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Contacts::table() . ' WHERE email IN (%s,%s,%s)', 'retail@example.com', 'wholesale@example.com', 'pending@example.com' ) );
 
 		$created = Contacts::backfill();
 

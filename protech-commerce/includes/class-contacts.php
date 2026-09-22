@@ -337,8 +337,20 @@ class Contacts {
 
 		$customer_id = (int) $order->get_customer_id();
 		$email       = trim( (string) $order->get_billing_email() );
-		$contact     = $customer_id > 0 ? null : self::get_by_email( $email );
-		$id          = $customer_id > 0 ? self::for_user( $customer_id ) : ( null !== $contact ? (int) $contact['id'] : 0 );
+
+		// A guest contact should already exist from sync_from_order() at checkout time, well
+		// before an order can reach processing or completed; this covers it regardless, since
+		// an order created some other way (a manual admin order, a test) never fires that hook.
+		if ( 0 === $customer_id ) {
+			self::sync_from_order( $order );
+		}
+
+		if ( $customer_id > 0 ) {
+			$id = self::for_user( $customer_id );
+		} else {
+			$contact = self::get_by_email( $email );
+			$id      = null !== $contact ? (int) $contact['id'] : 0;
+		}
 
 		if ( 0 === $id ) {
 			return;
