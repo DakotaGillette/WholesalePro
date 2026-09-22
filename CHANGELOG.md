@@ -3,6 +3,15 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.7.1 - 2026-09-22
+
+### Fixed
+- Messaging: on the pages opened from a button rather than the menu (writing a new email,
+  the template library and the template editor), the Messaging menu showed collapsed in
+  the sidebar. It now stays open with Emails highlighted.
+- Home and the Emails "Sent" tab said "Nothing sent yet" beside a non-zero "Messages sent"
+  count. They list only emails written by hand, and now say so.
+
 ## 3.7.0 - 2026-09-22
 
 ### Changed

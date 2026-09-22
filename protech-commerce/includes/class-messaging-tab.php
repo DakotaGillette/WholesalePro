@@ -111,13 +111,29 @@ class MessagingTab {
 	}
 
 	/**
-	 * On a hidden page, open the Messaging menu in the sidebar.
+	 * On a hidden page, open the Messaging menu in the sidebar. Returning the
+	 * parent alone is not enough: menu-header.php calls get_admin_page_parent()
+	 * right after this filter, which looks $plugin_page up in $submenu and
+	 * would reset the parent to HIDDEN_PARENT. Pointing $plugin_page at the
+	 * sidebar item makes that lookup land on Messaging (MailPoet does the
+	 * same). The page callback was already chosen by then, so nothing else
+	 * reads it.
 	 *
 	 * @param string $parent_file
 	 * @return string
 	 */
 	public function highlight_parent( $parent_file ) {
-		return null !== self::hidden_parent_view() ? self::PAGE : $parent_file;
+		global $plugin_page;
+
+		$parent = self::hidden_parent_view();
+
+		if ( null === $parent ) {
+			return $parent_file;
+		}
+
+		$plugin_page = self::page_slug( $parent ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- see the docblock.
+
+		return self::PAGE;
 	}
 
 	/**

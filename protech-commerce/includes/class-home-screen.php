@@ -131,7 +131,7 @@ class HomeScreen {
 		echo '<h2>' . esc_html__( 'Latest sends', 'protech-wholesale' ) . '</h2>';
 
 		if ( empty( $campaigns ) ) {
-			echo '<p>' . esc_html__( 'Nothing sent yet. Emails you write and send yourself show up here.', 'protech-wholesale' ) . '</p>';
+			echo '<p>' . esc_html__( 'You have not written and sent an email here yet. When you do, it shows up here.', 'protech-wholesale' ) . '</p>';
 			echo '<p><a class="button button-primary" href="' . esc_url( MessagingTab::url( 'compose' ) ) . '">' . esc_html__( 'Write an email', 'protech-wholesale' ) . '</a></p>';
 			echo '</div>';
 			return;

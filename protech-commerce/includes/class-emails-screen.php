@@ -135,7 +135,7 @@ class EmailsScreen {
 		$campaigns = Campaigns::recent( 20 );
 
 		if ( empty( $campaigns ) ) {
-			echo '<p>' . esc_html__( 'Nothing sent yet. Use Add new email to write and send one.', 'protech-wholesale' ) . '</p>';
+			echo '<p>' . esc_html__( 'You have not written and sent an email here yet. Use Add new email to write one.', 'protech-wholesale' ) . '</p>';
 			return;
 		}
 

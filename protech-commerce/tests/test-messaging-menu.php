@@ -80,6 +80,13 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 		$this->assertSame( 'protech-messaging', $tab->highlight_parent( MessagingTab::HIDDEN_PARENT ) );
 		$this->assertSame( 'protech-messaging-emails', $tab->highlight_submenu( null ) );
 
+		// get_admin_page_parent() runs after the filter and resolves $plugin_page against $submenu,
+		// so it must now land on Messaging rather than the hidden parent.
+		$this->assertSame( 'protech-messaging-emails', $GLOBALS['plugin_page'] );
+		$GLOBALS['pagenow'] = 'admin.php';
+		$this->assertSame( 'protech-messaging', get_admin_page_parent() );
+		unset( $GLOBALS['plugin_page'] );
+
 		$_GET = array( 'page' => 'protech-messaging-log' );
 		$this->assertSame( 'protech-messaging', $tab->highlight_parent( 'protech-messaging' ) );
 		$this->assertNull( $tab->highlight_submenu( null ) );
