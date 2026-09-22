@@ -21,7 +21,11 @@ class Test_Plugin_Upgrade extends WP_UnitTestCase {
 		$table = MessageLog::table();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-		$this->assertFalse( MessageLog::table_exists() );
+		// DROP TABLE auto-commits in MySQL/InnoDB; make sure nothing about the
+		// WP test suite's per-test transaction wrapper leaves a stale read of
+		// the schema behind before checking it.
+		$wpdb->query( 'COMMIT' );
+		$this->assertFalse( MessageLog::table_exists(), 'DROP TABLE did not take effect: ' . $wpdb->last_error );
 
 		// Simulate a site still recorded at an older version, the ordinary
 		// condition under which maybe_upgrade() actually does anything.

@@ -14,7 +14,7 @@ use ProtechWholesale\Campaigns;
 use ProtechWholesale\EmailTemplates;
 use ProtechWholesale\MessageLog;
 use ProtechWholesale\MessageTransport;
-use ProtechWholesale\MessagingTab;
+use ProtechWholesale\ComposeScreen;
 use ProtechWholesale\SmsConsent;
 
 /**
@@ -158,7 +158,7 @@ class Test_Template_Sending extends WP_UnitTestCase {
 	 * @return array<string, mixed>
 	 */
 	private function build_review( array $input ): array {
-		$method = new ReflectionMethod( MessagingTab::class, 'build_review' );
+		$method = new ReflectionMethod( ComposeScreen::class, 'build_review' );
 		$method->setAccessible( true );
 
 		return $method->invoke( null, $input );
@@ -191,7 +191,7 @@ class Test_Template_Sending extends WP_UnitTestCase {
 	}
 
 	public function test_the_review_form_carries_the_earlier_input_forward_and_leaves_out_its_own_fields(): void {
-		$method = new ReflectionMethod( MessagingTab::class, 'hidden_fields' );
+		$method = new ReflectionMethod( ComposeScreen::class, 'hidden_fields' );
 		$method->setAccessible( true );
 
 		ob_start();
