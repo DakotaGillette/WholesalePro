@@ -3,6 +3,23 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.8.0 - 2026-09-21
+
+### Changed
+- **The email template editor now looks and works like a drag-drop composer.**
+  The email itself is the big thing in the middle of the screen; a narrower
+  panel on the right holds what to add and every setting.
+  - Click a block right on the email to open just its settings — the rest of
+    the panel steps aside while you edit it, with a "Back to blocks" link to
+    return.
+  - Drag a block from the panel and drop it onto the email where you want it,
+    or click Add as before.
+  - The other settings (Send a preview, Email settings, Sent automatically as,
+    Design, Header and footer) are now collapsible sections, so the panel
+    isn't one long scroll.
+  - Reordering, copying and removing a block are unchanged; so is everything
+    about what gets saved or sent — this is a look-and-feel change only.
+
 ## 2.7.0 - 2026-09-21
 
 ### Added

@@ -39,9 +39,13 @@
 		var refresh = document.getElementById( 'protech-refresh-preview' );
 		var insertSelect = document.getElementById( 'protech-insert-detail' );
 		var emptyNote = document.querySelector( '.protech-composer-empty' );
+		var editor = document.getElementById( 'protech-block-editor' );
+		var backButton = document.getElementById( 'protech-back-to-blocks' );
 		var lastFocused = null;
 		var previewTimer = null;
 		var dragged = null;
+		var draggingType = null;
+		var dropMarked = null;
 
 		// -- helpers ----------------------------------------------------------
 
@@ -151,7 +155,64 @@
 			}
 		}
 
-		function addBlock( type, list ) {
+		function close( card ) {
+			var body = card.querySelector( '.protech-block-body' );
+			var toggle = card.querySelector( '.protech-block-toggle' );
+
+			if ( body ) {
+				body.hidden = true;
+			}
+
+			if ( toggle ) {
+				toggle.setAttribute( 'aria-expanded', 'false' );
+			}
+		}
+
+		/** Opens one top-level block's settings exclusively; a nested block just opens in place. */
+		function selectTopLevel( card ) {
+			if ( card.parentNode !== root ) {
+				open( card );
+				return;
+			}
+
+			cardsOf( root ).forEach( function ( sibling ) {
+				sibling.classList.toggle( 'is-active', sibling === card );
+
+				if ( sibling !== card ) {
+					close( sibling );
+				}
+			} );
+
+			open( card );
+
+			if ( editor ) {
+				editor.classList.add( 'is-editing-block' );
+			}
+
+			if ( backButton ) {
+				backButton.hidden = false;
+			}
+
+			card.scrollIntoView( { block: 'nearest' } );
+		}
+
+		/** Back to the palette and the full block list. */
+		function deselectTopLevel() {
+			cardsOf( root ).forEach( function ( card ) {
+				card.classList.remove( 'is-active' );
+				close( card );
+			} );
+
+			if ( editor ) {
+				editor.classList.remove( 'is-editing-block' );
+			}
+
+			if ( backButton ) {
+				backButton.hidden = true;
+			}
+		}
+
+		function addBlock( type, list, before ) {
 			var template = document.getElementById( 'protech-block-tpl-' + type );
 
 			if ( ! template || ! list ) {
@@ -168,8 +229,14 @@
 				return;
 			}
 
-			list.appendChild( card );
-			open( card );
+			list.insertBefore( card, before || null );
+
+			if ( list === root ) {
+				selectTopLevel( card );
+			} else {
+				open( card );
+			}
+
 			afterChange();
 			summarise( card );
 
@@ -228,6 +295,8 @@
 
 			var clone = card.cloneNode( true );
 
+			clone.classList.remove( 'is-active' );
+
 			// A copy is a new block: it gets its own id from the server.
 			Array.prototype.forEach.call( clone.querySelectorAll( '[data-name-suffix="[id]"]' ), function ( input ) {
 				input.value = '';
@@ -246,17 +315,30 @@
 				select.removeAttribute( 'tabindex' );
 			} );
 
+			var wasTopLevel = card.parentNode === root;
+
 			card.parentNode.insertBefore( clone, card.nextSibling );
 			afterChange();
 			summariseAll();
+
+			if ( wasTopLevel ) {
+				selectTopLevel( clone );
+			}
+
 			announce( strings.copied || 'Block copied.' );
 		}
 
 		function remove( card ) {
 			var list = card.parentNode;
+			var wasActive = list === root && card.classList.contains( 'is-active' );
 
 			list.removeChild( card );
 			afterChange();
+
+			if ( wasActive ) {
+				deselectTopLevel();
+			}
+
 			announce( strings.removed || 'Block removed.' );
 		}
 
@@ -272,17 +354,35 @@
 				return;
 			}
 
+			var back = target.closest ? target.closest( '#protech-back-to-blocks' ) : null;
+
+			if ( back ) {
+				event.preventDefault();
+				deselectTopLevel();
+				return;
+			}
+
 			var toggle = target.closest ? target.closest( '.protech-block-toggle' ) : null;
 
 			if ( toggle ) {
 				event.preventDefault();
 
 				var card = cardOf( toggle );
-				var body = card.querySelector( '.protech-block-body' );
-				var showing = body.hidden;
 
-				body.hidden = ! showing;
-				toggle.setAttribute( 'aria-expanded', showing ? 'true' : 'false' );
+				if ( card.parentNode === root ) {
+					if ( card.querySelector( '.protech-block-body' ).hidden ) {
+						selectTopLevel( card );
+					} else {
+						deselectTopLevel();
+					}
+				} else {
+					var body = card.querySelector( '.protech-block-body' );
+					var showing = body.hidden;
+
+					body.hidden = ! showing;
+					toggle.setAttribute( 'aria-expanded', showing ? 'true' : 'false' );
+				}
+
 				return;
 			}
 
@@ -434,6 +534,19 @@
 		// -- drag and drop -----------------------------------------------------------
 
 		form.addEventListener( 'dragstart', function ( event ) {
+			var paletteButton = event.target.closest ? event.target.closest( '.protech-add-block' ) : null;
+
+			if ( paletteButton ) {
+				draggingType = paletteButton.getAttribute( 'data-type' );
+
+				if ( event.dataTransfer ) {
+					event.dataTransfer.effectAllowed = 'copy';
+					event.dataTransfer.setData( 'text/plain', 'protech-new-block' );
+				}
+
+				return;
+			}
+
 			var head = event.target.closest ? event.target.closest( '.protech-block-head' ) : null;
 
 			if ( ! head ) {
@@ -476,6 +589,11 @@
 		} );
 
 		form.addEventListener( 'dragend', function () {
+			if ( draggingType ) {
+				draggingType = null;
+				clearFrameDropTarget();
+			}
+
 			if ( ! dragged ) {
 				return;
 			}
@@ -488,6 +606,116 @@
 			dragged = null;
 			afterChange();
 		} );
+
+		// -- the canvas: click a rendered block to select it, drop a new one at a position ---
+
+		/** The rendered block under a point in the iframe, and whether the point is past its middle. */
+		function pointBlock( doc, x, y ) {
+			var hit = doc.elementFromPoint ? doc.elementFromPoint( x, y ) : null;
+			var el = hit && hit.closest ? hit.closest( '[data-pw-block]' ) : null;
+
+			if ( ! el ) {
+				return null;
+			}
+
+			var box = el.getBoundingClientRect();
+
+			return { el: el, after: y > box.top + box.height / 2 };
+		}
+
+		function markFrameDropTarget( hit ) {
+			if ( dropMarked && ( ! hit || dropMarked !== hit.el ) ) {
+				dropMarked.style.outline = '';
+				dropMarked = null;
+			}
+
+			if ( hit ) {
+				hit.el.style.outline = '2px dashed #2271b1';
+				dropMarked = hit.el;
+			}
+		}
+
+		function clearFrameDropTarget() {
+			markFrameDropTarget( null );
+		}
+
+		/** A brief highlight on the block that was just clicked, so the click has visible effect. */
+		function flash( el ) {
+			el.style.outline = '2px solid #2271b1';
+			el.style.outlineOffset = '-2px';
+
+			window.setTimeout( function () {
+				el.style.outline = '';
+				el.style.outlineOffset = '';
+			}, 900 );
+		}
+
+		function wireFrameDocument() {
+			var doc;
+
+			try {
+				doc = frame.contentDocument;
+			} catch ( e ) {
+				return; // Not same-origin (should not happen here); nothing we can safely do.
+			}
+
+			if ( ! doc || ! doc.body ) {
+				return;
+			}
+
+			doc.addEventListener( 'click', function ( event ) {
+				var el = event.target.closest ? event.target.closest( '[data-pw-block]' ) : null;
+
+				if ( ! el ) {
+					return;
+				}
+
+				var card = cardsOf( root )[ parseInt( el.getAttribute( 'data-pw-block' ), 10 ) ];
+
+				if ( ! card ) {
+					return;
+				}
+
+				selectTopLevel( card );
+				flash( el );
+			} );
+
+			doc.addEventListener( 'dragover', function ( event ) {
+				if ( ! draggingType ) {
+					return;
+				}
+
+				event.preventDefault();
+				markFrameDropTarget( pointBlock( doc, event.clientX, event.clientY ) );
+			} );
+
+			doc.addEventListener( 'drop', function ( event ) {
+				if ( ! draggingType ) {
+					return;
+				}
+
+				event.preventDefault();
+
+				var type = draggingType;
+				var hit = pointBlock( doc, event.clientX, event.clientY );
+
+				clearFrameDropTarget();
+
+				var before = null;
+
+				if ( hit ) {
+					var target = cardsOf( root )[ parseInt( hit.el.getAttribute( 'data-pw-block' ), 10 ) ];
+
+					if ( target ) {
+						before = hit.after ? target.nextSibling : target;
+					}
+				}
+
+				addBlock( type, root, before );
+			} );
+		}
+
+		frame.addEventListener( 'load', wireFrameDocument );
 
 		// -- Media Library ---------------------------------------------------------------
 

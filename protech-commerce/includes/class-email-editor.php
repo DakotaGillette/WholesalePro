@@ -390,18 +390,40 @@ class EmailEditor {
 		echo '<p><a href="' . esc_url( $back ) . '">&larr; ' . esc_html__( 'All templates', 'protech-wholesale' ) . '</a></p>';
 		echo '<h2>' . esc_html( $is_new ? __( 'New email template', 'protech-wholesale' ) : __( 'Edit email template', 'protech-wholesale' ) ) . '</h2>';
 
-		echo '<div class="protech-composer-grid">';
-
-		// -- Left: what is in the email. ---------------------------------------
-		echo '<div class="protech-composer-main">';
 		echo '<div class="protech-composer-top">';
 		echo $field( __( 'Template name', 'protech-wholesale' ), '<input type="text" name="name" class="widefat" value="' . esc_attr( (string) $template['name'] ) . '" required="required" />' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		echo $field( __( 'Subject line', 'protech-wholesale' ), '<input type="text" name="subject" class="widefat protech-tag-target" value="' . esc_attr( (string) $template['subject'] ) . '" />' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		echo $field( __( 'Preview text', 'protech-wholesale' ), '<input type="text" name="preheader" class="widefat protech-tag-target" value="' . esc_attr( (string) $template['preheader'] ) . '" /><span class="protech-field-help">' . esc_html__( 'The grey line many inboxes show after the subject.', 'protech-wholesale' ) . '</span>' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		echo '</div>';
 
-		echo '<div class="protech-composer-bar"><h3>' . esc_html__( 'Email content', 'protech-wholesale' ) . '</h3>' . self::insert_menu() . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		echo '<p class="protech-composer-hint">' . esc_html__( 'Click a block to edit it. Drag blocks by the dots, or use the arrows, to reorder them.', 'protech-wholesale' ) . '</p>';
+		echo '<div class="protech-composer-grid">';
+
+		// -- Center: the email itself, big. -------------------------------------
+		echo '<div class="protech-composer-canvas">';
+		echo '<p class="protech-canvas-toolbar">';
+		echo '<button type="button" class="button button-small protech-device is-active" data-width="100%">' . esc_html__( 'Desktop', 'protech-wholesale' ) . '</button> ';
+		echo '<button type="button" class="button button-small protech-device" data-width="375px">' . esc_html__( 'Phone', 'protech-wholesale' ) . '</button> ';
+		echo '<button type="submit" class="button button-small" id="protech-refresh-preview" name="action" value="' . esc_attr( EmailComposer::DRAFT_PREVIEW_ACTION ) . '" formtarget="protech-preview" formnovalidate="formnovalidate">' . esc_html__( 'Refresh', 'protech-wholesale' ) . '</button>';
+		echo '</p>';
+		echo '<div class="protech-preview-wrap"><iframe name="protech-preview" id="protech-preview" title="' . esc_attr__( 'Email preview', 'protech-wholesale' ) . '" src="about:blank"></iframe></div>';
+		echo '<p class="description protech-canvas-note">' . esc_html__( 'This is what will send, filled in with your own name. Click a block here to edit it, or drag a new one in from the panel.', 'protech-wholesale' ) . '</p>';
+		echo '</div>';
+
+		// -- Right: what to add, and every setting. ------------------------------
+		echo '<aside class="protech-composer-side">';
+
+		echo '<div class="protech-block-editor" id="protech-block-editor">';
+		echo '<button type="button" class="button-link" id="protech-back-to-blocks" hidden>&larr; ' . esc_html__( 'Back to blocks', 'protech-wholesale' ) . '</button>';
+		echo '<div class="protech-composer-bar"><h3>' . esc_html__( 'Content', 'protech-wholesale' ) . '</h3>' . self::insert_menu() . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo '<p class="protech-composer-hint">' . esc_html__( 'Drag a block onto the email, or click Add. Click a block on the email to edit it.', 'protech-wholesale' ) . '</p>';
+
+		echo '<div class="protech-palette" role="group" aria-label="' . esc_attr__( 'Add a block', 'protech-wholesale' ) . '">';
+
+		foreach ( EmailBlocks::types() as $type => $def ) {
+			echo '<button type="button" class="button protech-add-block" draggable="true" data-type="' . esc_attr( $type ) . '" title="' . esc_attr( $def['help'] ) . '">' . esc_html( $def['label'] ) . '</button>';
+		}
+
+		echo '</div>';
 
 		echo '<ol class="protech-block-list" id="protech-blocks">';
 
@@ -412,44 +434,23 @@ class EmailEditor {
 		}
 
 		echo '</ol>';
-		echo '<p class="protech-composer-empty"' . ( empty( $template['blocks'] ) ? '' : ' hidden' ) . '>' . esc_html__( 'No blocks yet. Add one below.', 'protech-wholesale' ) . '</p>';
-
-		echo '<div class="protech-palette" role="group" aria-label="' . esc_attr__( 'Add a block', 'protech-wholesale' ) . '"><strong>' . esc_html__( 'Add a block:', 'protech-wholesale' ) . '</strong> ';
-
-		foreach ( EmailBlocks::types() as $type => $def ) {
-			echo '<button type="button" class="button protech-add-block" data-type="' . esc_attr( $type ) . '" title="' . esc_attr( $def['help'] ) . '">' . esc_html( $def['label'] ) . '</button> ';
-		}
-
-		echo '</div>';
+		echo '<p class="protech-composer-empty"' . ( empty( $template['blocks'] ) ? '' : ' hidden' ) . '>' . esc_html__( 'No blocks yet. Drag one in above.', 'protech-wholesale' ) . '</p>';
 		echo '<div class="protech-live screen-reader-text" id="protech-composer-status" aria-live="polite" role="status"></div>';
-		echo '</div>';
+		echo '</div>'; // .protech-block-editor
 
-		// -- Right: settings and preview. --------------------------------------
-		echo '<aside class="protech-composer-side">';
-		echo '<div class="protech-panel">';
-		echo '<h3>' . esc_html__( 'Preview', 'protech-wholesale' ) . '</h3>';
-		echo '<p class="protech-preview-controls">';
-		echo '<button type="button" class="button button-small protech-device is-active" data-width="100%">' . esc_html__( 'Desktop', 'protech-wholesale' ) . '</button> ';
-		echo '<button type="button" class="button button-small protech-device" data-width="375px">' . esc_html__( 'Phone', 'protech-wholesale' ) . '</button> ';
-		echo '<button type="submit" class="button button-small" id="protech-refresh-preview" name="action" value="' . esc_attr( EmailComposer::DRAFT_PREVIEW_ACTION ) . '" formtarget="protech-preview" formnovalidate="formnovalidate">' . esc_html__( 'Refresh', 'protech-wholesale' ) . '</button>';
-		echo '</p>';
-		echo '<div class="protech-preview-wrap"><iframe name="protech-preview" id="protech-preview" title="' . esc_attr__( 'Email preview', 'protech-wholesale' ) . '" src="about:blank"></iframe></div>';
-		echo '<p class="description">' . esc_html__( 'Filled in with your own name, so you see real values.', 'protech-wholesale' ) . '</p>';
-		echo '</div>';
-
-		echo '<div class="protech-panel"><h3>' . esc_html__( 'Send a preview', 'protech-wholesale' ) . '</h3>';
+		echo '<details class="protech-panel"><summary>' . esc_html__( 'Send a preview', 'protech-wholesale' ) . '</summary>';
 		echo '<p class="protech-field"><label><span class="protech-field-label">' . esc_html__( 'Email address', 'protech-wholesale' ) . '</span><input type="email" name="preview_email" class="widefat" placeholder="' . esc_attr( wp_get_current_user()->user_email ) . '" /></label></p>';
 		echo '<button type="submit" class="button" name="action" value="' . esc_attr( EmailComposer::SEND_TEST_ACTION ) . '" formnovalidate="formnovalidate">' . esc_html__( 'Send preview', 'protech-wholesale' ) . '</button>';
-		echo '<p class="description">' . esc_html__( 'Leave the address blank to send it to yourself.', 'protech-wholesale' ) . '</p></div>';
+		echo '<p class="description">' . esc_html__( 'Leave the address blank to send it to yourself.', 'protech-wholesale' ) . '</p></details>';
 
-		echo '<div class="protech-panel"><h3>' . esc_html__( 'Email settings', 'protech-wholesale' ) . '</h3>';
+		echo '<details class="protech-panel"><summary>' . esc_html__( 'Email settings', 'protech-wholesale' ) . '</summary>';
 		echo $field( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 			__( 'Type', 'protech-wholesale' ),
 			'<select name="kind"><option value="marketing"' . selected( $template['kind'], 'marketing', false ) . '>' . esc_html__( 'Marketing (has unsubscribe links)', 'protech-wholesale' ) . '</option><option value="transactional"' . selected( $template['kind'], 'transactional', false ) . '>' . esc_html__( 'Service email (no unsubscribe links)', 'protech-wholesale' ) . '</option></select>'
 		);
-		echo '</div>';
+		echo '</details>';
 
-		echo '<div class="protech-panel"><h3>' . esc_html__( 'Sent automatically as', 'protech-wholesale' ) . '</h3>';
+		echo '<details class="protech-panel"><summary>' . esc_html__( 'Sent automatically as', 'protech-wholesale' ) . '</summary>';
 		$slot_choices = '<option value="">' . esc_html__( 'Nothing (I will pick it in a rule or message)', 'protech-wholesale' ) . '</option>';
 
 		foreach ( EmailTemplates::slots() as $slot_key => $slot_label ) {
@@ -458,9 +459,9 @@ class EmailEditor {
 
 		echo $field( __( 'Use this design for', 'protech-wholesale' ), '<select name="slot">' . $slot_choices . '</select>' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		echo '<p class="description">' . esc_html__( 'Pick one of the emails the shop sends on its own (a welcome, or a reply to an application) and this design is sent in place of the built-in wording. Only one template can have each. Pick "Nothing" to go back to the built-in email. These are service emails, so they carry no unsubscribe link.', 'protech-wholesale' ) . '</p>';
-		echo '</div>';
+		echo '</details>';
 
-		echo '<div class="protech-panel"><h3>' . esc_html__( 'Design', 'protech-wholesale' ) . '</h3>';
+		echo '<details class="protech-panel"><summary>' . esc_html__( 'Design', 'protech-wholesale' ) . '</summary>';
 		echo '<p class="description">' . esc_html__( 'Leave a color empty to use your Email design settings.', 'protech-wholesale' ) . '</p>';
 
 		foreach (
@@ -476,14 +477,14 @@ class EmailEditor {
 			echo self::field( $f, $style[ $f['key'] ] ?? '', 'style', '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		}
 
-		echo '</div>';
+		echo '</details>';
 
-		echo '<div class="protech-panel"><h3>' . esc_html__( 'Header and footer', 'protech-wholesale' ) . '</h3>';
+		echo '<details class="protech-panel"><summary>' . esc_html__( 'Header and footer', 'protech-wholesale' ) . '</summary>';
 		echo '<p class="protech-field"><label><input type="hidden" name="header[show_logo]" value="0" /><input type="checkbox" name="header[show_logo]" value="1"' . checked( ! empty( $header['show_logo'] ), true, false ) . ' /> ' . esc_html__( 'Show the logo (or store name) at the top', 'protech-wholesale' ) . '</label></p>';
 		echo self::media_picker( (int) ( $header['logo_id'] ?? 0 ), 'header[logo_id]', '', __( 'Logo for this template (empty uses the one in Email design)', 'protech-wholesale' ), 'logo_id' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		echo $field( __( 'Footer text', 'protech-wholesale' ), '<textarea name="footer[text]" rows="3" class="widefat protech-tag-target">' . esc_textarea( (string) $footer['text'] ) . '</textarea>' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		echo '<p class="protech-field"><label><input type="hidden" name="footer[show_address]" value="0" /><input type="checkbox" name="footer[show_address]" value="1"' . checked( ! empty( $footer['show_address'] ), true, false ) . ' /> ' . esc_html__( 'Show the store address (marketing emails always show it)', 'protech-wholesale' ) . '</label></p>';
-		echo '</div>';
+		echo '</details>';
 
 		echo '<p class="protech-composer-save"><button type="submit" name="action" value="' . esc_attr( EmailComposer::SAVE_ACTION ) . '" class="button button-primary button-large">' . esc_html( $is_new ? __( 'Create template', 'protech-wholesale' ) : __( 'Save template', 'protech-wholesale' ) ) . '</button></p>';
 		echo '</aside>';

@@ -93,15 +93,29 @@ class EmailRenderer {
 	public static function render( array $template, array $context, array $args = array() ): array {
 		$style       = self::style( $template );
 		$footer_html = (string) ( $args['footer_html'] ?? '' );
+		$preview     = ! empty( $context['_preview'] );
 		$blocks      = '';
 		$plain       = array();
+		$index       = -1;
 
 		foreach ( (array) ( $template['blocks'] ?? array() ) as $block ) {
+			// Kept in step with the position EmailEditor::render() gives this same array
+			// (array_values(), every element counted) so a click here finds the right card.
+			++$index;
+
 			if ( ! is_array( $block ) ) {
 				continue;
 			}
 
-			$blocks .= EmailBlocks::render( $block, $context, $style );
+			$row = EmailBlocks::render( $block, $context, $style );
+
+			// The editor's canvas click-to-select reads this; it never reaches a real send.
+			// Every top-level block renders as exactly one <tr>, so tagging the first one is enough.
+			if ( $preview && '' !== $row ) {
+				$row = (string) preg_replace( '/<tr(?=[ >])/', '<tr data-pw-block="' . $index . '"', $row, 1 );
+			}
+
+			$blocks .= $row;
 			$text    = trim( EmailBlocks::plain( $block, $context ) );
 
 			if ( '' !== $text ) {

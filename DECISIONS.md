@@ -1680,6 +1680,39 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Canvas-first editor (2026-09-21, 2.8.0)
+
+A layout and interaction rework, not a data-model change — the safety properties the composer
+was built around (form fields are the state, the preview is rendered by the same code that
+sends the email, nothing about a real send changes) are untouched.
+
+1. **One block's settings at a time, by CSS, not by moving anything.** Opening a block's card now
+   closes any other open one and adds `.is-editing-block` to the panel, which hides the palette
+   and every other card in `#protech-blocks`, leaving the open one filling the panel. No DOM node
+   moves — every field stays exactly where `EmailEditor::card()` renders it, so renumbering,
+   the product-picker enhancement and the summary line all needed zero changes. This applies to
+   top-level blocks only; a block nested in a Columns card keeps the old plain accordion.
+2. **Clicking a block in the preview finds its settings** via one new, inert-outside-a-preview
+   marker: `EmailRenderer::render()` tags each top-level block's row with `data-pw-block="{index}"`
+   only when `$context['_preview']` is true (the same flag and pattern the sample rejection-reason
+   text already used). Because the preview iframe is same-origin, the script reads
+   `iframe.contentDocument` directly on every `load` event — no `postMessage`. A guard test pins
+   that the marker never appears in a real send, the same kind of test the kses guard already is.
+3. **Dragging a new block onto the canvas computes a position, nothing more.** `dragover`/`drop`
+   listeners on the iframe's document use `elementFromPoint` to find the nearest marked block and
+   its vertical half, then call the existing `addBlock()` (which gained an optional "insert before
+   this node" argument) at that position. The canvas stays a read-only, generated document —
+   turning it into an editable surface was explicitly ruled out, since that's the exact
+   kses/inlining problem the renderer exists to avoid.
+4. **Reordering an already-placed block by dragging it inside the canvas is out of scope.** That
+   would need drag handles rendered into the live email markup. Reordering stays on the sidebar
+   list's existing drag handle and up/down arrows.
+5. **Copy and Remove had to learn about exclusivity.** `cloneNode()` copies the `class` attribute
+   verbatim, so copying an open (`is-active`) block would have left two cards visually "active" at
+   once; the clone now sheds that class and the new copy is selected instead of the original.
+   Removing the block currently open returns to the block list rather than leaving a phantom
+   editing state.
+
 ## The Emails screen (2026-09-21, 2.7.0)
 
 1. **The landing page changed, the address did not.** The Automations view keeps the

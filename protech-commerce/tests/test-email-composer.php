@@ -95,6 +95,42 @@ class Test_Email_Composer extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_the_canvas_is_separate_from_the_sidebar_and_every_palette_button_is_draggable(): void {
+		$html = $this->render_editor( $this->template_with( array( array( 'type' => 'text', 'attrs' => array( 'html' => 'x' ) ) ) ) );
+
+		$canvas_at  = (int) strpos( $html, 'class="protech-composer-canvas"' );
+		$side_at    = (int) strpos( $html, 'class="protech-composer-side"' );
+		$preview_at = (int) strpos( $html, 'id="protech-preview"' );
+		$editor_at  = (int) strpos( $html, 'id="protech-block-editor"' );
+
+		$this->assertGreaterThan( 0, $canvas_at );
+		$this->assertGreaterThan( 0, $side_at );
+		$this->assertGreaterThan( $canvas_at, $preview_at, 'The preview frame lives in the canvas.' );
+		$this->assertLessThan( $side_at, $preview_at, 'The canvas (and its preview) comes before the sidebar, so it is the dominant column.' );
+		$this->assertGreaterThan( $side_at, $editor_at, 'The block editor lives in the sidebar.' );
+
+		foreach ( EmailBlocks::types() as $type => $def ) {
+			$this->assertMatchesRegularExpression(
+				'/<button type="button" class="button protech-add-block" draggable="true" data-type="' . preg_quote( $type, '/' ) . '"/',
+				$html
+			);
+		}
+	}
+
+	public function test_back_to_blocks_starts_hidden(): void {
+		$html = $this->render_editor( $this->template_with( array( array( 'type' => 'text', 'attrs' => array( 'html' => 'x' ) ) ) ) );
+
+		$this->assertMatchesRegularExpression( '/<button type="button" class="button-link" id="protech-back-to-blocks" hidden>/', $html );
+	}
+
+	public function test_the_non_block_panels_are_collapsible_so_the_sidebar_is_not_one_long_scroll(): void {
+		$html = $this->render_editor( $this->template_with( array( array( 'type' => 'text', 'attrs' => array( 'html' => 'x' ) ) ) ) );
+
+		foreach ( array( 'Send a preview', 'Email settings', 'Sent automatically as', 'Design', 'Header and footer' ) as $title ) {
+			$this->assertMatchesRegularExpression( '/<details class="protech-panel"><summary>' . preg_quote( $title, '/' ) . '<\/summary>/', $html, $title . ' is not a collapsible panel.' );
+		}
+	}
+
 	public function test_a_column_menu_never_offers_columns(): void {
 		$html   = $this->render_editor( $this->template_with( array( array( 'type' => 'text', 'attrs' => array( 'html' => 'x' ) ) ) ) );
 		$start  = (int) strpos( $html, 'id="protech-block-tpl-columns"' );

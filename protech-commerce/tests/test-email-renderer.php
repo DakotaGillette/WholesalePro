@@ -309,4 +309,41 @@ class Test_Email_Renderer extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Bare', $rows );
 		$this->assertSame( '', EmailBlocks::render( array( 'type' => 'no_such_block' ), $this->context(), EmailRenderer::style( array() ) ) );
 	}
+
+	/**
+	 * The editor's canvas reads data-pw-block to know which card a click belongs to. It must
+	 * exist, in order, in a preview, and never exist in a real send — the same guarantee the
+	 * mso- guard below pins for kses, now pinned for this marker too.
+	 */
+	public function test_blocks_are_numbered_for_the_canvas_only_in_a_preview(): void {
+		$template = $this->template(
+			array(
+				$this->block( 'heading', array( 'text' => 'One' ) ),
+				$this->block( 'spacer' ), // Renders without going through EmailBlocks::row().
+				$this->block( 'heading', array( 'text' => 'Three' ) ),
+			)
+		);
+
+		$preview = EmailRenderer::render( $template, $this->context( array( '_preview' => true ) ) )['html'];
+
+		$this->assertStringContainsString( 'data-pw-block="0"', $preview );
+		$this->assertStringContainsString( 'data-pw-block="1"', $preview );
+		$this->assertStringContainsString( 'data-pw-block="2"', $preview );
+		$this->assertGreaterThan(
+			strpos( $preview, 'data-pw-block="0"' ),
+			strpos( $preview, 'data-pw-block="1"' ),
+			'The markers appear in block order, so the editor can map a click back to the right card.'
+		);
+
+		$sent = EmailRenderer::render( $template, $this->context() )['html'];
+
+		$this->assertStringNotContainsString( 'data-pw-block', $sent, 'Outside a preview, this never appears — it must never reach a real send.' );
+	}
+
+	public function test_a_block_that_renders_nothing_carries_no_marker(): void {
+		// A wholesale-only explainer, shown to a retail reader: EmailBlocks::render() returns ''.
+		$html = EmailRenderer::render( $this->template( array( $this->block( 'explainer_ladder' ) ) ), $this->context( array( '_preview' => true ) ) )['html'];
+
+		$this->assertStringNotContainsString( 'data-pw-block', $html );
+	}
 }

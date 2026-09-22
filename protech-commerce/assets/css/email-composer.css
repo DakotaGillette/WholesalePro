@@ -2,29 +2,17 @@
  * Protech Commerce: the email template editor. Loaded only on the editor
  * screen (see Plugin::enqueue_admin_assets()), after admin.css.
  *
- * Two columns on a wide screen (blocks | settings and preview), one on a
- * narrow one. Colors and spacing follow wp-admin so it looks at home.
+ * Canvas-first layout: the email preview is the dominant, centered element;
+ * a narrower panel on the right holds what to add and every setting, one
+ * block's fields at a time. Colors and spacing follow wp-admin.
  */
 
 .protech-composer [hidden] {
 	display: none !important;
 }
 
-.protech-composer-grid {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 380px;
-	gap: 24px;
-	align-items: start;
-}
-
-@media (max-width: 1100px) {
-	.protech-composer-grid {
-		grid-template-columns: minmax(0, 1fr);
-	}
-}
-
-.protech-composer-top,
-.protech-panel {
+.protech-composer-top {
+	max-width: 640px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 4px;
@@ -32,28 +20,11 @@
 	margin-bottom: 16px;
 }
 
-.protech-panel h3,
-.protech-composer-bar h3 {
-	margin: 12px 0 8px;
-}
-
-.protech-composer-bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	flex-wrap: wrap;
-}
-
-.protech-composer-hint,
-.protech-field-help {
-	color: #646970;
-}
-
 .protech-field-help {
 	display: block;
 	margin-top: 2px;
 	font-size: 12px;
+	color: #646970;
 }
 
 .protech-field {
@@ -78,7 +49,155 @@
 	max-width: 100%;
 }
 
-/* -- The block list -------------------------------------------------------- */
+/* -- The two-column grid: canvas dominant, sidebar for editing ------------- */
+
+.protech-composer-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 380px;
+	gap: 24px;
+	align-items: start;
+}
+
+@media (max-width: 1100px) {
+	.protech-composer-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* -- Canvas ------------------------------------------------------------------ */
+
+.protech-composer-canvas {
+	position: sticky;
+	top: 32px;
+	background: #eef0f2;
+	border-radius: 8px;
+	padding: 20px 16px 16px;
+}
+
+@media (max-width: 1100px) {
+	.protech-composer-canvas {
+		position: static;
+	}
+}
+
+.protech-canvas-toolbar {
+	margin: 0 0 12px;
+	text-align: center;
+}
+
+.protech-preview-wrap {
+	display: flex;
+	justify-content: center;
+}
+
+#protech-preview {
+	display: block;
+	width: 100%;
+	max-width: 900px;
+	height: 78vh;
+	min-height: 520px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+	transition: width 0.2s;
+}
+
+.protech-device.is-active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+}
+
+.protech-canvas-note {
+	max-width: 900px;
+	margin: 12px auto 0;
+	text-align: center;
+	color: #646970;
+}
+
+/* -- Sidebar: the content palette, the block list, and every setting ------- */
+
+.protech-composer-side {
+	max-height: calc(100vh - 96px);
+	overflow-y: auto;
+	position: sticky;
+	top: 32px;
+}
+
+@media (max-width: 1100px) {
+	.protech-composer-side {
+		position: static;
+		max-height: none;
+	}
+}
+
+.protech-block-editor,
+.protech-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 4px 16px 12px;
+	margin-bottom: 12px;
+}
+
+.protech-panel summary {
+	padding: 10px 0;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.protech-panel[open] summary {
+	margin-bottom: 4px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.protech-block-editor h3 {
+	margin: 12px 0 4px;
+}
+
+#protech-back-to-blocks {
+	margin-top: 10px;
+	font-size: 13px;
+}
+
+.protech-composer-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.protech-composer-hint {
+	margin: 4px 0 10px;
+	color: #646970;
+	font-size: 12px;
+}
+
+/* -- The content palette: draggable, compact tiles -------------------------- */
+
+.protech-palette {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+	margin-bottom: 14px;
+}
+
+.protech-add-block {
+	cursor: grab;
+	font-size: 12px;
+	padding: 6px 4px;
+	line-height: 1.3;
+	white-space: normal;
+	height: auto;
+}
+
+.protech-add-block:active {
+	cursor: grabbing;
+}
+
+/* -- The block list: a compact table of contents ---------------------------- */
 
 .protech-block-list {
 	margin: 0 0 12px;
@@ -87,7 +206,7 @@
 }
 
 .protech-block {
-	margin: 0 0 8px;
+	margin: 0 0 6px;
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
@@ -100,11 +219,15 @@
 .protech-block-head {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 6px 10px;
+	gap: 6px;
+	padding: 5px 8px;
 	background: #f6f7f7;
-	border-radius: 4px 4px 0 0;
+	border-radius: 4px;
 	cursor: grab;
+}
+
+.protech-block.is-active > .protech-block-head {
+	border-radius: 4px 4px 0 0;
 }
 
 .protech-block-handle {
@@ -116,12 +239,12 @@
 .protech-block-toggle {
 	flex: 1;
 	min-width: 0;
-	padding: 4px 0;
+	padding: 3px 0;
 	background: none;
 	border: 0;
 	text-align: left;
 	cursor: pointer;
-	font-size: 13px;
+	font-size: 12px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -133,8 +256,9 @@
 
 .protech-block-actions {
 	display: flex;
-	gap: 10px;
+	gap: 6px;
 	white-space: nowrap;
+	font-size: 12px;
 }
 
 .protech-block-actions .button-link {
@@ -146,7 +270,7 @@
 }
 
 .protech-block-body {
-	padding: 4px 16px 12px;
+	padding: 4px 12px 10px;
 	border-top: 1px solid #dcdcde;
 }
 
@@ -157,28 +281,30 @@
 .protech-block-more summary {
 	cursor: pointer;
 	color: #2271b1;
-}
-
-.protech-palette {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	align-items: center;
-	padding: 12px;
-	background: #f6f7f7;
-	border: 1px dashed #c3c4c7;
-	border-radius: 4px;
+	padding: 4px 0;
+	font-weight: 400;
 }
 
 .protech-composer-empty {
-	padding: 16px;
+	padding: 14px;
 	text-align: center;
 	color: #646970;
 	border: 1px dashed #c3c4c7;
 	border-radius: 4px;
 }
 
-/* -- Columns block --------------------------------------------------------- */
+/* One block's settings at a time: everything else in this panel hides while
+   a block is open, so the panel reads as that block's settings, not a list. */
+.protech-block-editor.is-editing-block .protech-composer-hint,
+.protech-block-editor.is-editing-block .protech-palette {
+	display: none;
+}
+
+.protech-block-editor.is-editing-block #protech-blocks > .protech-block:not(.is-active) {
+	display: none;
+}
+
+/* -- Columns block ----------------------------------------------------------- */
 
 .protech-columns {
 	display: grid;
@@ -187,7 +313,7 @@
 	margin-top: 12px;
 }
 
-@media (max-width: 782px) {
+@media (max-width: 480px) {
 	.protech-columns {
 		grid-template-columns: minmax(0, 1fr);
 	}
@@ -210,7 +336,7 @@
 }
 
 .protech-block-list--nested .protech-block-actions {
-	gap: 6px;
+	gap: 4px;
 }
 
 /* -- Fields: color and picture -------------------------------------------- */
@@ -258,32 +384,6 @@
 
 .protech-media-clear {
 	color: #b32d2e;
-}
-
-/* -- Preview --------------------------------------------------------------- */
-
-.protech-preview-wrap {
-	background: #f0f0f1;
-	border-radius: 4px;
-	padding: 8px 0;
-	text-align: center;
-}
-
-#protech-preview {
-	display: block;
-	width: 100%;
-	max-width: 100%;
-	height: 560px;
-	margin: 0 auto;
-	background: #fff;
-	border: 1px solid #dcdcde;
-	transition: width 0.2s;
-}
-
-.protech-device.is-active {
-	background: #2271b1;
-	border-color: #2271b1;
-	color: #fff;
 }
 
 .protech-composer-save {

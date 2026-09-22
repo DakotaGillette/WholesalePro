@@ -384,6 +384,17 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 33. Canvas-first editor (2.8.0)
+
+- [ ] Open a template: the email preview is the big, centered element; a narrower panel on the right holds Content (Add a block) and the block list.
+- [ ] Click a block on the email itself: the panel swaps to just that block's settings, with "Back to blocks" at the top. Click Back to blocks: the palette and list return, nothing else changed.
+- [ ] Drag a palette tile (say, Button) and drop it between two existing blocks on the email: it lands there, not at the end. Drop it above the first block and below the last: both work.
+- [ ] With a block's settings open, its Up/Down/Copy/Remove still work without leaving the settings view. Copy: the new copy is the one now open, the original is back in the list. Remove the open block: you land back on the list.
+- [ ] Open a Columns block, then open one of its inner blocks: this still behaves as a plain expand/collapse (not exclusive), same as before.
+- [ ] The other panels (Send a preview, Email settings, Sent automatically as, Design, Header and footer) are collapsed by default and expand on click.
+- [ ] Save, Duplicate, Delete and Preview-to-any-address from the templates list all still work exactly as before.
+- [ ] At 1280px the canvas dominates the screen; at 360px it stacks above the panel and nothing scrolls sideways.
+
 ## 32. The Emails screen (2.7.0)
 
 - [ ] Messaging opens on **Emails** (the first item, formerly Automations). Three groups: "When someone joins", "Automatic", "Sent".
