@@ -634,6 +634,7 @@ final class Plugin {
 				/* translators: %s: currency symbol. */
 				'bulkBulkPrompt'   => sprintf( __( 'Set the Volume price override for all variations (%s per pack):', 'protech-wholesale' ), get_woocommerce_currency_symbol() ),
 				'deleteTemplateConfirm' => __( 'Delete this email template? This cannot be undone.', 'protech-wholesale' ),
+				'deleteDraftConfirm'    => __( 'Delete this draft? This cannot be undone.', 'protech-wholesale' ),
 				'approveConfirm'   => __( 'Approve this application? The applicant is emailed a password link and sees wholesale pricing immediately.', 'protech-wholesale' ),
 				'rejectPrompt'     => __( 'Reject this application? Enter an optional reason to include in the email to the applicant, or leave blank:', 'protech-wholesale' ),
 				'deleteAutomationConfirm' => __( 'Delete this automation rule? This cannot be undone.', 'protech-wholesale' ),
@@ -650,9 +651,16 @@ final class Plugin {
 			wp_enqueue_media();
 		}
 
-		// The template editor is a separate app, built under editor-src/ and
-		// committed as a fixed-name bundle, loaded only on its own screen.
-		$is_editor = $screen && str_contains( (string) $screen->id, MessagingTab::page_slug( 'templates' ) ) && isset( $_GET['edit'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects a screen, changes nothing.
+		// The template editor and the new-email flow (3.9.0) are one app, built under
+		// editor-src/ and committed as a fixed-name bundle, loaded only on their own screens.
+		$is_editor    = $screen && str_contains( (string) $screen->id, MessagingTab::page_slug( 'templates' ) ) && isset( $_GET['edit'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects a screen, changes nothing.
+		$is_email_app = MessagingTab::is_email_app();
+
+		if ( $is_email_app ) {
+			$this->enqueue_editor_bundle();
+			wp_localize_script( 'protech-wholesale-editor', 'protechEditor', array_merge( self::editor_boot_common(), self::email_app_boot() ) );
+			return;
+		}
 
 		if ( $is_editor ) {
 			wp_enqueue_media();
@@ -708,5 +716,82 @@ final class Plugin {
 				)
 			);
 		}
+	}
+
+	/** The editor bundle and the media library it uses, for either mode of the app. */
+	private function enqueue_editor_bundle(): void {
+		wp_enqueue_media();
+		wp_enqueue_style(
+			'protech-wholesale-editor',
+			PROTECH_WHOLESALE_URL . 'assets/editor/editor.css',
+			array( 'protech-wholesale-admin' ),
+			$this->asset_version( 'assets/editor/editor.css' )
+		);
+		wp_enqueue_script(
+			'protech-wholesale-editor',
+			PROTECH_WHOLESALE_URL . 'assets/editor/editor.js',
+			array(),
+			$this->asset_version( 'assets/editor/editor.js' ),
+			true
+		);
+	}
+
+	/**
+	 * Boot data both modes of the app need.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function editor_boot_common(): array {
+		return array(
+			'restRoot'       => esc_url_raw( rest_url( RestApi::NAMESPACE ) ),
+			'nonce'          => wp_create_nonce( 'wp_rest' ),
+			'schema'         => EmailBlocks::schema(),
+			'styleDefaults'  => array(
+				'width'          => MessagingSettings::email_width(),
+				'page_bg'        => '#f4f5f7',
+				'canvas'         => '#ffffff',
+				'brand'          => MessagingSettings::email_brand_color(),
+				'text'           => '#1f2937',
+				'muted'          => '#6b7280',
+				'font'           => 'helvetica',
+				'heading_font'   => '' !== MessagingSettings::email_heading_font() ? MessagingSettings::email_heading_font() : 'helvetica',
+				'link_color'     => '' !== MessagingSettings::email_link_color() ? MessagingSettings::email_link_color() : MessagingSettings::email_brand_color(),
+				'mobile_padding' => MessagingSettings::email_mobile_padding(),
+			),
+			'categoryLabels' => EmailTemplates::category_labels(),
+			'caps'           => array( 'unfiltered_html' => current_user_can( 'unfiltered_html' ) ),
+		);
+	}
+
+	/**
+	 * Boot data for the new-email flow: the email being worked on (when the
+	 * address names one), what the Send step offers, and where its links go.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function email_app_boot(): array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects which email to bootstrap, changes nothing.
+		$email_id = sanitize_text_field( wp_unslash( $_GET['email'] ?? '' ) );
+		$campaign = '' !== $email_id ? Campaigns::get( $email_id ) : null;
+		$payload  = null !== $campaign ? RestEmails::payload( $campaign, EmailDesigns::get( $email_id ), array() ) : null;
+
+		return array(
+			'mode'           => 'email',
+			'emailData'      => $payload,
+			'missingEmail'   => '' !== $email_id && null === $campaign,
+			// Order tags only fill in on an order email, so an email you send yourself never offers them.
+			'mergeTags'      => MergeTags::all(),
+			'presetAudience' => ComposeScreen::preset_audience(),
+			'tiers'          => Tiers::get_tier_labels(),
+			'smsReady'       => null !== MessageProviders::sms(),
+			'urls'           => array(
+				'compose'   => MessagingTab::url( 'compose' ),
+				'emails'    => MessagingTab::url( 'emails' ),
+				'drafts'    => MessagingTab::url( 'emails', array( 'status' => Campaigns::STATUS_DRAFT ) ),
+				'automatic' => MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ),
+				'textForm'  => MessagingTab::url( 'compose', array( 'mode' => 'form', 'channel' => 'sms' ) ),
+				'templates' => MessagingTab::url( 'templates' ),
+			),
+		);
 	}
 }

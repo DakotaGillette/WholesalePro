@@ -30,6 +30,8 @@ class RestApi {
 
 	public function register_routes(): void {
 		( new RestTemplates() )->register_routes();
+		( new RestEmails() )->register_routes();
+		( new RestProducts() )->register_routes();
 	}
 
 	/** Every route in this namespace needs the same capability the Messaging admin screens do. */

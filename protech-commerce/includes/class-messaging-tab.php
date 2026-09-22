@@ -45,6 +45,36 @@ class MessagingTab {
 		add_action( 'admin_page_access_denied', array( $this, 'redirect_retired_page' ) );
 		add_filter( 'parent_file', array( $this, 'highlight_parent' ) );
 		add_filter( 'submenu_file', array( $this, 'highlight_submenu' ) );
+		add_action( 'in_admin_header', array( $this, 'quiet_notices_in_email_app' ) );
+	}
+
+	/**
+	 * Whether this request is the new-email flow (3.9.0): the compose page,
+	 * except `mode=form`, which is the older one-form Compose, still used for
+	 * text messages and for resending an email sent before 3.9.0.
+	 */
+	public static function is_email_app(): bool {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only routing.
+		$page = sanitize_key( $_GET['page'] ?? '' );
+		$mode = sanitize_key( $_GET['mode'] ?? '' );
+		// phpcs:enable
+
+		return is_admin() && self::page_slug( 'compose' ) === $page && 'form' !== $mode;
+	}
+
+	/**
+	 * Other plugins' and the theme's notices ("this theme recommends...")
+	 * crowd the new-email flow's own header and step bar, so they are
+	 * skipped on that one screen, the way MailPoet keeps its editor clear.
+	 */
+	public function quiet_notices_in_email_app(): void {
+		if ( ! self::is_email_app() ) {
+			return;
+		}
+
+		remove_all_actions( 'admin_notices' );
+		remove_all_actions( 'all_admin_notices' );
+		remove_all_actions( 'network_admin_notices' );
 	}
 
 	/** The admin page slug of a view: the landing view owns the top-level slug, the rest hang off it. */
@@ -167,6 +197,16 @@ class MessagingTab {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
+		// The new-email flow draws its own header and step bar; the page keeps one
+		// (screen-reader) h1 and the marker WordPress places notices after.
+		if ( self::is_email_app() ) {
+			echo '<div class="wrap pc-app-wrap"><h1 class="screen-reader-text">' . esc_html__( 'New email', 'protech-wholesale' ) . '</h1><hr class="wp-header-end" />';
+			echo '<div id="protech-email-root"></div>';
+			echo '<noscript><p>' . esc_html__( 'Writing an email needs JavaScript enabled in your browser.', 'protech-wholesale' ) . '</p></noscript>';
+			echo '</div>';
+			return;
+		}
+
 		$view    = self::current_view();
 		$hidden  = self::hidden_views();
 		$views   = self::get_views();
@@ -269,7 +309,8 @@ class MessagingTab {
 		return array(
 			'compose'   => array(
 				'title'   => __( 'New email', 'protech-wholesale' ),
-				'heading' => __( 'New email', 'protech-wholesale' ),
+				// Only seen on the older one-form Compose (`mode=form`); the new flow has its own header.
+				'heading' => __( 'New message', 'protech-wholesale' ),
 				'parent'  => 'emails',
 			),
 			'templates' => array(

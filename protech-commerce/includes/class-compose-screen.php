@@ -68,6 +68,8 @@ class ComposeScreen {
 			}
 		}
 
+		// "Text message" from the new-email chooser (3.9.0): the form is locked to SMS, with no email section.
+		$text_only      = ! empty( $input['text_only'] );
 		$tiers          = Tiers::get_tier_labels();
 		$channel        = (string) ( $input['channel'] ?? 'email' );
 		$scope          = (string) ( $input['audience']['scope'] ?? Audience::SCOPE_WHOLESALE );
@@ -138,9 +140,15 @@ class ComposeScreen {
 				<tr>
 					<th><?php esc_html_e( 'Channel', 'protech-wholesale' ); ?></th>
 					<td>
+						<?php if ( $text_only ) : ?>
+							<input type="hidden" name="channel" value="sms" />
+							<input type="hidden" name="text_only" value="1" />
+							<?php esc_html_e( 'Text message', 'protech-wholesale' ); ?>
+						<?php else : ?>
 						<?php foreach ( array( 'email' => __( 'Email', 'protech-wholesale' ), 'sms' => __( 'SMS', 'protech-wholesale' ), 'both' => __( 'Both', 'protech-wholesale' ) ) as $value => $label ) : ?>
 							<label style="margin-right:1em;"><input type="radio" name="channel" value="<?php echo esc_attr( $value ); ?>" <?php checked( $channel, $value ); ?> /> <?php echo esc_html( $label ); ?></label>
 						<?php endforeach; ?>
+						<?php endif; ?>
 					</td>
 				</tr>
 				<tr>
@@ -154,6 +162,7 @@ class ComposeScreen {
 
 			<?php self::render_merge_tag_reference( '' ); ?>
 
+			<?php if ( ! $text_only ) : ?>
 			<h3><?php esc_html_e( 'Email', 'protech-wholesale' ); ?></h3>
 			<table class="form-table" role="presentation">
 				<?php self::render_template_picker( (string) ( $input['email']['template_id'] ?? '' ) ); ?>
@@ -170,6 +179,7 @@ class ComposeScreen {
 					<td><textarea id="protech_compose_body" name="email[body]" class="large-text protech-tag-target" rows="8"><?php echo esc_textarea( (string) ( $input['email']['body'] ?? '' ) ); ?></textarea></td>
 				</tr>
 			</table>
+			<?php endif; ?>
 
 			<h3><?php esc_html_e( 'SMS', 'protech-wholesale' ); ?></h3>
 			<table class="form-table" role="presentation">
@@ -192,23 +202,40 @@ class ComposeScreen {
 	 * @return array<string, mixed>
 	 */
 	private static function default_compose_input(): array {
+		$text_only = 'sms' === sanitize_key( wp_unslash( $_GET['channel'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only default.
+
+		return array(
+			'audience'  => self::preset_audience(),
+			'channel'   => $text_only ? 'sms' : 'email',
+			'text_only' => $text_only ? '1' : '',
+			'email'     => array( 'subject' => '', 'heading' => '', 'body' => '' ),
+			'sms'       => array( 'body' => '' ),
+		);
+	}
+
+	/**
+	 * The audience a "Message" link on the Customers tab starts with: one
+	 * customer (`?ids=`), or the ticked ones the bulk button left in a
+	 * transient (`?sel=1`). Everyone otherwise. Shared by the old form and
+	 * the new email flow.
+	 *
+	 * @return array{type: string, user_ids: int[]}
+	 */
+	public static function preset_audience(): array {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$ids = isset( $_GET['ids'] ) ? array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_GET['ids'] ) ) ) ) : array();
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( empty( $ids ) && isset( $_GET['sel'] ) ) {
 			$stashed = get_transient( 'protech_wholesale_msg_selected_' . get_current_user_id() );
-			$ids     = is_array( $stashed ) ? $stashed : array();
+			$ids     = is_array( $stashed ) ? array_map( 'absint', $stashed ) : array();
 		}
 
+		$ids = array_values( array_filter( $ids ) );
+
 		return array(
-			'audience' => array(
-				'type'     => empty( $ids ) ? Audience::TYPE_ALL : Audience::TYPE_SELECTED,
-				'user_ids' => $ids,
-			),
-			'channel'  => 'email',
-			'email'    => array( 'subject' => '', 'heading' => '', 'body' => '' ),
-			'sms'      => array( 'body' => '' ),
+			'type'     => empty( $ids ) ? Audience::TYPE_ALL : Audience::TYPE_SELECTED,
+			'user_ids' => $ids,
 		);
 	}
 
@@ -242,7 +269,7 @@ class ComposeScreen {
 
 		self::stash_review_or_form( wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cleaned by Campaigns::create().
 
-		wp_safe_redirect( MessagingTab::url( 'compose' ) );
+		wp_safe_redirect( MessagingTab::url( 'compose', array( 'mode' => 'form' ) ) );
 		exit;
 	}
 
@@ -256,7 +283,7 @@ class ComposeScreen {
 
 		AdminStash::stash( 'compose_form', array( 'input' => wp_unslash( $_POST ), 'errors' => array() ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- shown back in escaped fields only.
 
-		wp_safe_redirect( MessagingTab::url( 'compose' ) );
+		wp_safe_redirect( MessagingTab::url( 'compose', array( 'mode' => 'form' ) ) );
 		exit;
 	}
 
@@ -288,33 +315,17 @@ class ComposeScreen {
 		$created  = Campaigns::create( $input, get_current_user_id() );
 		$campaign = $created['campaign'];
 		$channels = 'both' === $campaign['channel'] ? array( 'email', 'sms' ) : array( (string) $campaign['channel'] );
-		$category = (string) $campaign['category'];
-		$user_ids = Audience::resolve( $campaign['audience'] );
-		$sent_to  = array_fill_keys( $channels, 0 );
-		$reasons  = array();
-
-		foreach ( $user_ids as $user_id ) {
-			foreach ( $channels as $channel ) {
-				// Email is counted from the local unsubscribe record only: asking Brevo about every person in a big audience would time the page out, and each message is checked against Brevo again as it goes out.
-				$gate = 'sms' === $channel ? SmsConsent::can_receive_sms( $user_id, $category ) : SmsConsent::can_receive_email( $user_id, $category, false );
-
-				if ( $gate['ok'] ) {
-					++$sent_to[ $channel ];
-				} else {
-					$reasons[ $gate['reason'] ] = ( $reasons[ $gate['reason'] ] ?? 0 ) + 1;
-				}
-			}
-		}
+		$estimate = Audience::estimate( $campaign['audience'], $channels, (string) $campaign['category'] );
 
 		return array(
 			'input'          => $input,
 			'campaign'       => $campaign,
 			'errors'         => $created['errors'],
 			'audience_label' => Audience::describe( $campaign['audience'] ),
-			'audience_total' => count( $user_ids ),
+			'audience_total' => $estimate['total'],
 			'channels'       => $channels,
-			'sent_to'        => $sent_to,
-			'reasons'        => $reasons,
+			'sent_to'        => $estimate['sent_to'],
+			'reasons'        => $estimate['reasons'],
 		);
 	}
 
@@ -499,7 +510,7 @@ class ComposeScreen {
 
 		if ( ! empty( $result['errors'] ) ) {
 			AdminStash::stash( 'compose_form', array( 'input' => $input, 'errors' => $result['errors'] ) );
-			wp_safe_redirect( MessagingTab::url( 'compose' ) );
+			wp_safe_redirect( MessagingTab::url( 'compose', array( 'mode' => 'form' ) ) );
 			exit;
 		}
 
@@ -529,7 +540,7 @@ class ComposeScreen {
 			AdminStash::stash( 'compose_form', array( 'input' => $input, 'errors' => array() ) );
 		}
 
-		wp_safe_redirect( MessagingTab::url( 'compose' ) );
+		wp_safe_redirect( MessagingTab::url( 'compose', array( 'mode' => 'form' ) ) );
 		exit;
 	}
 

@@ -125,7 +125,7 @@ class HomeScreen {
 	}
 
 	private static function render_recent(): void {
-		$campaigns = Campaigns::recent( 5 );
+		$campaigns = Campaigns::recent_sent( 5 );
 
 		echo '<div class="protech-home-card">';
 		echo '<h2>' . esc_html__( 'Latest sends', 'protech-wholesale' ) . '</h2>';

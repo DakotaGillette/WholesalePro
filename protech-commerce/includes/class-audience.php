@@ -222,6 +222,37 @@ class Audience {
 		return count( self::resolve( $segment ) );
 	}
 
+	/**
+	 * Who would get a message right now and who would be left out, by the
+	 * same consent gate a real send applies, without sending anything. Email
+	 * is counted from the local unsubscribe record only: asking Brevo about
+	 * every person in a big audience would time the request out, and each
+	 * message is checked against Brevo again as it goes out.
+	 *
+	 * @param array<string, mixed> $segment  Raw or normalized audience.
+	 * @param string[]             $channels 'email' and/or 'sms'.
+	 * @return array{total: int, sent_to: array<string, int>, reasons: array<string, int>}
+	 */
+	public static function estimate( array $segment, array $channels, string $category ): array {
+		$user_ids = self::resolve( self::normalize( $segment ) );
+		$sent_to  = array_fill_keys( $channels, 0 );
+		$reasons  = array();
+
+		foreach ( $user_ids as $user_id ) {
+			foreach ( $channels as $channel ) {
+				$gate = 'sms' === $channel ? SmsConsent::can_receive_sms( $user_id, $category ) : SmsConsent::can_receive_email( $user_id, $category, false );
+
+				if ( $gate['ok'] ) {
+					++$sent_to[ $channel ];
+				} else {
+					$reasons[ $gate['reason'] ] = ( $reasons[ $gate['reason'] ] ?? 0 ) + 1;
+				}
+			}
+		}
+
+		return array( 'total' => count( $user_ids ), 'sent_to' => $sent_to, 'reasons' => $reasons );
+	}
+
 	/** "All wholesale customers", "All retail customers" or "All customers", for use in a sentence. */
 	private static function scope_label( string $scope ): string {
 		switch ( $scope ) {

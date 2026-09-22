@@ -92,6 +92,40 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 		$this->assertNull( $tab->highlight_submenu( null ) );
 	}
 
+	public function test_the_compose_page_is_the_new_email_flow_except_in_form_mode(): void {
+		set_current_screen( 'dashboard' );
+
+		$_GET = array( 'page' => 'protech-messaging-compose' );
+		$this->assertTrue( MessagingTab::is_email_app() );
+
+		$_GET = array( 'page' => 'protech-messaging-compose', 'email' => 'c_1_abcdef', 'step' => 'send' );
+		$this->assertTrue( MessagingTab::is_email_app() );
+
+		$_GET = array( 'page' => 'protech-messaging-compose', 'mode' => 'form' );
+		$this->assertFalse( MessagingTab::is_email_app() );
+
+		$_GET = array( 'page' => 'protech-messaging-emails' );
+		$this->assertFalse( MessagingTab::is_email_app() );
+
+		set_current_screen( 'front' );
+	}
+
+	/**
+	 * The older one-form Compose carries what the admin typed across a
+	 * redirect in a stash. Landing on the bare compose URL would open the new
+	 * flow's first step instead and lose it, so every redirect back to the
+	 * form must name `mode=form`.
+	 */
+	public function test_no_redirect_back_to_the_old_form_can_land_on_the_new_flow(): void {
+		foreach ( array( 'class-compose-screen.php', 'class-emails-screen.php' ) as $file ) {
+			$this->assertDoesNotMatchRegularExpression(
+				"/wp_safe_redirect\\(\\s*MessagingTab::url\\(\\s*'compose'\\s*\\)\\s*\\)/",
+				(string) file_get_contents( PROTECH_WHOLESALE_DIR . 'includes/' . $file ),
+				"{$file} redirects to the bare compose URL."
+			);
+		}
+	}
+
 	public function test_the_retired_compliance_page_redirects_to_its_settings_tab(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
@@ -211,6 +245,8 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 			'protech_send_test_message',
 			'protech_export_consent',
 			'protech_test_brevo_connection',
+			'protech_duplicate_email',
+			'protech_delete_email_draft',
 		);
 
 		foreach ( $actions as $action ) {

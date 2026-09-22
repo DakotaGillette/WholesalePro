@@ -25,7 +25,12 @@ class Campaigns {
 
 	public const OPTION = 'protech_wholesale_campaigns';
 
+	/** How many sent emails are kept. Drafts and scheduled emails are never trimmed. */
 	private const MAX_STORED = 100;
+
+	public const STATUS_DRAFT     = 'draft';
+	public const STATUS_SCHEDULED = 'scheduled';
+	public const STATUS_SENT      = 'sent';
 
 	/**
 	 * @param array<string, mixed> $input
@@ -86,14 +91,7 @@ class Campaigns {
 		}
 
 		$audience = Audience::normalize( (array) ( $input['audience'] ?? array() ) );
-
-		if ( Audience::TYPE_SELECTED === $audience['type'] && empty( $audience['user_ids'] ) ) {
-			$errors[] = __( 'No customers were selected.', 'protech-wholesale' );
-		}
-
-		if ( Audience::TYPE_BOUGHT_PRODUCT === $audience['type'] && ! wc_get_product( $audience['product_id'] ) instanceof \WC_Product ) {
-			$errors[] = __( 'Choose the product they bought.', 'protech-wholesale' );
-		}
+		$errors   = array_merge( $errors, self::validate_audience( $audience ) );
 
 		$campaign = array(
 			'id'         => 'c_' . time() . '_' . substr( md5( uniqid( '', true ) ), 0, 6 ),
@@ -108,6 +106,206 @@ class Campaigns {
 		);
 
 		return array( 'campaign' => $campaign, 'errors' => $errors );
+	}
+
+	/**
+	 * What is wrong with an audience, before anything is sent to it.
+	 *
+	 * @param array<string, mixed> $audience Normalized (Audience::normalize()).
+	 * @return string[]
+	 */
+	public static function validate_audience( array $audience ): array {
+		$errors = array();
+
+		if ( Audience::TYPE_SELECTED === $audience['type'] && empty( $audience['user_ids'] ) ) {
+			$errors[] = __( 'No customers were selected.', 'protech-wholesale' );
+		}
+
+		if ( Audience::TYPE_BOUGHT_PRODUCT === $audience['type'] && ! wc_get_product( $audience['product_id'] ) instanceof \WC_Product ) {
+			$errors[] = __( 'Choose the product they bought.', 'protech-wholesale' );
+		}
+
+		return $errors;
+	}
+
+	// -----------------------------------------------------------------
+	// Emails written in the stepped flow (3.9.0): drafts with their own design.
+	// -----------------------------------------------------------------
+
+	/** Where an email is. One saved before 3.9.0 has no status and was always sent. */
+	public static function status( array $campaign ): string {
+		$status = (string) ( $campaign['status'] ?? '' );
+
+		return in_array( $status, array( self::STATUS_DRAFT, self::STATUS_SCHEDULED ), true ) ? $status : self::STATUS_SENT;
+	}
+
+	/** Whether its design is its own (EmailDesigns) rather than a library template it points at. */
+	public static function has_own_design( array $campaign ): bool {
+		return ! empty( $campaign['design'] );
+	}
+
+	/**
+	 * A new, stored draft email, with its design already saved alongside it.
+	 *
+	 * @param array<string, mixed> $design   From EmailDesigns::from_*().
+	 * @param array<string, mixed> $audience Raw audience input (a preset such as selected customers), or empty.
+	 * @return array{campaign: array<string, mixed>, design: array<string, mixed>, errors: string[]}
+	 */
+	public static function create_draft( array $design, array $audience, int $author_id ): array {
+		$now      = time();
+		$campaign = array(
+			'id'         => 'c_' . $now . '_' . substr( md5( uniqid( '', true ) ), 0, 6 ),
+			'name'       => sanitize_text_field( (string) ( $design['name'] ?? '' ) ) ?: __( 'Untitled email', 'protech-wholesale' ),
+			'status'     => self::STATUS_DRAFT,
+			'design'     => true,
+			'channel'    => 'email',
+			'category'   => MessageLog::CATEGORY_MARKETING,
+			'audience'   => Audience::normalize( $audience ),
+			'email'      => array( 'subject' => '', 'heading' => '', 'body' => '', 'template_id' => '' ),
+			'sms'        => array( 'body' => '' ),
+			'created_at' => $now,
+			'created_by' => $author_id,
+			'updated_at' => $now,
+			'sent_at'    => 0,
+		);
+
+		$design['name'] = $campaign['name'];
+		$design['kind'] = EmailTemplates::KIND_MARKETING;
+		$saved          = EmailDesigns::save( $campaign['id'], $design );
+
+		self::store( $campaign );
+
+		return array( 'campaign' => $campaign, 'design' => $saved['design'], 'errors' => $saved['errors'] );
+	}
+
+	/**
+	 * Applies a draft's send options: name, audience, and whether it is a
+	 * service email. Only the keys given change.
+	 *
+	 * @param array<string, mixed> $campaign
+	 * @param array<string, mixed> $input `name`, `audience`, `service_message`.
+	 * @return array<string, mixed>
+	 */
+	public static function apply_options( array $campaign, array $input ): array {
+		if ( array_key_exists( 'name', $input ) ) {
+			$campaign['name'] = sanitize_text_field( (string) $input['name'] ) ?: __( 'Untitled email', 'protech-wholesale' );
+		}
+
+		if ( is_array( $input['audience'] ?? null ) ) {
+			$campaign['audience'] = Audience::normalize( $input['audience'] );
+		}
+
+		if ( array_key_exists( 'service_message', $input ) ) {
+			$campaign['category'] = ! empty( $input['service_message'] ) ? MessageLog::CATEGORY_TRANSACTIONAL : MessageLog::CATEGORY_MARKETING;
+		}
+
+		$campaign['updated_at'] = time();
+
+		return $campaign;
+	}
+
+	/** Stores a draft's changes. */
+	public static function save_draft( array $campaign ): void {
+		self::store( $campaign );
+	}
+
+	/**
+	 * Everything that would stop an email with its own design from being
+	 * sent: its audience, a missing or empty design, and the design's own
+	 * problems (no subject, unknown merge tags).
+	 *
+	 * @param array<string, mixed> $campaign
+	 * @return string[]
+	 */
+	public static function validate_for_send( array $campaign ): array {
+		$errors = self::validate_audience( Audience::normalize( (array) ( $campaign['audience'] ?? array() ) ) );
+		$design = EmailDesigns::get( (string) $campaign['id'] );
+
+		if ( null === $design ) {
+			return array_merge( $errors, array( __( 'This email has no design. Go back to Design and build one.', 'protech-wholesale' ) ) );
+		}
+
+		$design['id']   = '';
+		$design['slot'] = '';
+		$errors         = array_merge( $errors, EmailTemplates::validate( $design )['errors'] );
+
+		if ( '' === trim( (string) $design['subject'] ) ) {
+			$errors[] = __( 'Give the email a subject.', 'protech-wholesale' );
+		}
+
+		return $errors;
+	}
+
+	/**
+	 * Sends a draft now: checks it, marks it sent and launches it.
+	 *
+	 * @return array{ok: bool, errors: string[], queued: int, skipped: array<string, int>}
+	 */
+	public static function send_now( string $id ): array {
+		$campaign = self::get( $id );
+
+		if ( null === $campaign || self::STATUS_DRAFT !== self::status( $campaign ) ) {
+			return array( 'ok' => false, 'errors' => array( __( 'Only a draft can be sent.', 'protech-wholesale' ) ), 'queued' => 0, 'skipped' => array() );
+		}
+
+		$errors = self::validate_for_send( $campaign );
+
+		if ( ! empty( $errors ) ) {
+			return array( 'ok' => false, 'errors' => $errors, 'queued' => 0, 'skipped' => array() );
+		}
+
+		$result = self::launch( $campaign );
+
+		return array( 'ok' => true, 'errors' => array(), 'queued' => $result['queued'], 'skipped' => $result['skipped'] );
+	}
+
+	/** Deletes a draft and its design. Anything already sent or scheduled is left alone. */
+	public static function delete_draft( string $id ): bool {
+		$campaign = self::get( $id );
+
+		if ( null === $campaign || self::STATUS_DRAFT !== self::status( $campaign ) ) {
+			return false;
+		}
+
+		$campaigns = self::all();
+		unset( $campaigns[ $id ] );
+		update_option( self::OPTION, $campaigns, false );
+		EmailDesigns::delete( $id );
+
+		return true;
+	}
+
+	/**
+	 * Emails in one state (or every state for ''), newest activity first.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function by_status( string $status = '', int $limit = 100 ): array {
+		$list = array_filter(
+			self::all(),
+			static fn( array $c ): bool => '' === $status || self::status( $c ) === $status
+		);
+
+		usort(
+			$list,
+			static fn( array $a, array $b ): int => self::activity_at( $b ) <=> self::activity_at( $a )
+		);
+
+		return array_slice( $list, 0, $limit );
+	}
+
+	/**
+	 * Sent emails only, newest first: what "Latest sends" and the Sent list show.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function recent_sent( int $limit = 20 ): array {
+		return self::by_status( self::STATUS_SENT, $limit );
+	}
+
+	/** When an email last did something: sent, or for a draft, last edited. */
+	private static function activity_at( array $campaign ): int {
+		return (int) ( $campaign['sent_at'] ?? 0 ) ?: (int) ( $campaign['updated_at'] ?? 0 ) ?: (int) ( $campaign['created_at'] ?? 0 );
 	}
 
 	public static function get( string $id ): ?array {
@@ -134,12 +332,27 @@ class Campaigns {
 		return array_slice( array_values( $campaigns ), 0, $limit );
 	}
 
-	private static function store( array $campaign ): void {
-		$campaigns                    = self::all();
+	/**
+	 * Writes a campaign. Only sent ones count toward MAX_STORED, oldest
+	 * dropped first (with their designs): a draft or a scheduled email is
+	 * never trimmed away.
+	 *
+	 * @param bool $to_end Moves it to the end, so the list stays in send order when a draft started long ago is sent.
+	 */
+	private static function store( array $campaign, bool $to_end = false ): void {
+		$campaigns = self::all();
+
+		if ( $to_end ) {
+			unset( $campaigns[ $campaign['id'] ] );
+		}
+
 		$campaigns[ $campaign['id'] ] = $campaign;
 
-		if ( count( $campaigns ) > self::MAX_STORED ) {
-			$campaigns = array_slice( $campaigns, -self::MAX_STORED, null, true );
+		$sent = array_keys( array_filter( $campaigns, static fn( array $c ): bool => self::STATUS_SENT === self::status( $c ) ) );
+
+		foreach ( array_slice( $sent, 0, max( 0, count( $sent ) - self::MAX_STORED ) ) as $old_id ) {
+			unset( $campaigns[ $old_id ] );
+			EmailDesigns::delete( (string) $old_id );
 		}
 
 		update_option( self::OPTION, $campaigns, false );
@@ -155,7 +368,9 @@ class Campaigns {
 	 * @return array{queued: int, skipped: array<string, int>}
 	 */
 	public static function launch( array $campaign ): array {
-		self::store( $campaign );
+		$campaign['status']  = self::STATUS_SENT;
+		$campaign['sent_at'] = time();
+		self::store( $campaign, true );
 
 		$channels = 'both' === $campaign['channel'] ? array( 'email', 'sms' ) : array( $campaign['channel'] );
 		$user_ids = Audience::resolve( $campaign['audience'] );

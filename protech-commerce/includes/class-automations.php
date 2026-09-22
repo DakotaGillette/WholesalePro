@@ -680,10 +680,17 @@ class Automations {
 				return null;
 			}
 
+			$email = (array) ( $campaign['email'] ?? array( 'subject' => '', 'heading' => '', 'body' => '' ) );
+
+			// An email written in the stepped flow (3.9.0) sends its own design, never a library template.
+			if ( Campaigns::has_own_design( $campaign ) ) {
+				$email['design'] = EmailDesigns::get( (string) $campaign['id'] );
+			}
+
 			return array(
 				'trigger'  => 'campaign',
 				'category' => (string) ( $campaign['category'] ?? MessageLog::CATEGORY_MARKETING ),
-				'email'    => (array) ( $campaign['email'] ?? array( 'subject' => '', 'heading' => '', 'body' => '' ) ),
+				'email'    => $email,
 				'sms'      => (array) ( $campaign['sms'] ?? array( 'body' => '' ) ),
 			);
 		}

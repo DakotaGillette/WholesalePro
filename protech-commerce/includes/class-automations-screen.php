@@ -51,7 +51,7 @@ class AutomationsScreen {
 	/** The Emails tab row, shared with the template library page. */
 	public static function render_tabs( string $current ): void {
 		$tabs = array(
-			'sent'      => array( __( 'Sent', 'protech-wholesale' ), MessagingTab::url( 'emails' ) ),
+			'sent'      => array( __( 'Newsletters', 'protech-wholesale' ), MessagingTab::url( 'emails' ) ),
 			'automatic' => array( __( 'Automatic', 'protech-wholesale' ), MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ) ),
 			'templates' => array( __( 'Templates', 'protech-wholesale' ), MessagingTab::url( 'templates' ) ),
 		);

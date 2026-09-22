@@ -91,12 +91,17 @@ class MessageTransport {
 	 * The template an email points at, with its own subject replaced by one typed
 	 * on the rule or campaign, or null when it has none (or it was deleted).
 	 *
-	 * @param array<string, mixed> $email `subject`, `heading`, `body` and optionally `template_id`.
+	 * @param array<string, mixed> $email `subject`, `heading`, `body` and optionally `template_id`, or `design` (an email's own design, null when it was deleted).
 	 * @return array<string, mixed>|null
 	 */
 	private static function template_for( array $email ): ?array {
-		$template_id = (string) ( $email['template_id'] ?? '' );
-		$template    = '' !== $template_id ? EmailTemplates::get( $template_id ) : null;
+		// An email with its own design (3.9.0) carries it here; everything else points at a library template.
+		if ( array_key_exists( 'design', $email ) ) {
+			$template = is_array( $email['design'] ) ? $email['design'] : null;
+		} else {
+			$template_id = (string) ( $email['template_id'] ?? '' );
+			$template    = '' !== $template_id ? EmailTemplates::get( $template_id ) : null;
+		}
 
 		if ( null === $template ) {
 			return null;
@@ -118,7 +123,7 @@ class MessageTransport {
 	 * @param array<string, mixed> $email
 	 */
 	private static function template_lost( array $email ): bool {
-		return '' !== (string) ( $email['template_id'] ?? '' ) && null === self::template_for( $email ) && '' === trim( (string) ( $email['body'] ?? '' ) );
+		return ( array_key_exists( 'design', $email ) || '' !== (string) ( $email['template_id'] ?? '' ) ) && null === self::template_for( $email ) && '' === trim( (string) ( $email['body'] ?? '' ) );
 	}
 
 	/**

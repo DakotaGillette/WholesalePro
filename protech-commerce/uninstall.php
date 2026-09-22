@@ -125,6 +125,9 @@ $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contact_con
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contact_tags" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_flow_runs" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 
+// 1d. Each email's own design, one option per email (EmailDesigns::OPTION_PREFIX, 3.9.0).
+$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'protech_wholesale_email_design_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 if ( function_exists( 'as_unschedule_all_actions' ) ) {
 	foreach (
 		array(

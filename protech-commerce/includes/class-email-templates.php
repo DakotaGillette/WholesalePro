@@ -388,7 +388,7 @@ class EmailTemplates {
 	 * @param array<int, mixed> $blocks
 	 * @return array<int, mixed>
 	 */
-	private static function reid( array $blocks ): array {
+	public static function reid( array $blocks ): array {
 		foreach ( $blocks as $i => $block ) {
 			if ( ! is_array( $block ) ) {
 				continue;
@@ -448,7 +448,7 @@ class EmailTemplates {
 	 * @param array<string, mixed> $template
 	 * @return array<string, mixed>
 	 */
-	private static function fill_out( array $template, string $id ): array {
+	public static function fill_out( array $template, string $id ): array {
 		$defaults = self::defaults();
 		$merged   = array_merge( $defaults, $template );
 

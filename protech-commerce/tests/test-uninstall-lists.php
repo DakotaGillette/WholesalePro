@@ -66,6 +66,7 @@ class Test_Uninstall_Lists extends WP_UnitTestCase {
 				\ProtechWholesale\EmailTemplates::OPTION,
 				\ProtechWholesale\SignupForms::OPTION,
 				\ProtechWholesale\Flows::OPTION,
+				\ProtechWholesale\EmailDesigns::OPTION_PREFIX, // Deleted by prefix, one option per email.
 			) as $option
 		) {
 			$this->assert_literal_present( $option, 'a feature class option constant' );

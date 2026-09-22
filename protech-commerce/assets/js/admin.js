@@ -243,6 +243,12 @@
 					event.preventDefault();
 				}
 			}
+
+			if ( target && target.classList && target.classList.contains( 'protech-confirm-delete-draft' ) ) {
+				if ( ! window.confirm( strings.deleteDraftConfirm || 'Delete this draft? This cannot be undone.' ) ) {
+					event.preventDefault();
+				}
+			}
 		} );
 
 		initSettingsLogoPicker( strings );

@@ -28,14 +28,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class EmailsScreen {
 
-	public const DESIGN_ACTION         = 'protech_design_lifecycle';
-	public const UNBIND_ACTION         = 'protech_unbind_lifecycle';
-	public const DUPLICATE_SEND_ACTION = 'protech_duplicate_campaign';
+	public const DESIGN_ACTION          = 'protech_design_lifecycle';
+	public const UNBIND_ACTION          = 'protech_unbind_lifecycle';
+	public const DUPLICATE_SEND_ACTION  = 'protech_duplicate_campaign';
+	public const DUPLICATE_EMAIL_ACTION = 'protech_duplicate_email';
+	public const DELETE_DRAFT_ACTION    = 'protech_delete_email_draft';
 
 	public function register_hooks(): void {
 		add_action( 'admin_post_' . self::DESIGN_ACTION, array( $this, 'handle_design' ) );
 		add_action( 'admin_post_' . self::UNBIND_ACTION, array( $this, 'handle_unbind' ) );
 		add_action( 'admin_post_' . self::DUPLICATE_SEND_ACTION, array( $this, 'handle_duplicate_send' ) );
+		add_action( 'admin_post_' . self::DUPLICATE_EMAIL_ACTION, array( $this, 'handle_duplicate_email' ) );
+		add_action( 'admin_post_' . self::DELETE_DRAFT_ACTION, array( $this, 'handle_delete_draft' ) );
 	}
 
 	/**
@@ -128,29 +132,105 @@ class EmailsScreen {
 		echo '</tbody></table>';
 	}
 
-	/** "Sent": past one-off messages, newest first, each with a way to send it again. */
+	/**
+	 * Your emails (3.9.0): every email you write yourself, drafts included,
+	 * with a filter per state and the actions each state allows. An email
+	 * sent before 3.9.0 keeps "Duplicate and edit", which reopens the older
+	 * one-form Compose.
+	 */
 	public static function render_sent(): void {
-		echo '<h2>' . esc_html__( 'Sent', 'protech-wholesale' ) . '</h2>';
+		$status   = sanitize_key( wp_unslash( $_GET['status'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter.
+		$statuses = array(
+			''                          => __( 'All', 'protech-wholesale' ),
+			Campaigns::STATUS_DRAFT     => __( 'Drafts', 'protech-wholesale' ),
+			Campaigns::STATUS_SCHEDULED => __( 'Scheduled', 'protech-wholesale' ),
+			Campaigns::STATUS_SENT      => __( 'Sent', 'protech-wholesale' ),
+		);
 
-		$campaigns = Campaigns::recent( 20 );
+		if ( ! array_key_exists( $status, $statuses ) ) {
+			$status = '';
+		}
 
-		if ( empty( $campaigns ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only, selects a fixed notice.
+		if ( isset( $_GET['deleted'] ) ) {
+			echo '<div class="updated notice inline"><p>' . esc_html__( 'Draft deleted.', 'protech-wholesale' ) . '</p></div>';
+		}
+
+		$all = Campaigns::by_status();
+
+		if ( empty( $all ) ) {
 			echo '<p>' . esc_html__( 'You have not written and sent an email here yet. Use Add new email to write one.', 'protech-wholesale' ) . '</p>';
 			return;
 		}
 
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Message', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Sent', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'To', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Delivered / failed / left out', 'protech-wholesale' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<ul class="subsubsub">';
+		$links = array();
+
+		foreach ( $statuses as $key => $label ) {
+			$count = '' === $key ? count( $all ) : count( array_filter( $all, static fn( array $c ): bool => Campaigns::status( $c ) === $key ) );
+
+			if ( Campaigns::STATUS_SCHEDULED === $key && 0 === $count ) {
+				continue;
+			}
+
+			$url     = MessagingTab::url( 'emails', '' === $key ? array() : array( 'status' => $key ) );
+			$links[] = sprintf( '<li><a href="%s"%s>%s <span class="count">(%d)</span></a>', esc_url( $url ), $status === $key ? ' class="current" aria-current="page"' : '', esc_html( $label ), $count );
+		}
+
+		echo implode( ' |</li>', $links ) . '</li></ul><br class="clear" />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each part escaped above.
+
+		$campaigns = '' === $status ? $all : Campaigns::by_status( $status );
+
+		if ( empty( $campaigns ) ) {
+			echo '<p>' . esc_html__( 'Nothing here yet.', 'protech-wholesale' ) . '</p>';
+			return;
+		}
+
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Email', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Status', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'To', 'protech-wholesale' ) . '</th><th>' . esc_html__( 'Delivered / failed / left out', 'protech-wholesale' ) . '</th><th></th></tr></thead><tbody>';
 
 		foreach ( $campaigns as $campaign ) {
 			$id     = (string) $campaign['id'];
-			$counts = Campaigns::progress( $id );
+			$state  = Campaigns::status( $campaign );
+			$own    = Campaigns::has_own_design( $campaign );
+			$edit   = MessagingTab::url( 'compose', array( 'email' => $id, 'step' => 'design' ) );
+			$log    = MessagingTab::url( 'log', array( 'rule_id' => 'campaign:' . $id ) );
 
 			echo '<tr>';
-			echo '<td><a href="' . esc_url( MessagingTab::url( 'log', array( 'rule_id' => 'campaign:' . $id ) ) ) . '"><strong>' . esc_html( (string) $campaign['name'] ) . '</strong></a></td>';
-			echo '<td>' . esc_html( human_time_diff( (int) $campaign['created_at'] ) . ' ' . __( 'ago', 'protech-wholesale' ) ) . '</td>';
-			echo '<td>' . esc_html( Audience::describe( (array) $campaign['audience'] ) ) . '</td>';
-			echo '<td>' . esc_html( sprintf( '%d / %d / %d', $counts[ MessageLog::STATUS_SENT ], $counts[ MessageLog::STATUS_FAILED ], $counts[ MessageLog::STATUS_SKIPPED ] ) ) . '</td>';
-			echo '<td><a href="' . esc_url( self::link( self::DUPLICATE_SEND_ACTION, $id ) ) . '">' . esc_html__( 'Duplicate and edit', 'protech-wholesale' ) . '</a></td>';
+
+			if ( Campaigns::STATUS_DRAFT === $state ) {
+				echo '<td><a href="' . esc_url( $edit ) . '"><strong>' . esc_html( (string) $campaign['name'] ) . '</strong></a></td>';
+				echo '<td>' . esc_html(
+					sprintf(
+						/* translators: %s: time since, e.g. "3 hours". */
+						__( 'Draft, edited %s ago', 'protech-wholesale' ),
+						human_time_diff( (int) ( $campaign['updated_at'] ?? $campaign['created_at'] ) )
+					)
+				) . '</td>';
+				echo '<td>' . esc_html( Audience::describe( (array) $campaign['audience'] ) ) . '</td>';
+				echo '<td>&mdash;</td>';
+				echo '<td><a href="' . esc_url( $edit ) . '">' . esc_html__( 'Edit', 'protech-wholesale' ) . '</a> | <a href="' . esc_url( self::link( self::DELETE_DRAFT_ACTION, $id ) ) . '" class="protech-confirm-delete-draft" style="color:#b32d2e;">' . esc_html__( 'Delete', 'protech-wholesale' ) . '</a></td>';
+			} else {
+				$counts = Campaigns::progress( $id );
+				$when   = (int) ( $campaign['sent_at'] ?? 0 ) ?: (int) $campaign['created_at'];
+
+				echo '<td><a href="' . esc_url( $log ) . '"><strong>' . esc_html( (string) $campaign['name'] ) . '</strong></a></td>';
+				echo '<td>' . esc_html(
+					sprintf(
+						/* translators: %s: time since, e.g. "3 hours". */
+						__( 'Sent %s ago', 'protech-wholesale' ),
+						human_time_diff( $when )
+					)
+				) . '</td>';
+				echo '<td>' . esc_html( Audience::describe( (array) $campaign['audience'] ) ) . '</td>';
+				echo '<td>' . esc_html( sprintf( '%d / %d / %d', $counts[ MessageLog::STATUS_SENT ], $counts[ MessageLog::STATUS_FAILED ], $counts[ MessageLog::STATUS_SKIPPED ] ) ) . '</td>';
+
+				if ( $own ) {
+					echo '<td><a href="' . esc_url( self::link( self::DUPLICATE_EMAIL_ACTION, $id ) ) . '">' . esc_html__( 'Duplicate', 'protech-wholesale' ) . '</a> | <a href="' . esc_url( $log ) . '">' . esc_html__( 'View in Log', 'protech-wholesale' ) . '</a></td>';
+				} else {
+					echo '<td><a href="' . esc_url( self::link( self::DUPLICATE_SEND_ACTION, $id ) ) . '">' . esc_html__( 'Duplicate and edit', 'protech-wholesale' ) . '</a></td>';
+				}
+			}
+
 			echo '</tr>';
 		}
 
@@ -307,7 +387,39 @@ class EmailsScreen {
 			)
 		);
 
-		wp_safe_redirect( MessagingTab::url( 'compose' ) );
+		wp_safe_redirect( MessagingTab::url( 'compose', array( 'mode' => 'form' ) ) );
+		exit;
+	}
+
+	/** "Duplicate" on an email with its own design: a new draft with a copy of it, opened at Design. */
+	public function handle_duplicate_email(): void {
+		$id       = self::authorize( self::DUPLICATE_EMAIL_ACTION );
+		$campaign = Campaigns::get( $id );
+		$design   = null !== $campaign ? EmailDesigns::from_campaign( $id ) : null;
+
+		if ( null === $campaign || null === $design ) {
+			wp_safe_redirect( MessagingTab::url( 'emails' ) );
+			exit;
+		}
+
+		$design['name'] = sprintf(
+			/* translators: %s: the email's name. */
+			__( 'Copy of %s', 'protech-wholesale' ),
+			(string) $campaign['name']
+		);
+
+		$created = Campaigns::create_draft( $design, (array) $campaign['audience'], get_current_user_id() );
+
+		wp_safe_redirect( MessagingTab::url( 'compose', array( 'email' => $created['campaign']['id'], 'step' => 'design' ) ) );
+		exit;
+	}
+
+	public function handle_delete_draft(): void {
+		$id = self::authorize( self::DELETE_DRAFT_ACTION );
+
+		Campaigns::delete_draft( $id );
+
+		wp_safe_redirect( MessagingTab::url( 'emails', array( 'status' => Campaigns::STATUS_DRAFT, 'deleted' => 1 ) ) );
 		exit;
 	}
 }

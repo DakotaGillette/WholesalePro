@@ -36,7 +36,7 @@ class Test_Email_Editor_Page extends WP_UnitTestCase {
 	}
 
 	public function tear_down(): void {
-		unset( $_GET['edit'] );
+		unset( $_GET['edit'], $_GET['page'], $_GET['mode'], $_GET['ids'], $_GET['email'] );
 		set_current_screen( 'front' );
 		parent::tear_down();
 	}
@@ -96,6 +96,37 @@ class Test_Email_Editor_Page extends WP_UnitTestCase {
 		Plugin::instance()->enqueue_admin_assets( '' );
 
 		$this->assertTrue( wp_script_is( 'protech-wholesale-editor', 'enqueued' ) );
+	}
+
+	public function test_the_new_email_flow_loads_the_app_in_email_mode_with_a_preset_audience(): void {
+		$customer = Protech_Test_Factory::wholesale_customer();
+
+		set_current_screen( MessagingTab::page_slug( 'compose' ) );
+		$_GET['page'] = MessagingTab::page_slug( 'compose' );
+		$_GET['ids']  = (string) $customer;
+
+		Plugin::instance()->enqueue_admin_assets( '' );
+
+		$this->assertTrue( wp_script_is( 'protech-wholesale-editor', 'enqueued' ) );
+
+		$boot = $this->localized_editor_data();
+
+		$this->assertSame( 'email', $boot['mode'] );
+		$this->assertNull( $boot['emailData'] );
+		$this->assertSame( 'selected', $boot['presetAudience']['type'] );
+		$this->assertSame( array( $customer ), $boot['presetAudience']['user_ids'] );
+		$this->assertArrayNotHasKey( 'order_number', $boot['mergeTags'], 'An email you send yourself has no order to fill order tags from.' );
+		$this->assertStringContainsString( 'mode=form', $boot['urls']['textForm'] );
+	}
+
+	public function test_the_older_one_form_compose_does_not_load_the_app(): void {
+		set_current_screen( MessagingTab::page_slug( 'compose' ) );
+		$_GET['page'] = MessagingTab::page_slug( 'compose' );
+		$_GET['mode'] = 'form';
+
+		Plugin::instance()->enqueue_admin_assets( '' );
+
+		$this->assertFalse( wp_script_is( 'protech-wholesale-editor', 'enqueued' ) );
 	}
 
 	public function test_the_fixture_template_validates_unchanged(): void {
