@@ -36,6 +36,7 @@ class Contacts {
 
 	public const TABLE             = 'protech_wholesale_contacts';
 	public const CONSENT_LOG_TABLE = 'protech_wholesale_contact_consent_log';
+	public const TAGS_TABLE        = 'protech_wholesale_contact_tags';
 
 	public const STATUS_SUBSCRIBED        = 'subscribed';
 	public const STATUS_UNSUBSCRIBED      = 'unsubscribed';
@@ -77,6 +78,12 @@ class Contacts {
 		return $wpdb->prefix . self::CONSENT_LOG_TABLE;
 	}
 
+	public static function tags_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . self::TAGS_TABLE;
+	}
+
 	public static function install_tables(): void {
 		global $wpdb;
 
@@ -85,6 +92,7 @@ class Contacts {
 		$charset_collate = $wpdb->get_charset_collate();
 		$table           = self::table();
 		$log_table       = self::consent_log_table();
+		$tags_table      = self::tags_table();
 
 		dbDelta(
 			"CREATE TABLE {$table} (
@@ -119,6 +127,17 @@ class Contacts {
 				recorded_by bigint(20) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (id),
 				KEY contact_id (contact_id)
+			) {$charset_collate};"
+		);
+
+		// Added in 3.6.0 for flows' add_tag/remove_tag/has_tag steps: 3.4.0 left this out since
+		// nothing assigned or read a tag yet (see DECISIONS.md); a flow is the first thing that does.
+		dbDelta(
+			"CREATE TABLE {$tags_table} (
+				contact_id bigint(20) unsigned NOT NULL,
+				tag varchar(60) NOT NULL,
+				PRIMARY KEY  (contact_id,tag),
+				KEY tag (tag)
 			) {$charset_collate};"
 		);
 
@@ -217,6 +236,57 @@ class Contacts {
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::consent_log_table() . ' WHERE contact_id = %d ORDER BY id DESC', $contact_id ), ARRAY_A );
 
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/** @return string[] */
+	public static function tags_for( int $contact_id ): array {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT tag FROM ' . self::tags_table() . ' WHERE contact_id = %d ORDER BY tag', $contact_id ) );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	public static function has_tag( int $contact_id, string $tag ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . self::tags_table() . ' WHERE contact_id = %d AND tag = %s', $contact_id, $tag ) );
+	}
+
+	/** Adding a tag a contact already has is a silent no-op; fires protech_wholesale_contact_tag_added only the first time. */
+	public static function add_tag( int $contact_id, string $tag ): void {
+		$tag = sanitize_key( $tag );
+
+		if ( '' === $tag || self::has_tag( $contact_id, $tag ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->insert( self::tags_table(), array( 'contact_id' => $contact_id, 'tag' => $tag ) );
+
+		/**
+		 * Fires once, the first time a contact gets a given tag.
+		 *
+		 * @param int    $contact_id
+		 * @param string $tag
+		 */
+		do_action( 'protech_wholesale_contact_tag_added', $contact_id, $tag );
+	}
+
+	public static function remove_tag( int $contact_id, string $tag ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->delete( self::tags_table(), array( 'contact_id' => $contact_id, 'tag' => sanitize_key( $tag ) ) );
+	}
+
+	/** The linked contact's id for a WordPress user, creating one if none exists yet — a thin wrapper flows use to reach the tag/consent methods above from a user_id. */
+	public static function contact_id_for_user( int $user_id ): int {
+		return self::for_user( $user_id );
 	}
 
 	// -----------------------------------------------------------------
@@ -328,7 +398,7 @@ class Contacts {
 	 * order reaches processing or completed, for whichever contact the
 	 * order belongs to (a member by user_id, a guest by billing email).
 	 *
-	 * Untyped params, matching Automations::on_order_status_changed() on
+	 * Untyped params, matching FlowTriggers::on_order_status_changed() on
 	 * this same hook: with strict_types on, a type-hinted param would fatal
 	 * if WooCommerce ever passed something unexpected here.
 	 */

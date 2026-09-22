@@ -1,8 +1,8 @@
 <?php
 /**
  * Everything that touches Action Scheduler: the recurring daily job that
- * evaluates day-based automation rules, the queue that actually delivers
- * a claimed message-log row, the delayed order-status action, and a
+ * evaluates day-based flow triggers, the queue that actually delivers a
+ * claimed message-log row, a waiting flow run's delayed wake, and a
  * "self-heal" check that re-schedules the daily job if it's ever missing
  * — which matters here because this plugin updates itself from GitHub
  * releases (see class-updater.php), and a WordPress update never re-runs
@@ -33,9 +33,9 @@ class AutomationRunner {
 
 	public const HOOK_DAILY       = 'protech_wholesale_daily_automations';
 	public const HOOK_DELIVER     = 'protech_wholesale_deliver_messages';
-	public const HOOK_ORDER_EVENT = 'protech_wholesale_order_event';
 	public const HOOK_SYNC_CONTACT = 'protech_wholesale_sync_contact';
 	public const HOOK_PURGE        = 'protech_wholesale_purge_messages';
+	public const HOOK_FLOW_WAKE    = 'protech_wholesale_flow_wake';
 
 	public const BATCH_SIZE = 20;
 
@@ -44,9 +44,9 @@ class AutomationRunner {
 	public function register_hooks(): void {
 		add_action( self::HOOK_DAILY, array( __CLASS__, 'run_daily' ) );
 		add_action( self::HOOK_DELIVER, array( __CLASS__, 'run_deliver' ) );
-		add_action( self::HOOK_ORDER_EVENT, array( __CLASS__, 'run_order_event' ), 10, 3 );
 		add_action( self::HOOK_SYNC_CONTACT, array( __CLASS__, 'run_sync_contact' ) );
 		add_action( self::HOOK_PURGE, array( __CLASS__, 'run_purge' ) );
+		add_action( self::HOOK_FLOW_WAKE, array( __CLASS__, 'run_flow_wake' ) );
 
 		add_action( 'init', array( __CLASS__, 'self_heal' ), 30 );
 
@@ -100,7 +100,7 @@ class AutomationRunner {
 			return;
 		}
 
-		foreach ( array( self::HOOK_DAILY, self::HOOK_DELIVER, self::HOOK_ORDER_EVENT, self::HOOK_SYNC_CONTACT, self::HOOK_PURGE ) as $hook ) {
+		foreach ( array( self::HOOK_DAILY, self::HOOK_DELIVER, self::HOOK_SYNC_CONTACT, self::HOOK_PURGE, self::HOOK_FLOW_WAKE ) as $hook ) {
 			as_unschedule_all_actions( $hook, array(), self::GROUP );
 		}
 	}
@@ -158,24 +158,6 @@ class AutomationRunner {
 		return $scheduled;
 	}
 
-	public static function schedule_order_event( int $order_id, string $rule_id, string $status, int $delay_seconds ): void {
-		if ( ! self::as_available() ) {
-			return;
-		}
-
-		// $unique = true: collapses a double firing of the same order's
-		// transition to the same status into a single scheduled action —
-		// WooCommerce (or a payment gateway) can save an order more than
-		// once around the same transition.
-		as_schedule_single_action(
-			time() + max( 0, $delay_seconds ),
-			self::HOOK_ORDER_EVENT,
-			array( 'order_id' => $order_id, 'rule_id' => $rule_id, 'status' => $status ),
-			self::GROUP,
-			true
-		);
-	}
-
 	public static function schedule_sync_contact( int $user_id ): void {
 		if ( ! self::as_available() ) {
 			return;
@@ -205,29 +187,23 @@ class AutomationRunner {
 			return;
 		}
 
-		$rules = array_filter(
-			Automations::enabled(),
-			static function ( array $rule ): bool {
-				return Automations::TRIGGER_ORDER_STATUS !== ( $rule['trigger'] ?? '' );
-			}
-		);
+		$flows = array_merge( Flows::enabled( Flows::TRIGGER_DAYS_SINCE_LAST_ORDER ), Flows::enabled( Flows::TRIGGER_DAYS_SINCE_APPROVAL ) );
 
-		if ( empty( $rules ) ) {
+		if ( empty( $flows ) ) {
 			MessagingSettings::set_last_daily_run( $now );
 			return;
 		}
 
-		$ids    = array();
-		$queued = 0;
-		$paged  = 1;
+		$started = 0;
+		$paged   = 1;
 
 		do {
 			$query = new \WP_User_Query(
 				array(
-					'role'    => Roles::CUSTOMER,
-					'fields'  => 'ID',
-					'number'  => 200,
-					'paged'   => $paged,
+					'role'   => Roles::CUSTOMER,
+					'fields' => 'ID',
+					'number' => 200,
+					'paged'  => $paged,
 				)
 			);
 
@@ -238,46 +214,22 @@ class AutomationRunner {
 				$snapshots[ $user_id ] = Automations::snapshot( $user_id );
 			}
 
-			foreach ( $rules as $rule ) {
-				foreach ( Automations::candidates( $rule, $user_ids, $now, false, $snapshots ) as $candidate ) {
-					if ( ! $candidate['ok'] ) {
-						continue;
-					}
-
-					$id = MessageLog::enqueue(
-						array(
-							'user_id'  => $candidate['user_id'],
-							'channel'  => $candidate['channel'],
-							'kind'     => MessageLog::KIND_AUTO,
-							'category' => (string) $rule['category'],
-							'rule_id'  => (string) $rule['id'],
-							'anchor'   => $candidate['anchor'],
-						)
-					);
-
-					if ( $id ) {
-						$ids[] = $id;
-						++$queued;
-					}
-				}
-			}
+			$started += FlowTriggers::run_daily_flows( $user_ids, $snapshots, $now );
 
 			++$paged;
 		} while ( count( $user_ids ) === 200 );
 
-		self::schedule_delivery( $ids );
-
-		foreach ( $rules as $rule ) {
-			$stored = Automations::get( (string) $rule['id'] );
+		foreach ( $flows as $flow ) {
+			$stored = Flows::get( (string) $flow['id'] );
 
 			if ( $stored ) {
 				$stored['last_run_at'] = $now;
-				Automations::save( $stored );
+				Flows::save( $stored );
 			}
 		}
 
 		MessagingSettings::set_last_daily_run( $now );
-		Logger::info( sprintf( 'Daily messaging automation run: %d message(s) queued across %d rule(s).', $queued, count( $rules ) ) );
+		Logger::info( sprintf( 'Daily messaging automation run: %d flow run(s) started across %d flow(s).', $started, count( $flows ) ) );
 	}
 
 	/**
@@ -327,11 +279,6 @@ class AutomationRunner {
 		}
 	}
 
-	/** Parameter names must match schedule_order_event()'s array keys — see run_deliver()'s docblock. */
-	public static function run_order_event( int $order_id, string $rule_id, string $status ): void {
-		Automations::fire_order_event( $order_id, $rule_id, $status );
-	}
-
 	/** Parameter name must match schedule_sync_contact()'s array key — see run_deliver()'s docblock. */
 	public static function run_sync_contact( int $user_id ): void {
 		$user = get_userdata( $user_id );
@@ -351,6 +298,11 @@ class AutomationRunner {
 
 	public static function run_purge(): void {
 		MessageLog::sweep( time() );
+	}
+
+	/** A waiting flow run's delay has elapsed; parameter name must match FlowRunner::schedule_wake()'s array key. */
+	public static function run_flow_wake( int $run_id ): void {
+		FlowRunner::advance( $run_id );
 	}
 
 	/**

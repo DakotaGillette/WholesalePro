@@ -137,6 +137,7 @@ class MessagingTab {
 			'templates'   => __( 'Email templates', 'protech-wholesale' ),
 			'contacts'    => __( 'Contacts', 'protech-wholesale' ),
 			'forms'       => __( 'Forms', 'protech-wholesale' ),
+			'flows'       => __( 'Automatic', 'protech-wholesale' ),
 			'log'         => __( 'Log', 'protech-wholesale' ),
 			'compliance'  => __( 'Compliance', 'protech-wholesale' ),
 			'settings'    => __( 'Settings', 'protech-wholesale' ),
@@ -202,6 +203,9 @@ class MessagingTab {
 				break;
 			case 'forms':
 				FormsScreen::render();
+				break;
+			case 'flows':
+				FlowsScreen::render();
 				break;
 			case 'log':
 				LogScreen::render();

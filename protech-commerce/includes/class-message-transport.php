@@ -49,7 +49,7 @@ class MessageTransport {
 			return self::result( 'requeued', '', '', '', '', '', 'quiet_hours', false );
 		}
 
-		$content = Automations::content_for( (string) $row['rule_id'] );
+		$content = Automations::content_for( (string) $row['rule_id'], (string) $row['anchor'] );
 
 		if ( null === $content ) {
 			return self::result( 'failed', '', '', '', __( 'No content is configured for this message.', 'protech-wholesale' ), 'no_content', false );

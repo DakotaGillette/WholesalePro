@@ -46,9 +46,16 @@ class Automations {
 	/** How many days past the configured trigger day a rule still catches a customer up — the safety net against blasting old history when a rule is first enabled, and against a missed cron run. */
 	public const CATCH_UP_DAYS = 7;
 
-	public function register_hooks(): void {
-		add_action( 'woocommerce_order_status_changed', array( $this, 'on_order_status_changed' ), 10, 4 );
-	}
+	/**
+	 * Nothing to hook: the order_status trigger moved to FlowTriggers in
+	 * 3.6.0 (see class-flow-triggers.php), since both engines listening to
+	 * woocommerce_order_status_changed for the same legacy rule id (now
+	 * "flow:<id>" on the flow side) would double-send. This class is kept
+	 * for its still-shared math (anchor_for(), snapshot(), channels(),
+	 * category_for(), presets()) and as the one-time source
+	 * Flows::import_legacy_rules() reads from.
+	 */
+	public function register_hooks(): void {}
 
 	/**
 	 * @return array<string, array<string, mixed>> id => rule.
@@ -642,13 +649,19 @@ class Automations {
 	}
 
 	/**
-	 * Content for a queued row's rule_id: a real automation rule, the
-	 * built-in SMS opt-in confirmation, or a manual campaign — one entry
-	 * point so MessageTransport::deliver() doesn't need to know which.
+	 * Content for a queued row's rule_id: a flow, a real automation rule
+	 * (legacy rows a flow hasn't been imported over), the built-in SMS
+	 * opt-in confirmation, or a manual campaign — one entry point so
+	 * MessageTransport::deliver() doesn't need to know which. $anchor is
+	 * only used for a flow row, to recover which step queued it.
 	 *
 	 * @return array{trigger: string, category: string, email: array{subject:string,heading:string,body:string}, sms: array{body:string}}|null
 	 */
-	public static function content_for( string $rule_id ): ?array {
+	public static function content_for( string $rule_id, string $anchor = '' ): ?array {
+		if ( str_starts_with( $rule_id, 'flow:' ) ) {
+			return Flows::content_for_run( substr( $rule_id, 5 ), $anchor );
+		}
+
 		if ( 'sms_optin_confirmation' === $rule_id ) {
 			return array(
 				'trigger'  => 'sms_optin_confirmation',
@@ -689,101 +702,9 @@ class Automations {
 		);
 	}
 
-	/**
-	 * Queues an order-status rule's message for delayed delivery. The
-	 * admin/checkout request does nothing more than schedule this single
-	 * Action Scheduler call — no Brevo call ever happens here.
-	 *
-	 * @param int|string $order_id
-	 * @param string     $from
-	 * @param string     $to
-	 * @param \WC_Order  $order
-	 */
-	public function on_order_status_changed( $order_id, $from, $to, $order ): void {
-		if ( ! MessagingSettings::enabled() || ! $order instanceof \WC_Order ) {
-			return;
-		}
-
-		if ( ! OrdersAdmin::is_wholesale_order( $order ) || ! $order->get_customer_id() ) {
-			return;
-		}
-
-		foreach ( self::enabled( self::TRIGGER_ORDER_STATUS ) as $rule ) {
-			if ( ( $rule['params']['status'] ?? '' ) !== $to ) {
-				continue;
-			}
-
-			$delay = max( 0, (int) ( $rule['params']['delay_minutes'] ?? 0 ) ) * MINUTE_IN_SECONDS;
-
-			AutomationRunner::schedule_order_event( (int) $order->get_id(), (string) $rule['id'], $to, $delay );
-		}
-	}
-
-	/**
-	 * Runs the actual order-status delivery once its delay has elapsed
-	 * (called by AutomationRunner::run_order_event()). Skips quietly if
-	 * the order moved to a different status during the delay, or the
-	 * rule was disabled/deleted in the meantime.
-	 */
-	public static function fire_order_event( int $order_id, string $rule_id, string $status ): void {
-		$order = wc_get_order( $order_id );
-		$rule  = self::get( $rule_id );
-
-		if ( ! $order instanceof \WC_Order || ! $rule || empty( $rule['enabled'] ) || $order->get_status() !== $status ) {
-			return;
-		}
-
-		$user_id = (int) $order->get_customer_id();
-
-		if ( ! $user_id ) {
-			return;
-		}
-
-		if ( ! empty( $rule['tiers'] ) && ! in_array( Tiers::get_user_tier( $user_id ), $rule['tiers'], true ) ) {
-			return;
-		}
-
-		$anchor = 'order:' . $order_id . ':' . $status;
-		$ids    = array();
-
-		foreach ( self::channels( $rule ) as $channel ) {
-			if ( MessageLog::exists( $rule_id, $user_id, $anchor, $channel ) ) {
-				continue;
-			}
-
-			$gate = MessageLog::CHANNEL_SMS === $channel
-				? SmsConsent::can_receive_sms( $user_id, MessageLog::CATEGORY_TRANSACTIONAL )
-				: SmsConsent::can_receive_email( $user_id, MessageLog::CATEGORY_TRANSACTIONAL );
-
-			if ( ! $gate['ok'] ) {
-				continue;
-			}
-
-			$id = MessageLog::enqueue(
-				array(
-					'user_id'  => $user_id,
-					'channel'  => $channel,
-					'kind'     => MessageLog::KIND_AUTO,
-					'category' => MessageLog::CATEGORY_TRANSACTIONAL,
-					'rule_id'  => $rule_id,
-					'anchor'   => $anchor,
-				)
-			);
-
-			if ( $id ) {
-				$ids[] = $id;
-			}
-		}
-
-		if ( $ids ) {
-			// Already inside a background Action Scheduler action, and at
-			// most two rows (email + sms) — deliver right away rather than
-			// scheduling yet another hop.
-			foreach ( $ids as $id ) {
-				AutomationRunner::deliver_now( $id );
-			}
-		}
-	}
+	// on_order_status_changed()/fire_order_event() were removed in 3.6.0: FlowTriggers now owns
+	// the order_status trigger, since a flow expresses "N minutes later" as its own delay step
+	// rather than a pre-send scheduling parameter. See the class docblock and DECISIONS.md.
 
 	/**
 	 * One-off migration (Plugin::maybe_upgrade(), DB_VERSION 3): every

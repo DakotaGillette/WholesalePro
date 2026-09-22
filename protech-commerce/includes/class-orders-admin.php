@@ -33,8 +33,8 @@ class OrdersAdmin {
 	 * (see stamp_wholesale_flag()) when present, falling back to the
 	 * customer's current role for orders placed before the Store API
 	 * stamp hook existed (see Emails::flag_wholesale_order_subject(),
-	 * the original home of this check, and Automations::on_order_status_changed(),
-	 * which reuses it to gate order-status messages).
+	 * the original home of this check, and FlowTriggers::on_order_status_changed(),
+	 * which reuses it to gate order-status flows).
 	 */
 	public static function is_wholesale_order( \WC_Order $order ): bool {
 		$flag = (string) $order->get_meta( self::META_IS_WHOLESALE );

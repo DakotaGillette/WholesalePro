@@ -6,10 +6,11 @@
  *  - When someone joins: the four emails the shop sends on its own (welcome,
  *    application received, approved, rejected), each either the built-in
  *    wording or a designed template.
- *  - Automatic: the automation rules (the list itself is drawn by
- *    MessagingTab, which owns rule editing; this class adds the sentence that
- *    says when each fires and the Duplicate action).
+ *  - Order emails: the WooCommerce transactional emails, each either its
+ *    own default design or a designed template (see class-wc-email-slots.php).
  *  - Sent: past campaigns, with "Duplicate and edit" to send one again.
+ *
+ * Automatic (multi-step flows, since 3.6.0) is its own screen, FlowsScreen.
  *
  * @package ProtechWholesale
  */
@@ -29,13 +30,11 @@ class EmailsScreen {
 
 	public const DESIGN_ACTION         = 'protech_design_lifecycle';
 	public const UNBIND_ACTION         = 'protech_unbind_lifecycle';
-	public const DUPLICATE_RULE_ACTION = 'protech_duplicate_automation';
 	public const DUPLICATE_SEND_ACTION = 'protech_duplicate_campaign';
 
 	public function register_hooks(): void {
 		add_action( 'admin_post_' . self::DESIGN_ACTION, array( $this, 'handle_design' ) );
 		add_action( 'admin_post_' . self::UNBIND_ACTION, array( $this, 'handle_unbind' ) );
-		add_action( 'admin_post_' . self::DUPLICATE_RULE_ACTION, array( $this, 'handle_duplicate_rule' ) );
 		add_action( 'admin_post_' . self::DUPLICATE_SEND_ACTION, array( $this, 'handle_duplicate_send' ) );
 	}
 
@@ -127,11 +126,6 @@ class EmailsScreen {
 		}
 
 		echo '</tbody></table>';
-	}
-
-	/** The "Duplicate" link for a rule row. */
-	public static function duplicate_rule_link( string $rule_id ): string {
-		return '<a href="' . esc_url( self::link( self::DUPLICATE_RULE_ACTION, $rule_id ) ) . '">' . esc_html__( 'Duplicate', 'protech-wholesale' ) . '</a>';
 	}
 
 	/** "Sent": past one-off messages, newest first, each with a way to send it again. */
@@ -286,14 +280,6 @@ class EmailsScreen {
 		}
 
 		wp_safe_redirect( MessagingTab::url( 'automations' ) );
-		exit;
-	}
-
-	public function handle_duplicate_rule(): void {
-		$id   = self::authorize( self::DUPLICATE_RULE_ACTION );
-		$copy = Automations::duplicate( $id );
-
-		wp_safe_redirect( '' !== $copy ? MessagingTab::url( 'automations', array( 'edit' => $copy ) ) : MessagingTab::url( 'automations' ) );
 		exit;
 	}
 

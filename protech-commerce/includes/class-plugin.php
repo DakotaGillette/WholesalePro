@@ -22,7 +22,7 @@ final class Plugin {
 	 * Bump when a one-off data migration must run on the next load — see
 	 * maybe_upgrade() for what each version does.
 	 */
-	public const DB_VERSION     = '9';
+	public const DB_VERSION     = '10';
 	public const OPT_DB_VERSION = 'protech_wholesale_db_version';
 
 	private static ?Plugin $instance = null;
@@ -68,6 +68,8 @@ final class Plugin {
 	private ContactsScreen $contacts_screen;
 	private SignupForms $signup_forms;
 	private FormsScreen $forms_screen;
+	private FlowTriggers $flow_triggers;
+	private FlowsScreen $flows_screen;
 	private RestApi $rest_api;
 
 	public static function instance(): Plugin {
@@ -128,6 +130,8 @@ final class Plugin {
 		$this->contacts_screen        = new ContactsScreen();
 		$this->signup_forms           = new SignupForms();
 		$this->forms_screen           = new FormsScreen();
+		$this->flow_triggers          = new FlowTriggers();
+		$this->flows_screen           = new FlowsScreen();
 		$this->rest_api               = new RestApi();
 
 		foreach (
@@ -173,6 +177,8 @@ final class Plugin {
 				$this->contacts_screen,
 				$this->signup_forms,
 				$this->forms_screen,
+				$this->flow_triggers,
+				$this->flows_screen,
 				$this->rest_api,
 			) as $component
 		) {
@@ -282,6 +288,9 @@ final class Plugin {
 	 *     an older version run the table safety-net below one more time.
 	 *  9: create the contacts and contact-consent-log tables (3.4.0), and
 	 *     backfill a contact for every existing user with a customer-ish role.
+	 *  10: create the contact-tags and flow-runs tables (3.6.0), and import
+	 *      every existing Automations rule to a flow under the same id (the
+	 *      rule editor is gone; nothing acts on the old option going forward).
 	 */
 	public function maybe_upgrade(): void {
 		$current = get_option( self::OPT_DB_VERSION, '0' );
@@ -344,6 +353,15 @@ final class Plugin {
 			Contacts::install_tables();
 			$backfilled = Contacts::backfill();
 			Logger::info( sprintf( 'Upgraded plugin data to version 9 (contacts tables created, %d contact(s) backfilled).', $backfilled ) );
+		}
+
+		if ( version_compare( $current, '10', '<' ) ) {
+			// Re-run: a site that already passed version 9 never saw the tags table 3.6.0 added
+			// to the same method (dbDelta() only ever adds what is missing).
+			Contacts::install_tables();
+			Flows::install_runs_table();
+			$imported = Flows::import_legacy_rules();
+			Logger::info( sprintf( 'Upgraded plugin data to version 10 (contact tags and flow runs tables created, %d automation rule(s) imported to flows).', $imported ) );
 		}
 
 		update_option( self::OPT_DB_VERSION, self::DB_VERSION );

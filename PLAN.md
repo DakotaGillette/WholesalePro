@@ -43,8 +43,8 @@ protech-commerce/
     class-merge-tags.php              {tag} context + rendering (html/text/subject) + AST tracking bridge + SMS segment count
     class-message-log.php             Custom table {prefix}protech_wholesale_messages: enqueue (dedup)/claim/finish/sweep/search
     class-message-transport.php       Turns a claimed log row into an actual send; Brevo or WC-mailer fallback for email
-    class-automations.php             Rule storage/validation, anchor/window evaluation, order-status listener
-    class-automation-runner.php       Action Scheduler contract: daily job, delivery queue, order-event delay, self-heal
+    class-automations.php             Legacy rule storage/validation and anchor/window evaluation, kept for Flows::import_legacy_rules() and the day-based catch-up math; no longer wired to any live hook
+    class-automation-runner.php       Action Scheduler contract: daily job (day-based flow triggers), delivery queue, flow-wake, self-heal
     class-audience.php                Compose/campaign segment resolution (all/tier/inactive/never-ordered/selected)
     class-campaigns.php               Manual sends: create/validate, launch (queue + batches), progress, send_test
     class-sms-consent.php             Phone normalization, the two SMS consents + email opt-out, gating, consent log, CSV
@@ -56,15 +56,19 @@ protech-commerce/
     class-email-blocks.php            Block registry: types, sanitize, render (HTML + plain text), field schema
     class-email-renderer.php          Template + context -> one finished email document (header/blocks/footer) and its plain text
     class-email-composer.php          Template library: new/duplicate/delete/preview admin-post handlers; the client-side editor's mount point and which template it opens on
-    class-emails-screen.php           Messaging landing (Emails): lifecycle emails, order emails, the "Sent" campaign list, duplicate links
+    class-emails-screen.php           Messaging landing (Emails): lifecycle emails, order emails, the "Sent" campaign list
     class-wc-email-slots.php          Binds a template to one of nine WooCommerce order emails via woocommerce_locate_template, not a WC_Email subclass
-    class-contacts.php                A contacts directory (wholesale, retail, guest), read-only snapshot of SmsConsent; not yet an audience source
+    class-contacts.php                A contacts directory (wholesale, retail, guest) plus tags, read-only snapshot of SmsConsent; not yet an audience source
     class-contacts-screen.php         Messaging → Contacts: search/filter/paginate, a contact profile, manual unsubscribe, CSV export
     class-signup-forms.php            [protech_signup] shortcode, public submit (no nonce, honeypot + rate limit), double opt-in via Contacts
     class-forms-screen.php            Messaging → Forms: create/edit/delete a signup form's name, consent wording and success message
+    class-flows.php                   Flow storage/validation (steps, trigger, tier/tag audience), legacy-rule import, flow_runs table DDL
+    class-flow-runner.php             Runs a flow one contact at a time: start (dedup by anchor), advance through steps, wake, cancel
+    class-flow-triggers.php           Event-driven flow starts (order/role/account/tag/contact hooks) + the daily job's day-based triggers
     class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
-    class-automations-screen.php      Automations view: rule table and rule form (admin-post: save/preview/toggle/delete/run-now/send-test)
+    class-automations-screen.php      Emails view: lifecycle/order emails, the "Sent" list, and a pointer to Automatic (rule editor removed in 3.6.0)
+    class-flows-screen.php            Automatic view: flow list + fixed-slot step editor (admin-post: save/toggle/delete/duplicate)
     class-compose-screen.php          Compose view + review-before-send screen; also the shared preview-box/template-picker/merge-tag UI the rule form reuses
     class-log-screen.php              Log view: filtered, paginated message history
     class-compliance-screen.php       Compliance view: SMS wording, consent-on-file counts, CSV export
@@ -174,10 +178,13 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | Hook | Purpose |
 |---|---|
 | `add_user_role`, `set_user_role` (Approval) | Stamp `_protech_wholesale_approved_at` the first time the wholesale role is granted |
-| `woocommerce_order_status_changed` (Automations) | Order-status rule: schedule a delayed `protech_wholesale_order_event` action |
-| `protech_wholesale_daily_automations` (recurring, AS group `protech-wholesale`) | Evaluate day-based rules, queue message-log rows |
-| `protech_wholesale_deliver_messages` (single/batched, AS) | Claim + `MessageTransport::deliver()` a queued row |
-| `protech_wholesale_order_event` (single/delayed, AS) | `Automations::fire_order_event()`, which re-checks the order hasn't moved on |
+| `add_user_role`, `set_user_role` (FlowTriggers) | Start any enabled `wholesale_approved` flow (both hooked: `Roles::grant()` fires the 2-arg `add_user_role`, a manual profile role change fires the 3-arg `set_user_role`) |
+| `woocommerce_order_status_changed` (FlowTriggers) | Start any enabled `order_status`/`order_placed`/`first_order` flow for that order's customer |
+| `user_register` (FlowTriggers) | Start any enabled `account_created` flow |
+| `protech_wholesale_contact_subscribed`, `protech_wholesale_contact_tag_added` (FlowTriggers) | Start any enabled `contact_subscribed`/`tag_added` flow, for a contact linked to a user |
+| `protech_wholesale_daily_automations` (recurring, AS group `protech-wholesale`) | `FlowTriggers::run_daily_flows()`: evaluate the two day-based triggers over every wholesale customer, start runs |
+| `protech_wholesale_deliver_messages` (single/batched, AS) | Claim + `MessageTransport::deliver()` a queued row (a flow's own send steps included) |
+| `protech_wholesale_flow_wake` (single/delayed, AS) | `FlowRunner::advance()`, resuming a run that was waiting on a `delay` step |
 | `protech_wholesale_sync_contact` (async, AS) | Push a customer's SMS number to Brevo when marketing consent is granted |
 | `protech_wholesale_purge_messages` (recurring, AS) | `MessageLog::sweep()` (stuck/expired rows, retention purge) |
 | `init` (30, AutomationRunner) | `self_heal()`, which re-schedules the daily job if a GitHub update dropped it |
@@ -185,7 +192,7 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `protech_wholesale_application_submitted` (SmsConsent) | Records phone + consent from a submitted application |
 | `admin_post_protech_unsubscribe` (+ `_nopriv_`) | Unsubscribe link → `SmsConsent::record()` email opt-out |
 | `init`, `woocommerce_get_query_vars`, `woocommerce_account_menu_items`, `woocommerce_account_wholesale-notifications_endpoint` (NotificationsEndpoint) | My Account "Notifications" self-service page |
-| `admin_post_protech_{save,preview,toggle,delete}_automation`, `_run_automations_now`, `_message_customers`, `_preview_message`, `_send_message`, `_send_test_message`, `_export_consent`, `_test_brevo_connection` (MessagingTab) | Messaging tab actions (each redirects; validation/preview state carried via a short-lived per-admin transient) |
+| `admin_post_protech_run_automations_now`, `_{save,toggle,delete,duplicate}_flow`, `_message_customers`, `_preview_message`, `_send_message`, `_send_test_message`, `_export_consent`, `_test_brevo_connection` (MessagingTab) | Messaging tab actions (each redirects; validation/preview state carried via a short-lived per-admin transient) |
 | `protech_wholesale_order_tracking` (filter) | Lets a shipment-tracking source (or a test) supply `{tracking_*}` merge-tag data |
 | `protech_wholesale_automation_catchup_days` (filter) | How many days past a rule's trigger day it still catches a customer up (default 7) |
 | `protech_wholesale_message_log_table_installed` (action, MessageLog) | Fires every time install_table() runs, whether or not the schema actually changed; lets a test confirm maybe_upgrade() calls it unconditionally without physically dropping the table |

@@ -3,6 +3,27 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.6.0 - 2026-09-22
+
+### Added
+- Messaging → Automatic: multi-step flows replace single-shot automation rules. A flow is a
+  trigger (an order reaching a status, any order placed, a first order, a wholesale account
+  approved, a signup confirmed, an account created, a tag added, or the two day-based ones
+  automations already had) followed by a list of steps: send an email, send a text, wait, add
+  or remove a tag, branch on a condition (is this a wholesale customer, their tier, a tag,
+  lifetime spend, whether they have ordered since entering the flow), or stop.
+- Every existing automation rule became a flow automatically, under its own id, so nothing
+  needs re-creating and its history in the Log still resolves.
+- A flow's activity (entered, waiting, finished) shows on its row in the Automatic list.
+
+### Changed
+- The old automation rule editor is gone. The Emails screen's "Automatic" section now points
+  at the new Automatic screen instead of listing rules.
+
+### Fixed
+- Turning off a flow now cancels every run still waiting on it, instead of letting an
+  in-progress run keep going on a flow you just switched off.
+
 ## 3.5.1 - 2026-09-22
 
 ### Fixed

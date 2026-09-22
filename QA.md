@@ -384,6 +384,31 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 44. Automations v2: flows (3.6.0)
+
+- [ ] Messaging → Automatic lists the four standard flows (imported from the old rules),
+  each switched off, with the same names as before.
+- [ ] The Emails screen's own "Automatic" section no longer shows a rule table, only a line
+  linking to the Automatic screen; the link works.
+- [ ] New flow: trigger "Their wholesale account is approved", one step "Send an email" with
+  a subject and body, save it, and switch it on.
+- [ ] Approve a real (or test) applicant through the normal Applicants queue. Confirm the
+  flow's row on the Automatic list shows one entered, and the message appears in the Log.
+- [ ] Edit that same flow to change a subscriber's role by hand from Users → your test
+  account instead of through the approval queue. Confirm that also starts the flow.
+- [ ] New flow: trigger "An order reaches a status" (completed), steps "Wait" (a few
+  minutes) then "Send an email". Move a test order to that status. Confirm nothing sends
+  immediately, the flow's row shows one waiting, and the email arrives once the wait elapses.
+- [ ] New flow: trigger "Only when added manually" is not offered a way to fire itself from
+  the UI yet (expected); confirm the trigger dropdown still lists it without error.
+- [ ] New flow: one step "Branch on a condition" (is a wholesale customer), each branch a
+  different "Send an email". Confirm the step-slot fields for the branch you did not choose
+  are hidden without a page reload, and typing into a slot's type dropdown swaps its fields.
+- [ ] Turn a flow with an active or waiting run off. Confirm the flow's counts do not
+  continue to change and no further message from it appears in the Log.
+- [ ] Duplicate a flow; confirm the copy is switched off, keeps the same steps, and edits
+  independently of the original.
+
 ## 43. Signup forms and double opt-in (3.5.0)
 
 - [ ] Messaging → Forms → New form: give it a name, consent wording and a success message,

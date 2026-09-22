@@ -94,6 +94,7 @@ $protech_option_keys = array(
 	'protech_wholesale_automations',   // Automations::OPTION.
 	'protech_wholesale_campaigns',     // Campaigns::OPTION.
 	'protech_wholesale_signup_forms',  // SignupForms::OPTION.
+	'protech_wholesale_flows',         // Flows::OPTION.
 );
 
 delete_transient( 'protech_wholesale_upgrading' );
@@ -118,9 +119,11 @@ foreach ( $protech_option_keys as $protech_option_key ) {
 global $wpdb;
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_messages" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 
-// 1c. The contacts directory and its consent log (Contacts::TABLE / CONSENT_LOG_TABLE, 3.4.0).
+// 1c. The contacts directory, its consent log, and its tags (Contacts::TABLE / CONSENT_LOG_TABLE / TAGS_TABLE, 3.4.0/3.6.0).
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contacts" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contact_consent_log" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_contact_tags" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}protech_wholesale_flow_runs" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 
 if ( function_exists( 'as_unschedule_all_actions' ) ) {
 	foreach (
@@ -130,6 +133,7 @@ if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			'protech_wholesale_order_event',
 			'protech_wholesale_sync_contact',
 			'protech_wholesale_purge_messages',
+			'protech_wholesale_flow_wake',
 		) as $protech_as_hook
 	) {
 		as_unschedule_all_actions( $protech_as_hook, array(), 'protech-wholesale' );

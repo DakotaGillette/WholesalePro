@@ -1680,6 +1680,86 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Automations v2: flows, replacing the single-shot rule engine (2026-09-22, 3.6.0)
+
+The riskiest phase in the roadmap, because it replaces the plugin's live, working
+automation engine rather than adding beside it. Asked directly whether to do the
+full rewrite as planned, extend the existing engine instead, or stop; the answer
+was to do the full rewrite as planned. Everything below follows from that.
+
+1. **A plain, fixed-slot form editor, not the roadmap's dedicated Preact flow
+   builder.** A flow is a trigger plus up to eight top-level step slots, each a
+   plain `<select>` for its type with the matching fields shown or hidden by a
+   few lines of inline JavaScript (no build step); a condition step gets four
+   slots of its own per branch, one level deep. A slot left on "Not used" is
+   dropped when the flow is saved, so three real steps and five empty slots save
+   as three. This is a real cut from the plan's own architecture section, not an
+   oversight: a drag-and-drop step canvas is its own Vite entry, its own model,
+   and its own test suite, on top of an engine that already needed careful,
+   from-scratch review. `FlowsScreen` names the cut in its own class docblock.
+2. **Branches are one level deep and do not rejoin.** A condition step's "yes"
+   and "no" lists each run to completion and finish the run there, rather than
+   resuming after the condition the way the roadmap's step model implied. Two
+   branches that both eventually converge on the same later steps would need
+   duplicating those steps into both lists under the fixed-slot editor above;
+   accepted as the simpler behavior to build, explain, and test first.
+3. **No `wait_until`, no cart_abandoned/purchased_product/purchased_category
+   triggers.** The engine has exactly the step and trigger set the existing
+   rules already needed: `send_email`, `send_sms`, `delay`, `condition`,
+   `add_tag`, `remove_tag`, `end`, and ten triggers covering every event the
+   plugin already fires plus the two day-based ones automations already had.
+   Waiting on an event with a timeout, and the cart/purchase triggers, need the
+   cart-capture and tracking work the roadmap places in later phases; adding
+   them now would mean building against data this phase does not have yet.
+4. **Flows still run over the same wholesale-user population Automations
+   always did**, not the full contacts directory. A run is keyed on
+   `user_id`, and the audience filter is tiers plus "any of these tags" (read
+   through `Contacts::contact_id_for_user()`), the same shape a rule's tier
+   filter already had. A contact with no linked WordPress account (a guest,
+   an unconfirmed signup) cannot enter a flow yet; `FlowTriggers::on_contact_subscribed()`
+   says so in its own docblock. Widening this to guests is audience work the
+   plan itself schedules for later, not something to fold in unannounced here.
+5. **A flow's `rule_id` names the flow; the run's anchor carries the step.**
+   Every send a flow queues shares one `rule_id` (`flow:<id>`), because a
+   single flow can have many send steps at different points, unlike a legacy
+   rule which only ever had one. `FlowRunner::run_send_step()` appends the
+   step's own path to the run's anchor (`order:123:completed:0`, say), and
+   `Flows::content_for_run()` reads that suffix back at delivery time to
+   resolve the exact step that queued the row. This keeps the same
+   `MessageLog` unique key (`rule_id, user_id, anchor, channel`) doing the
+   same idempotency job it always has, rather than inventing a second
+   dedup scheme for flows.
+6. **Legacy rules import under their own id, so message-log history keeps
+   resolving.** `Flows::import_legacy_rules()` runs once, only into an empty
+   flow list, mapping each of the four old triggers to its flow equivalent
+   and turning `order_status`'s `delay_minutes` parameter into an explicit,
+   prepended `delay` step (every other legacy trigger's "days" already meant
+   when the flow itself fires, so nothing else needs one). The day-based
+   triggers keep evaluating through `Automations::anchor_for()`'s exact
+   catch-up-window math via a small shape adapter, rather than re-implementing
+   it a second time for flows.
+7. **No separate `Flows::seed_standard()`.** `Plugin::maybe_upgrade()` already
+   runs every numbered migration step in order on a fresh install, and
+   `Automations::seed_standard()` (step 6) runs before `Flows::import_legacy_rules()`
+   (step 10) in that same sequence. A brand-new site therefore already ends up
+   with the four standard flows, seeded off, without a second copy of the
+   seed content living on the `Flows` class.
+8. **The old rule editor is gone, not hidden.** `AutomationsScreen` no longer
+   renders a rule table or an add/edit form; its "Automatic" section is now a
+   short line pointing at the new Automatic (flows) screen. Keeping both
+   editors on one page would have meant testing and maintaining two ways to
+   configure the same kind of thing, one of which (the old one) no longer
+   drives any sends once its hook was removed.
+9. **`FlowTriggers` hooks both `add_user_role` and `set_user_role` for the
+   wholesale_approved trigger.** `Roles::grant()`, the real approval-queue
+   path, calls `WP_User::add_role()`, which fires the two-argument
+   `add_user_role`, not the three-argument `set_user_role` a manual profile
+   edit fires; `Approval::register_hooks()` already hooks both for exactly
+   this reason. Missing this would have meant wholesale_approved flows never
+   firing from a real approval, only from a manual role change on the Users
+   screen, caught by reading `class-approval.php` before writing the trigger
+   rather than by a failing test.
+
 ## Signup forms and double opt-in, built on the contacts directory (2026-09-22, 3.5.0)
 
 The roadmap's full scope for this phase (placement rules for a popup/slide-in/bar, a
