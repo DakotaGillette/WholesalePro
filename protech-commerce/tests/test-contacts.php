@@ -187,4 +187,47 @@ class Test_Contacts extends WP_UnitTestCase {
 		$subscribed = Contacts::query( array( 'status' => Contacts::STATUS_SUBSCRIBED ) );
 		$this->assertSame( 2, $subscribed['total'] );
 	}
+
+	/** A clean $_GET first: ContactsScreen::render() reads it for search/filter/pagination, and nothing here resets it between test methods on its own. */
+	private function rendered_list(): string {
+		$_GET = array();
+
+		ob_start();
+		ContactsScreen::render();
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Regression: an unconfirmed, signup_form-sourced contact (new in 3.5.0) showed the raw
+	 * enum values on this screen, since it predates SignupForms and never had status/source
+	 * labels registered for them.
+	 */
+	public function test_every_status_and_source_a_contact_can_have_shows_a_real_label(): void {
+		Contacts::start_confirmation( 'unconfirmed@example.com' );
+
+		$html = $this->rendered_list();
+
+		$this->assertStringContainsString( 'Unconfirmed', $html );
+		$this->assertStringContainsString( 'Signup form', $html );
+		$this->assertStringNotContainsString( 'unconfirmed<', $html, 'The raw enum value must not leak into the cell.' );
+		$this->assertStringNotContainsString( 'signup_form<', $html );
+	}
+
+	public function test_unsubscribe_is_not_offered_for_an_unconfirmed_or_already_unsubscribed_contact(): void {
+		$unconfirmed_id  = Contacts::start_confirmation( 'stillunconfirmed@example.com' );
+		$unsubscribed_id = Contacts::start_confirmation( 'willunsub@example.com' );
+		Contacts::confirm( $unsubscribed_id, Contacts::confirmation_token( $unsubscribed_id ), 'test' );
+		Contacts::record_manual_unsubscribe( $unsubscribed_id, 'test', 0 );
+
+		$html = $this->rendered_list();
+
+		$this->assertSame( 0, substr_count( $html, 'Unsubscribe</a>' ), 'Neither an unconfirmed nor an already-unsubscribed contact should offer the action.' );
+
+		// A subscribed contact still gets one, proving the screen was not simply broken.
+		$subscribed_id = Contacts::start_confirmation( 'stillsubscribed@example.com' );
+		Contacts::confirm( $subscribed_id, Contacts::confirmation_token( $subscribed_id ), 'test' );
+
+		$this->assertSame( 1, substr_count( $this->rendered_list(), 'Unsubscribe</a>' ) );
+	}
 }

@@ -35,6 +35,7 @@ class ContactsScreen {
 			Contacts::STATUS_SUBSCRIBED         => __( 'Subscribed', 'protech-wholesale' ),
 			Contacts::STATUS_TRANSACTIONAL_ONLY => __( 'Transactional only', 'protech-wholesale' ),
 			Contacts::STATUS_UNSUBSCRIBED       => __( 'Unsubscribed', 'protech-wholesale' ),
+			Contacts::STATUS_UNCONFIRMED        => __( 'Unconfirmed', 'protech-wholesale' ),
 		);
 	}
 
@@ -45,6 +46,7 @@ class ContactsScreen {
 			Contacts::SOURCE_GUEST_CHECKOUT => __( 'Guest checkout', 'protech-wholesale' ),
 			Contacts::SOURCE_ADMIN          => __( 'Added by an admin', 'protech-wholesale' ),
 			Contacts::SOURCE_BACKFILL       => __( 'Existing account', 'protech-wholesale' ),
+			Contacts::SOURCE_SIGNUP_FORM    => __( 'Signup form', 'protech-wholesale' ),
 		);
 	}
 
@@ -134,7 +136,7 @@ class ContactsScreen {
 			echo '<td>' . esc_html( self::source_labels()[ $row['source'] ] ?? (string) $row['source'] ) . '</td>';
 			echo '<td>' . esc_html( (string) $row['order_count'] ) . '</td>';
 			echo '<td>' . wp_kses_post( wc_price( (float) $row['lifetime_value'] ) ) . '</td>';
-			echo '<td>' . ( Contacts::STATUS_UNSUBSCRIBED === $row['status']
+			echo '<td>' . ( in_array( $row['status'], array( Contacts::STATUS_UNSUBSCRIBED, Contacts::STATUS_UNCONFIRMED ), true )
 				? '—'
 				: '<a href="' . esc_url( $unsub_url ) . '" onclick="return confirm(\'' . esc_js( __( 'Unsubscribe this contact from marketing?', 'protech-wholesale' ) ) . '\');">' . esc_html__( 'Unsubscribe', 'protech-wholesale' ) . '</a>' ) . '</td>';
 			echo '</tr>';
