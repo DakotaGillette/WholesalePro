@@ -2,9 +2,9 @@
 /**
  * The protech/v1/templates REST routes: every one requires manage_woocommerce,
  * saving goes through the same EmailTemplates::validate()/save() the
- * admin-post editor uses, preview and test-send go through the same
+ * client-side editor uses, preview and test-send go through the same
  * EmailRenderer/MessageTransport a real send does, and the schema route
- * exposes the exact field data the form-based editor already renders from.
+ * exposes the exact field data that editor builds its forms from.
  *
  * @package ProtechWholesale
  */

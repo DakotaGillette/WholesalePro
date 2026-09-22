@@ -1,0 +1,119 @@
+{
+	"id": "",
+	"name": "Fixture template",
+	"kind": "marketing",
+	"slot": "",
+	"subject": "Hello {first_name}",
+	"preheader": "A quick update from {store_name}",
+	"blocks": [
+		{
+			"id": "b_00000001",
+			"type": "heading",
+			"attrs": {
+				"pt": 8,
+				"pb": 8,
+				"bg": "",
+				"align": "center",
+				"text": "Hello {first_name}",
+				"level": 1,
+				"size": 32,
+				"color": ""
+			}
+		},
+		{
+			"id": "b_00000002",
+			"type": "text",
+			"attrs": {
+				"pt": 8,
+				"pb": 8,
+				"bg": "",
+				"align": "left",
+				"html": "Thanks for shopping with us.\n\nHere is a quick update on your order.",
+				"size": 15,
+				"color": "",
+				"line_height": 1.6
+			}
+		},
+		{
+			"id": "b_00000003",
+			"type": "columns",
+			"attrs": {
+				"pt": 8,
+				"pb": 8,
+				"bg": "",
+				"align": "left",
+				"count": 2,
+				"gap": 16,
+				"valign": "top"
+			},
+			"children": [
+				[
+					{
+						"id": "b_00000004",
+						"type": "button",
+						"attrs": {
+							"pt": 8,
+							"pb": 8,
+							"bg": "",
+							"align": "center",
+							"label": "Shop now",
+							"url": "{shop_url}",
+							"bg_color": "",
+							"color": "#ffffff",
+							"radius": 8,
+							"full_width": false,
+							"size": 15
+						}
+					}
+				],
+				[
+					{
+						"id": "b_00000005",
+						"type": "divider",
+						"attrs": {
+							"pt": 8,
+							"pb": 8,
+							"bg": "",
+							"align": "left",
+							"color": "#e5e7eb",
+							"thickness": 1,
+							"width_pct": 100
+						}
+					}
+				]
+			]
+		},
+		{
+			"id": "b_00000006",
+			"type": "spacer",
+			"attrs": {
+				"pt": 8,
+				"pb": 8,
+				"bg": "",
+				"align": "left",
+				"height": 24
+			}
+		}
+	],
+	"style": {
+		"width": 0,
+		"page_bg": "#f4f5f7",
+		"canvas": "#ffffff",
+		"brand": "",
+		"text": "#1f2937",
+		"muted": "#6b7280",
+		"font": "helvetica"
+	},
+	"header": {
+		"show_logo": true,
+		"logo_id": 0
+	},
+	"footer": {
+		"text": "",
+		"show_address": true
+	},
+	"created_at": 0,
+	"updated_at": 0,
+	"created_by": 0,
+	"seeded": ""
+}

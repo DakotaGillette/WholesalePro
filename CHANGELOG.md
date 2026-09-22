@@ -3,6 +3,26 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.0.0 - 2026-09-22
+
+### Added
+- Email templates now open in a new editor: click into any block's text or setting and it
+  updates instantly, drag blocks in from the panel or move them by dragging, undo and redo
+  (Ctrl/Cmd+Z), and a Preview tab that shows the exact email a send would produce, at desktop
+  and phone widths. Saving, live preview and sending a test now go through the REST routes
+  added in 2.10.0 instead of a full-page reload.
+- A logo for one template (Header and footer panel), separate from the site-wide one in
+  Email design. Previously only the site-wide logo could be set.
+- "Insert a personal detail" is back on every field that takes one (subject, preview text,
+  footer text, and each block's text fields), the same plain-language picker the old editor had.
+- Unsaved changes are kept locally and offered back if the tab is closed or reloaded before
+  saving.
+
+### Changed
+- The template editor's underlying HTML is different (a mount point the new app fills in);
+  no template's saved content changes, and the Emails, Email settings, Sent automatically as
+  and Design panels store exactly what they did before.
+
 ## 2.10.0 - 2026-09-22
 
 ### Added

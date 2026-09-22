@@ -1680,6 +1680,55 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## The new template editor (2026-09-22, 3.0.0)
+
+The form-is-the-state editor (`class-email-editor.php`, `email-composer.js`) is replaced by a
+client-side app under `editor-src/` (Preact, TypeScript, Vite), built and committed as
+`assets/editor/editor.js`/`.css` so a deploy never needs a Node step. PHP still renders every
+send; nothing about a saved template's shape changed.
+
+1. **Preact, not `wp-element`.** A self-contained bundle is deterministic and testable with
+   plain Vitest, in plain Node, with no `wp.*` global to shim; depending on core's React would
+   tie the editor to whichever version the site's WordPress ships. Vite's `lib` mode with a
+   fixed output name and no code splitting, `emptyOutDir: false`, so the build never touches
+   anything else under `assets/`.
+2. **One immutable `Template`/`Block` tree plus a history stack, no state library.** `Block =
+   {id, type, attrs, children?}` mirrors the PHP arrays key for key (`editor-src/src/types.ts`);
+   an `Address` (`{parentId, column}`) locates a block for insert/remove/move/duplicate
+   (`model/template.ts`), and `model/history.ts` is a 100-deep undo/redo stack over whole
+   snapshots. A shared fixture, `tests/fixtures/template.json`, is asserted identical after
+   `EmailTemplates::validate()` (PHP) and after being loaded and read back by the TS model
+   (Vitest): the same contract, pinned from both ends, so the two can't quietly drift apart.
+3. **No server autosave.** A half-typed template must never become what an automation or
+   campaign sends. Drafts autosave to `localStorage` only, debounced, and the page offers
+   "Restore" on reload; the explicit Save button is the only way anything reaches the server,
+   through the REST routes 2.10.0 added (`PUT`/`POST /templates`, replacing client state with
+   whatever the server hands back, errors included).
+4. **The canvas is a live approximation, not the source of truth.** Clicking a block selects it
+   and the sidebar (schema-driven, from `EmailBlocks::schema()`) edits its settings; the canvas
+   redraws from the same `Template` state instantly, with no round trip. The Preview tab is the
+   one thing that has to be exactly right: it posts the unsaved template to `/templates/preview`
+   and shows the real `EmailRenderer` output in a sandboxed iframe at desktop and phone widths.
+   Click-to-select inside that iframe (turning it into a second editing surface) is left for a
+   later release; today editing happens only in the canvas, and Preview is where an admin
+   confirms it matches.
+5. **"Insert a personal detail" survives the rewrite.** The old editor's merge-tag dropdown
+   (`insert_menu()`) applied to every field marked `tag: true`; the new editor's `TagPicker`
+   component does the same by cursor position, wired into `Field` (block settings) and
+   `SettingsPanels` (subject, preview text, footer text) alike, and a per-template logo field
+   (`header.logo_id`) was added to Header and footer, which the port had otherwise dropped from
+   the old form.
+6. **`EmailComposer::template_for_edit()` is the one place that decides which template the
+   editor opens on**, called both from `Plugin::enqueue_admin_assets()` (to localize
+   `window.protechEditor`) and from `render_editor()` (the mount point's `data-template-id`), so
+   the two can never disagree about which template a page load is for. The admin-post handlers
+   for draft-preview, save and send-test are gone; only new/duplicate/delete/the library's own
+   "Preview" link stay, since everything else now goes through REST.
+7. **CI gets an `editor` job**: install, type-check, Vitest, `vite build`, then `git diff
+   --exit-code` on the committed bundle, so a source change pushed without rebuilding it fails
+   the same way an out-of-date `composer.lock` would. `editor-src/` (dev-only; a pinned
+   `pnpm-lock.yaml`) is excluded from the release zip and `bin/deploy.sh`, same as `tests/`.
+
 ## The REST namespace and the provider interface (2026-09-22, 2.10.0)
 
 The two foundations the next release's client-side editor needs, built and shipped on their own so

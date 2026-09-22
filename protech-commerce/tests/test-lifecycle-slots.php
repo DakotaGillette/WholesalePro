@@ -8,7 +8,7 @@
  * @package ProtechWholesale
  */
 
-use ProtechWholesale\EmailEditor;
+use ProtechWholesale\EmailComposer;
 use ProtechWholesale\EmailRenderer;
 use ProtechWholesale\EmailTemplates;
 use ProtechWholesale\Emails;
@@ -203,16 +203,17 @@ class Test_Lifecycle_Slots extends WP_UnitTestCase {
 		$this->assertNull( EmailTemplates::for_slot( EmailTemplates::SLOT_APPLICATION_APPROVED ), 'A starter is never bound on its own.' );
 	}
 
+	/**
+	 * The editor itself is a client-side app (editor-src/): what it needs to
+	 * offer the slot picker and show the current binding is the localised
+	 * template and the slot list, both produced here.
+	 */
 	public function test_the_editor_offers_the_slot_and_shows_the_current_one(): void {
-		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-
 		$id = $this->bound( EmailTemplates::SLOT_APPLICATION_REJECTED, 'Update', 'x' );
 
-		ob_start();
-		EmailEditor::render( EmailTemplates::get( $id ), $id );
-		$html = (string) ob_get_clean();
+		$template = EmailComposer::template_for_edit( $id );
 
-		$this->assertStringContainsString( '<select name="slot">', $html );
-		$this->assertMatchesRegularExpression( '/<option value="application_rejected" selected=\'selected\'>/', $html );
+		$this->assertSame( EmailTemplates::SLOT_APPLICATION_REJECTED, $template['slot'] );
+		$this->assertArrayHasKey( EmailTemplates::SLOT_APPLICATION_REJECTED, EmailTemplates::slots() );
 	}
 }

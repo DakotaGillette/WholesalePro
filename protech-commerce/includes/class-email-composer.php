@@ -1,20 +1,21 @@
 <?php
 /**
- * Messaging → Email templates: the library and the editor's handlers.
+ * Messaging → Email templates: the library, and everything around the
+ * client-side editor that is not the editor itself.
  *
  * The library lists every template with what it is used for and lets you
- * start a new one from a starter, edit, copy, preview or delete it. The
- * editor's form itself is EmailEditor; this class is the screens' routing and
- * everything that writes.
+ * start a new one from a starter, edit, copy, preview or delete it, each
+ * through admin-post.php and a redirect. Editing a template is a mount
+ * point (render_editor()) for the Preact app in editor-src/, which saves,
+ * previews and sends test emails through the protech/v1 REST routes
+ * (RestTemplates) instead: this class only decides which template that app
+ * opens on (template_for_edit(), also read by Plugin::enqueue_admin_assets()
+ * to localize the same template into the page).
  *
- * Every change goes through admin-post.php and comes back as a redirect: the
- * page heading has already been printed by the time a view renders, so nothing
- * in a view can send its own redirect header. A short per-admin transient (the
- * "stash") carries a half-finished template and its errors across that
- * redirect, so a failed save never loses what was typed.
- *
- * Previews go through EmailRenderer, the same code a real send uses, so what
- * the admin sees cannot drift from what lands in an inbox.
+ * The one admin-post preview (handle_preview) is unrelated to the editor's
+ * own live preview: it is the "Preview" link on the library list, opening a
+ * saved template through EmailRenderer, the same code a real send uses, so
+ * what the admin sees cannot drift from what lands in an inbox.
  *
  * @package ProtechWholesale
  */
@@ -32,22 +33,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class EmailComposer {
 
-	public const PREVIEW_ACTION       = 'protech_preview_email_template';
-	public const DRAFT_PREVIEW_ACTION = 'protech_preview_email_draft';
-	public const SAVE_ACTION          = 'protech_save_email_template';
-	public const SEND_TEST_ACTION     = 'protech_send_email_template_test';
-	public const NEW_ACTION           = 'protech_new_email_template';
-	public const DUPLICATE_ACTION     = 'protech_duplicate_email_template';
-	public const DELETE_ACTION        = 'protech_delete_email_template';
-	public const NONCE_FIELD          = 'protech_email_template_nonce';
-
-	private const STASH_TTL = 5 * MINUTE_IN_SECONDS;
+	public const PREVIEW_ACTION   = 'protech_preview_email_template';
+	public const NEW_ACTION       = 'protech_new_email_template';
+	public const DUPLICATE_ACTION = 'protech_duplicate_email_template';
+	public const DELETE_ACTION    = 'protech_delete_email_template';
 
 	public function register_hooks(): void {
 		add_action( 'admin_post_' . self::PREVIEW_ACTION, array( $this, 'handle_preview' ) );
-		add_action( 'admin_post_' . self::DRAFT_PREVIEW_ACTION, array( $this, 'handle_draft_preview' ) );
-		add_action( 'admin_post_' . self::SAVE_ACTION, array( $this, 'handle_save' ) );
-		add_action( 'admin_post_' . self::SEND_TEST_ACTION, array( $this, 'handle_send_test' ) );
 		add_action( 'admin_post_' . self::NEW_ACTION, array( $this, 'handle_new' ) );
 		add_action( 'admin_post_' . self::DUPLICATE_ACTION, array( $this, 'handle_duplicate' ) );
 		add_action( 'admin_post_' . self::DELETE_ACTION, array( $this, 'handle_delete' ) );
@@ -135,32 +127,6 @@ class EmailComposer {
 	}
 
 	// -----------------------------------------------------------------
-	// The stash: a half-finished template across a redirect.
-	// -----------------------------------------------------------------
-
-	private static function stash_key(): string {
-		return 'protech_wholesale_tpl_stash_' . get_current_user_id();
-	}
-
-	/** @param array<string, mixed> $data */
-	private static function stash( array $data ): void {
-		set_transient( self::stash_key(), $data, self::STASH_TTL );
-	}
-
-	/** @return array<string, mixed>|null */
-	private static function unstash(): ?array {
-		$data = get_transient( self::stash_key() );
-
-		if ( false === $data ) {
-			return null;
-		}
-
-		delete_transient( self::stash_key() );
-
-		return is_array( $data ) ? $data : null;
-	}
-
-	// -----------------------------------------------------------------
 	// Handlers.
 	// -----------------------------------------------------------------
 
@@ -178,66 +144,6 @@ class EmailComposer {
 		}
 
 		self::send_page( self::preview_html( $template, get_current_user_id() ) );
-	}
-
-	/** The editor's live preview: the form as it stands, not saved, rendered into the frame. */
-	public function handle_draft_preview(): void {
-		check_admin_referer( self::SAVE_ACTION, self::NONCE_FIELD );
-		self::require_cap();
-
-		$input = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cleaned field by field in EmailTemplates::validate().
-
-		self::send_page( self::preview_html( EmailTemplates::validate( $input )['template'], get_current_user_id() ) );
-	}
-
-	/** Saves the template, or returns to the editor with what went wrong and everything still typed. */
-	public function handle_save(): void {
-		check_admin_referer( self::SAVE_ACTION, self::NONCE_FIELD );
-		self::require_cap();
-
-		$input  = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cleaned field by field in EmailTemplates::validate().
-		$id     = sanitize_text_field( (string) ( $input['id'] ?? '' ) );
-		$result = EmailTemplates::validate( $input );
-
-		if ( ! empty( $result['errors'] ) ) {
-			self::stash( array( 'id' => $id, 'input' => $input, 'errors' => $result['errors'] ) );
-			self::back( array(), '' === $id ? 'new' : $id );
-		}
-
-		$saved = EmailTemplates::save( $result['template'] );
-
-		Logger::info( sprintf( 'Email template "%s" saved by admin #%d.', $result['template']['name'], get_current_user_id() ) );
-
-		self::back( array( 'saved' => 1 ), $saved );
-	}
-
-	/** Sends the template, as it stands in the editor, to any address. */
-	public function handle_send_test(): void {
-		check_admin_referer( self::SAVE_ACTION, self::NONCE_FIELD );
-		self::require_cap();
-
-		$input    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cleaned field by field in EmailTemplates::validate().
-		$id       = sanitize_text_field( (string) ( $input['id'] ?? '' ) );
-		$template = EmailTemplates::validate( $input )['template']; // Errors do not matter for a preview.
-		$admin    = wp_get_current_user();
-		$typed    = sanitize_email( (string) ( $input['preview_email'] ?? '' ) );
-		$to       = is_email( $typed ) ? $typed : (string) $admin->user_email;
-		$context  = EmailRenderer::context( (int) $admin->ID, true );
-		$subject  = EmailRenderer::subject( $template, $context );
-
-		$result = MessageTransport::send_template_email( (int) $admin->ID, $to, $subject, $template, $context, self::category_of( $template ), array( 'test' ) );
-
-		self::log_test( (int) $admin->ID, $result );
-
-		self::stash(
-			array(
-				'id'     => $id,
-				'input'  => $input,
-				'errors' => array(),
-				'test'   => array( 'ok' => 'sent' === $result['status'], 'to' => $to, 'error' => $result['error'] ),
-			)
-		);
-		self::back( array(), '' === $id ? 'new' : $id );
 	}
 
 	/**
@@ -366,40 +272,29 @@ class EmailComposer {
 		self::render_list();
 	}
 
-	private static function render_editor( string $id ): void {
-		$is_new = 'new' === $id;
-		$stash  = self::unstash();
-		$errors = array();
-
-		if ( null !== $stash && (string) ( $stash['id'] ?? '' ) === ( $is_new ? '' : $id ) ) {
-			$template = EmailTemplates::validate( (array) ( $stash['input'] ?? array() ) )['template'];
-			$errors   = (array) ( $stash['errors'] ?? array() );
-
-			if ( ! empty( $stash['test'] ) ) {
-				$test = (array) $stash['test'];
-
-				echo '<div class="notice ' . ( ! empty( $test['ok'] ) ? 'notice-success' : 'notice-error' ) . ' inline"><p>' . esc_html(
-					! empty( $test['ok'] )
-						/* translators: %s: email address. */
-						? sprintf( __( 'Preview sent to %s.', 'protech-wholesale' ), (string) $test['to'] )
-						/* translators: %s: error message. */
-						: sprintf( __( 'The preview could not be sent: %s', 'protech-wholesale' ), '' !== (string) $test['error'] ? (string) $test['error'] : __( 'check the address.', 'protech-wholesale' ) )
-				) . '</p></div>';
-			}
-		} elseif ( $is_new ) {
-			$template = EmailTemplates::defaults();
-		} else {
-			$template = EmailTemplates::get( $id );
-
-			if ( null === $template ) {
-				echo '<p>' . esc_html__( 'That template no longer exists.', 'protech-wholesale' ) . ' <a href="' . esc_url( MessagingTab::url( 'templates' ) ) . '">' . esc_html__( 'Back to all templates', 'protech-wholesale' ) . '</a></p>';
-				return;
-			}
+	/**
+	 * The template the editor opens on: a blank one for a new template, the
+	 * saved one otherwise. Shared with Plugin::enqueue_admin_assets(), which
+	 * has to localize the same template into `window.protechEditor` before
+	 * this method ever runs, so the two can never disagree about which
+	 * template is being edited.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function template_for_edit( string $id ): array {
+		if ( 'new' === $id || '' === $id ) {
+			return EmailTemplates::defaults();
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only, only selects a fixed notice.
-		if ( isset( $_GET['saved'] ) ) {
-			echo '<div class="updated notice inline"><p>' . esc_html__( 'Template saved.', 'protech-wholesale' ) . '</p></div>';
+		return EmailTemplates::get( $id ) ?? EmailTemplates::defaults();
+	}
+
+	private static function render_editor( string $id ): void {
+		$is_new = 'new' === $id || '' === $id;
+
+		if ( ! $is_new && null === EmailTemplates::get( $id ) ) {
+			echo '<p>' . esc_html__( 'That template no longer exists.', 'protech-wholesale' ) . ' <a href="' . esc_url( MessagingTab::url( 'templates' ) ) . '">' . esc_html__( 'Back to all templates', 'protech-wholesale' ) . '</a></p>';
+			return;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only, only selects a fixed notice.
@@ -407,7 +302,8 @@ class EmailComposer {
 			echo '<div class="updated notice inline"><p>' . esc_html__( 'This is your copy. Give it a new name and change what you like.', 'protech-wholesale' ) . '</p></div>';
 		}
 
-		EmailEditor::render( $template, $is_new ? '' : $id, $errors );
+		echo '<div id="protech-editor-root" data-template-id="' . esc_attr( $is_new ? '' : $id ) . '"></div>';
+		echo '<noscript><p>' . esc_html__( 'This editor needs JavaScript enabled in your browser.', 'protech-wholesale' ) . '</p></noscript>';
 	}
 
 	private static function render_list(): void {

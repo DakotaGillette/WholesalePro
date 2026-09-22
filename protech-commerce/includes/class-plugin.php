@@ -603,37 +603,41 @@ final class Plugin {
 			wp_enqueue_media();
 		}
 
-		// The template editor has its own script and stylesheet, loaded only there.
+		// The template editor is a separate app, built under editor-src/ and
+		// committed as a fixed-name bundle, loaded only on its own screen.
 		$is_editor = $screen && str_contains( (string) $screen->id, MessagingTab::page_slug( 'templates' ) ) && isset( $_GET['edit'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects a screen, changes nothing.
 
 		if ( $is_editor ) {
 			wp_enqueue_media();
 			wp_enqueue_style(
-				'protech-wholesale-email-composer',
-				PROTECH_WHOLESALE_URL . 'assets/css/email-composer.css',
+				'protech-wholesale-editor',
+				PROTECH_WHOLESALE_URL . 'assets/editor/editor.css',
 				array( 'protech-wholesale-admin' ),
-				$this->asset_version( 'assets/css/email-composer.css' )
+				$this->asset_version( 'assets/editor/editor.css' )
 			);
 			wp_enqueue_script(
-				'protech-wholesale-email-composer',
-				PROTECH_WHOLESALE_URL . 'assets/js/email-composer.js',
-				array( 'protech-wholesale-admin' ),
-				$this->asset_version( 'assets/js/email-composer.js' ),
+				'protech-wholesale-editor',
+				PROTECH_WHOLESALE_URL . 'assets/editor/editor.js',
+				array(),
+				$this->asset_version( 'assets/editor/editor.js' ),
 				true
 			);
+
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects which template to bootstrap, changes nothing.
+			$edit_id = sanitize_text_field( wp_unslash( $_GET['edit'] ) );
+
 			wp_localize_script(
-				'protech-wholesale-email-composer',
-				'protechEmailComposer',
+				'protech-wholesale-editor',
+				'protechEditor',
 				array(
-					/* translators: 1: position, 2: total. */
-					'added'        => __( 'Block added at position %1$d of %2$d.', 'protech-wholesale' ),
-					/* translators: 1: position, 2: total. */
-					'moved'        => __( 'Block moved to position %1$d of %2$d.', 'protech-wholesale' ),
-					'copied'       => __( 'Block copied.', 'protech-wholesale' ),
-					'removed'      => __( 'Block removed.', 'protech-wholesale' ),
-					'pickField'    => __( 'Click into a text box first, then choose what to insert.', 'protech-wholesale' ),
-					'chooseTitle'  => __( 'Choose a picture', 'protech-wholesale' ),
-					'chooseButton' => __( 'Use this picture', 'protech-wholesale' ),
+					'restRoot'      => esc_url_raw( rest_url( RestApi::NAMESPACE ) ),
+					'nonce'         => wp_create_nonce( 'wp_rest' ),
+					'template'      => EmailComposer::template_for_edit( $edit_id ),
+					'schema'        => EmailBlocks::schema(),
+					'styleDefaults' => EmailRenderer::style( array() ),
+					'mergeTags'     => MergeTags::all(),
+					'slots'         => EmailTemplates::slots(),
+					'urls'          => array( 'list' => MessagingTab::url( 'templates' ) ),
 				)
 			);
 		}

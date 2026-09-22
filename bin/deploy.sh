@@ -78,6 +78,7 @@ rsync -avz --delete \
 	--exclude ".vscode" \
 	--exclude "vendor/" \
 	--exclude "tests/" \
+	--exclude "editor-src/" \
 	--exclude "composer.json" \
 	--exclude "composer.lock" \
 	--exclude "phpunit.xml.dist" \

@@ -47,6 +47,45 @@ jobs:
       - name: PHPUnit (inside the wp-env tests container)
         run: npx --yes @wordpress/env@latest run tests-cli --env-cwd=wp-content/plugins/protech-commerce vendor/bin/phpunit
 
+  editor:
+    name: Build the template editor
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: protech-commerce/editor-src/pnpm-lock.yaml
+
+      - name: Install editor dependencies
+        working-directory: protech-commerce/editor-src
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        working-directory: protech-commerce/editor-src
+        run: pnpm typecheck
+
+      - name: Vitest
+        working-directory: protech-commerce/editor-src
+        run: pnpm test
+
+      - name: Build the bundle
+        working-directory: protech-commerce/editor-src
+        run: pnpm build
+
+      # The build output is committed (assets/editor/*), so deploys never need
+      # a Node step; this catches a source change that was pushed without
+      # rebuilding it.
+      - name: Fail if the committed bundle is out of date
+        run: git diff --exit-code -- protech-commerce/assets/editor/editor.js protech-commerce/assets/editor/editor.css
+
   # Every push to main that passes the tests becomes a GitHub release, tagged
   # with the version from the plugin header, with protech-commerce.zip
   # attached. Sites read that release through the plugin's own updater
@@ -55,7 +94,7 @@ jobs:
   # main without bumping the version publishes nothing.
   release:
     name: Publish release
-    needs: test
+    needs: [ test, editor ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -96,6 +135,7 @@ jobs:
             -x 'protech-commerce/.vscode/*' \
             -x 'protech-commerce/vendor/*' \
             -x 'protech-commerce/tests/*' \
+            -x 'protech-commerce/editor-src/*' \
             -x 'protech-commerce/composer.json' \
             -x 'protech-commerce/composer.lock' \
             -x 'protech-commerce/phpunit.xml.dist' \

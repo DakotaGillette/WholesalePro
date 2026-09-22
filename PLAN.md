@@ -55,8 +55,7 @@ protech-commerce/
     class-email-starters.php          Seeded starter templates, additive by key on each DB_VERSION step that needs one
     class-email-blocks.php            Block registry: types, sanitize, render (HTML + plain text), field schema
     class-email-renderer.php          Template + context -> one finished email document (header/blocks/footer) and its plain text
-    class-email-editor.php            The template editor's form (block cards, panels, preview frame). Form fields are the state
-    class-email-composer.php          Editor routing: save/duplicate/delete/preview/send-test admin-post handlers
+    class-email-composer.php          Template library: new/duplicate/delete/preview admin-post handlers; the client-side editor's mount point and which template it opens on
     class-emails-screen.php           Messaging landing (Emails): lifecycle emails, the "Sent" campaign list, duplicate links
     class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
@@ -71,23 +70,31 @@ protech-commerce/
     class-message-providers.php       Picks Automatic vs a forced provider per channel; MessageTransport delegates through this
     class-rest-api.php                The protech/v1 REST namespace shell: one permission check, registers each controller
     class-rest-templates.php          REST routes for the template library: CRUD, duplicate, schema, preview, test-send
+  editor-src/                        --- The template editor (3.0.0), a Preact + Vite + TypeScript app; never deployed ---
+    package.json, pnpm-lock.yaml, tsconfig.json, vite.config.ts   Builds src/editor.tsx to ../assets/editor/editor.js|.css
+    src/types.ts                      TS mirrors of the PHP template/block/schema shapes; window.protechEditor bootstrap
+    src/api.ts                        wp/v1 REST calls: save, preview, test-send
+    src/model/                        ids.ts, template.ts (Address-addressed block tree ops), history.ts (undo/redo), style.ts
+    src/components/                   App, Toolbar, Canvas, BlockView, DropZone, Palette, Inspector, Field, TagPicker,
+                                      SettingsPanels, TruePreview, SendTest
+    tests/                            Vitest: template/history/serialize (fixture round-trip with tests/fixtures/template.json)
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
                                       account-notifications, quantity-legend, welcome-email, email-quantity-diagram,
                                       email-pricing-ladder
   assets/css/wholesale.css            Protech Blue (#42649d) wholesale UI (portal, bar, ladder, selector, account, cart badge)
   assets/css/admin.css                Messaging admin styling (merge-tag chips, form layout), wholesale screens only
-  assets/css/email-composer.css       Template editor only: canvas-first layout, block cards, palette
+  assets/editor/editor.js, editor.css Template editor, built from editor-src/ and committed: no Node step on deploy
   assets/js/unit-selector.js          Display/Case → packs, Store API add-to-cart, protech:cart-changed + protech:qty-preview events
   assets/js/global-tier-bar.js        Bar refresh on cart events, tier celebration, add preview, live price-table row
   assets/js/portal.js                 /wholesale login form: show/hide password
   assets/js/starter-kit.js            Kit page: quantity, live quote, AJAX add, protech:qty-preview
   assets/js/admin.js                  Override rows, bulk actions, approve/reject prompts, Messaging screen interactions, Settings logo picker
-  assets/js/email-composer.js         Template editor only: add/reorder/copy/remove blocks, live preview, drag-drop, Media Library
   tests/                              PHPUnit (WP_UnitTestCase) + helpers; run inside wp-env
   composer.json, phpunit.xml.dist, .phpcs.xml.dist, phpstan.neon.dist   Dev tooling (never deployed)
-.github/workflows/ci.yml             Lint/analyse (advisory) + PHPUnit in wp-env
-bin/deploy.sh                        rsync to Cloudways staging, purge object + Breeze caches
+.github/workflows/ci.yml             Lint/analyse (advisory) + PHPUnit in wp-env; editor-src/ type-check/test/build with a
+                                      diff check against the committed assets/editor/ bundle
+bin/deploy.sh                        rsync to Cloudways staging (editor-src/ excluded), purge object + Breeze caches
 .wp-env.json, .env.example, .gitattributes
 README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 ```

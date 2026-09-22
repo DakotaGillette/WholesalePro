@@ -144,9 +144,8 @@ class EmailBlocks {
 	 * spacing/background fields every block gets, the nesting and count
 	 * limits, and the font choices.
 	 *
-	 * EmailEditor::fields()/common_fields() are this data's only consumer
-	 * today; they just extract from it, so the plain-language labels stay
-	 * defined in exactly one place.
+	 * RestTemplates::schema() serves this straight to the client-side editor,
+	 * so the plain-language labels stay defined in exactly one place.
 	 *
 	 * @return array{
 	 *   types: array<string, array{label: string, help: string, defaults: array<string, mixed>, fields: array<int, array<string, mixed>>, hidden: string[]}>,

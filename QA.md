@@ -384,6 +384,35 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 38. The new template editor (3.0.0)
+
+- [ ] Messaging → Email templates → New template opens the new editor: a toolbar (name, undo,
+  redo, Edit/Preview, Save), a canvas on the left, and a panel on the right with "Add a block"
+  tiles when nothing is selected.
+- [ ] Drag a Heading tile onto the canvas, or click it: it appears, selected, with its settings in
+  the right panel. Type a new heading in the panel; the canvas updates immediately.
+- [ ] Add a Text, a Button and a Columns block. Drag a block to reorder it, and drag one into a
+  column. Use the panel's up/down arrows on a selected block too.
+- [ ] Duplicate a block (Copy) and remove one (Remove); undo brings a removed block back; redo
+  reapplies it. Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z work from the keyboard.
+- [ ] In a Text block's field, use "Insert a personal detail" to add `{first_name}`; it lands at
+  the cursor. Do the same on the Subject field and the Footer text field.
+- [ ] Header and footer panel: choose a logo for this template only (separate from Messaging →
+  Settings → Email design's site-wide logo); it shows here and only affects this template.
+- [ ] Switch to Preview: it matches the canvas, and Desktop/Phone widths both look right. This is
+  the real send output (`EmailRenderer`), not the canvas's own approximation.
+- [ ] Send a preview to your own address; it arrives and matches Preview.
+- [ ] Save. The page's address gets the new template's id (for a brand-new template) without a
+  full reload. Reload the page: everything you set is still there.
+- [ ] Start a new template, type something, then close the tab without saving and reopen the
+  editor on that same template: it offers to restore the unsaved draft.
+- [ ] Email settings, Sent automatically as and Design panels still save exactly what they did
+  before (marketing/service type, subject, preview text, slot binding, colors, font, width).
+- [ ] Open an existing template that has a bound slot (e.g. Welcome email): the slot picker shows
+  it selected.
+- [ ] At 360px, the layout stacks (canvas above the panel) and every control is usable.
+- [ ] The template library list (search, duplicate, preview, delete) is unchanged.
+
 ## 37. The REST namespace and the provider interface (2.10.0)
 
 - [ ] Open Messaging → Settings: a new "Sending" section shows "Send email through" and "Send

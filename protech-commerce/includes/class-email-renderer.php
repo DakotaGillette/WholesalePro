@@ -99,8 +99,8 @@ class EmailRenderer {
 		$index       = -1;
 
 		foreach ( (array) ( $template['blocks'] ?? array() ) as $block ) {
-			// Kept in step with the position EmailEditor::render() gives this same array
-			// (array_values(), every element counted) so a click here finds the right card.
+			// array_values() position in $template['blocks'], every element counted,
+			// reserved for a future click-to-select inside the true-preview iframe.
 			++$index;
 
 			if ( ! is_array( $block ) ) {
