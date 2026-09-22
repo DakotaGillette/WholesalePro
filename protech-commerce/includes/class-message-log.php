@@ -105,6 +105,14 @@ class MessageLog {
 		) {$charset_collate};";
 
 		dbDelta( $sql );
+
+		/**
+		 * Fires every time install_table() runs dbDelta() against this table,
+		 * whether or not anything actually changed. Exists so a test can
+		 * confirm Plugin::maybe_upgrade() calls this unconditionally, without
+		 * needing to physically drop and recreate the table itself.
+		 */
+		do_action( 'protech_wholesale_message_log_table_installed' );
 	}
 
 	/**

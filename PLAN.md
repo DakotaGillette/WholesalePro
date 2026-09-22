@@ -169,3 +169,4 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `admin_post_protech_{save,preview,toggle,delete}_automation`, `_run_automations_now`, `_message_customers`, `_preview_message`, `_send_message`, `_send_test_message`, `_export_consent`, `_test_brevo_connection` (MessagingTab) | Messaging tab actions (each redirects; validation/preview state carried via a short-lived per-admin transient) |
 | `protech_wholesale_order_tracking` (filter) | Lets a shipment-tracking source (or a test) supply `{tracking_*}` merge-tag data |
 | `protech_wholesale_automation_catchup_days` (filter) | How many days past a rule's trigger day it still catches a customer up (default 7) |
+| `protech_wholesale_message_log_table_installed` (action, MessageLog) | Fires every time install_table() runs, whether or not the schema actually changed; lets a test confirm maybe_upgrade() calls it unconditionally without physically dropping the table |
