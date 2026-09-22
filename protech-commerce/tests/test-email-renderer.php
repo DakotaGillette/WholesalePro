@@ -341,8 +341,8 @@ class Test_Email_Renderer extends WP_UnitTestCase {
 	}
 
 	public function test_a_block_that_renders_nothing_carries_no_marker(): void {
-		// A wholesale-only explainer, shown to a retail reader: EmailBlocks::render() returns ''.
-		$html = EmailRenderer::render( $this->template( array( $this->block( 'explainer_ladder' ) ) ), $this->context( array( '_preview' => true ) ) )['html'];
+		// A heading with nothing typed: EmailBlocks::render() returns '' for it.
+		$html = EmailRenderer::render( $this->template( array( $this->block( 'heading', array( 'text' => '' ) ) ) ), $this->context( array( '_preview' => true ) ) )['html'];
 
 		$this->assertStringNotContainsString( 'data-pw-block', $html );
 	}
