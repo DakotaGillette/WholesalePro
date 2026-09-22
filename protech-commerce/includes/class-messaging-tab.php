@@ -1,15 +1,16 @@
 <?php
 /**
  * The top-level "Messaging" section of wp-admin (it lived under
- * WooCommerce → Wholesale until 2.1.0): five views (Automations, Compose,
- * Log, Compliance, Settings), each its own sub-menu page. This class is the
- * shell: the menu, the one URL builder, the legacy-URL redirect, and the
- * router that hands each view's body to its own screen class
- * (AutomationsScreen, ComposeScreen, EmailComposer for templates, LogScreen,
- * ComplianceScreen, MessagingSettingsScreen). Every action that changes
- * something goes through admin-post.php and comes back as a redirect, and
- * carries validation errors or dry-run results across it with AdminStash,
- * the same way WordPress core carries settings-saved state.
+ * WooCommerce → Wholesale until 2.1.0). Since 3.7.0 it follows MailPoet's
+ * shape: seven sidebar items (Home, Emails, Automations, Forms, Contacts,
+ * Log, Settings), plus hidden pages (Compose, the template library and
+ * editor) that are reached by a button and keep their parent item
+ * highlighted. This class is the shell: the menu, the one URL builder, the
+ * legacy-URL redirects, and the router that hands each view's body to its
+ * own screen class. Every action that changes something goes through
+ * admin-post.php and comes back as a redirect, and carries validation errors
+ * or dry-run results across it with AdminStash, the same way WordPress core
+ * carries settings-saved state.
  *
  * @package ProtechWholesale
  */
@@ -27,17 +28,28 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class MessagingTab {
 
-	/** The top-level menu page; the first view (Automations) is its landing page. */
+	/** The top-level menu page; the first view (Home) is its landing page. */
 	public const PAGE = 'protech-messaging';
+
+	/** A parent slug no menu item has, so pages registered under it never show in the sidebar (MailPoet's trick). */
+	public const HIDDEN_PARENT = 'protech-messaging-hidden';
+
+	/** Page slugs from before 3.7.0 that no longer exist, and the view (plus arguments) each now lives at. */
+	private const RETIRED = array(
+		'protech-messaging-compliance' => array( 'settings', array( 'tab' => 'compliance' ) ),
+	);
 
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 20 );
 		add_action( 'admin_init', array( $this, 'redirect_legacy_url' ) );
+		add_action( 'admin_page_access_denied', array( $this, 'redirect_retired_page' ) );
+		add_filter( 'parent_file', array( $this, 'highlight_parent' ) );
+		add_filter( 'submenu_file', array( $this, 'highlight_submenu' ) );
 	}
 
 	/** The admin page slug of a view: the landing view owns the top-level slug, the rest hang off it. */
 	public static function page_slug( string $view ): string {
-		return 'automations' === $view ? self::PAGE : self::PAGE . '-' . $view;
+		return 'home' === $view ? self::PAGE : self::PAGE . '-' . $view;
 	}
 
 	/**
@@ -54,16 +66,16 @@ class MessagingTab {
 	private static function current_view(): string {
 		$page = sanitize_key( $_GET['page'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
 
-		foreach ( array_keys( self::get_views() ) as $view ) {
+		foreach ( array_keys( self::get_views() + self::hidden_views() ) as $view ) {
 			if ( self::page_slug( $view ) === $page ) {
 				return $view;
 			}
 		}
 
-		return 'automations';
+		return 'home';
 	}
 
-	/** The top-level menu and one sub-menu page per view. */
+	/** The top-level menu, one sub-menu page per sidebar view, and the hidden pages. */
 	public function register_menu(): void {
 		add_menu_page(
 			__( 'Messaging', 'protech-wholesale' ),
@@ -85,15 +97,78 @@ class MessagingTab {
 				array( __CLASS__, 'render_page' )
 			);
 		}
+
+		foreach ( self::hidden_views() as $view => $info ) {
+			add_submenu_page(
+				self::HIDDEN_PARENT,
+				$info['title'],
+				$info['title'],
+				'manage_woocommerce',
+				self::page_slug( $view ),
+				array( __CLASS__, 'render_page' )
+			);
+		}
 	}
 
-	/** The page shell: the heading, then the current view. */
+	/**
+	 * On a hidden page, open the Messaging menu in the sidebar.
+	 *
+	 * @param string $parent_file
+	 * @return string
+	 */
+	public function highlight_parent( $parent_file ) {
+		return null !== self::hidden_parent_view() ? self::PAGE : $parent_file;
+	}
+
+	/**
+	 * On a hidden page, highlight the sidebar item it belongs to (Emails for Compose, say).
+	 *
+	 * @param string|null $submenu_file
+	 * @return string|null
+	 */
+	public function highlight_submenu( $submenu_file ) {
+		$parent = self::hidden_parent_view();
+
+		return null !== $parent ? self::page_slug( $parent ) : $submenu_file;
+	}
+
+	/** The sidebar view the current hidden page belongs to, or null when this is not a hidden Messaging page. */
+	private static function hidden_parent_view(): ?string {
+		$page = sanitize_key( $_GET['page'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+
+		foreach ( self::hidden_views() as $view => $info ) {
+			if ( self::page_slug( $view ) === $page ) {
+				return $info['parent'];
+			}
+		}
+
+		return null;
+	}
+
+	/** The page shell: the view's own heading, then the view. */
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</h1>';
+		$view    = self::current_view();
+		$hidden  = self::hidden_views();
+		$views   = self::get_views();
+		$editing = isset( $_GET['edit'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+
+		if ( 'home' === $view ) {
+			$title = __( 'Messaging', 'protech-wholesale' );
+		} else {
+			$title = $hidden[ $view ]['heading'] ?? $views[ $view ];
+		}
+
+		echo '<div class="wrap"><h1 class="wp-heading-inline">' . esc_html( $title ) . '</h1>';
+
+		if ( in_array( $view, array( 'emails', 'templates' ), true ) && ! $editing ) {
+			echo ' <a href="' . esc_url( self::url( 'compose' ) ) . '" class="page-title-action">' . esc_html__( 'Add new email', 'protech-wholesale' ) . '</a>';
+		}
+
+		echo '<hr class="wp-header-end" />';
 		self::render();
 		echo '</div>';
 	}
@@ -109,7 +184,7 @@ class MessagingTab {
 			return;
 		}
 
-		$view = sanitize_key( $_GET['view'] ?? 'automations' );
+		$view = sanitize_key( $_GET['view'] ?? 'emails' );
 		$args = array();
 
 		foreach ( $_GET as $key => $value ) {
@@ -119,8 +194,16 @@ class MessagingTab {
 		}
 		// phpcs:enable
 
-		if ( ! array_key_exists( $view, self::get_views() ) ) {
-			$view = 'automations';
+		// Views renamed or folded away since then.
+		if ( 'automations' === $view ) {
+			$view = 'emails';
+		} elseif ( 'compliance' === $view ) {
+			$view        = 'settings';
+			$args['tab'] = 'compliance';
+		}
+
+		if ( ! array_key_exists( $view, self::get_views() + self::hidden_views() ) ) {
+			$view = 'emails';
 		}
 
 		wp_safe_redirect( self::url( $view, $args ) );
@@ -128,19 +211,56 @@ class MessagingTab {
 	}
 
 	/**
+	 * A retired page slug (Compliance, folded into Settings in 3.7.0) is no
+	 * longer registered, so WordPress refuses it before admin_init runs. This
+	 * fires just before that refusal and sends the bookmark to its new home.
+	 */
+	public function redirect_retired_page(): void {
+		$page = sanitize_key( $_GET['page'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a read-only redirect of a GET URL.
+
+		if ( ! isset( self::RETIRED[ $page ] ) || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		wp_safe_redirect( self::url( self::RETIRED[ $page ][0], self::RETIRED[ $page ][1] ) );
+		exit;
+	}
+
+	/**
+	 * The sidebar items, in order.
+	 *
 	 * @return array<string, string>
 	 */
 	private static function get_views(): array {
 		return array(
-			'automations' => __( 'Emails', 'protech-wholesale' ),
-			'compose'     => __( 'Compose', 'protech-wholesale' ),
-			'templates'   => __( 'Email templates', 'protech-wholesale' ),
-			'contacts'    => __( 'Contacts', 'protech-wholesale' ),
-			'forms'       => __( 'Forms', 'protech-wholesale' ),
-			'flows'       => __( 'Automatic', 'protech-wholesale' ),
-			'log'         => __( 'Log', 'protech-wholesale' ),
-			'compliance'  => __( 'Compliance', 'protech-wholesale' ),
-			'settings'    => __( 'Settings', 'protech-wholesale' ),
+			'home'     => __( 'Home', 'protech-wholesale' ),
+			'emails'   => __( 'Emails', 'protech-wholesale' ),
+			'flows'    => __( 'Automations', 'protech-wholesale' ),
+			'forms'    => __( 'Forms', 'protech-wholesale' ),
+			'contacts' => __( 'Contacts', 'protech-wholesale' ),
+			'log'      => __( 'Log', 'protech-wholesale' ),
+			'settings' => __( 'Settings', 'protech-wholesale' ),
+		);
+	}
+
+	/**
+	 * Pages that are not in the sidebar: the browser title, the page heading,
+	 * and the sidebar view to highlight while on them.
+	 *
+	 * @return array<string, array{title: string, heading: string, parent: string}>
+	 */
+	private static function hidden_views(): array {
+		return array(
+			'compose'   => array(
+				'title'   => __( 'New email', 'protech-wholesale' ),
+				'heading' => __( 'New email', 'protech-wholesale' ),
+				'parent'  => 'emails',
+			),
+			'templates' => array(
+				'title'   => __( 'Email templates', 'protech-wholesale' ),
+				'heading' => __( 'Emails', 'protech-wholesale' ),
+				'parent'  => 'emails',
+			),
 		);
 	}
 
@@ -162,40 +282,17 @@ class MessagingTab {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'protech-wholesale' ) );
 		}
 
-		$view  = self::current_view();
-		$views = self::get_views();
-
-		echo '<p>' . esc_html__( 'Send emails and texts to wholesale customers — automatically, on a rule, or on demand — through Brevo.', 'protech-wholesale' ) . '</p>';
-
-		if ( ! MessagingSettings::enabled() && 'settings' !== $view ) {
-			echo '<div class="notice notice-info inline"><p>' . wp_kses_post(
-				sprintf(
-					/* translators: %s: link to the Settings view. */
-					__( 'Automations are turned off — turn them on from <a href="%s">Settings</a> when you\'re ready. Compose (manual sends) works either way.', 'protech-wholesale' ),
-					esc_url( self::url( 'settings' ) )
-				)
-			) . '</p></div>';
-		}
-
-		echo '<ul class="subsubsub">';
-		$keys = array_keys( $views );
-		foreach ( $views as $slug => $label ) {
-			$sep = end( $keys ) === $slug ? '' : ' |';
-			printf(
-				'<li><a href="%s" class="%s">%s</a>%s</li>',
-				esc_url( self::url( $slug ) ),
-				$view === $slug ? 'current' : '',
-				esc_html( $label ),
-				$sep
-			);
-		}
-		echo '</ul><br class="clear" />';
-
-		switch ( $view ) {
+		switch ( self::current_view() ) {
+			case 'emails':
+				AutomationsScreen::render();
+				break;
 			case 'compose':
 				ComposeScreen::render();
 				break;
 			case 'templates':
+				if ( ! isset( $_GET['edit'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+					AutomationsScreen::render_tabs( 'templates' );
+				}
 				EmailComposer::render();
 				break;
 			case 'contacts':
@@ -210,14 +307,11 @@ class MessagingTab {
 			case 'log':
 				LogScreen::render();
 				break;
-			case 'compliance':
-				ComplianceScreen::render();
-				break;
 			case 'settings':
 				MessagingSettingsScreen::render();
 				break;
 			default:
-				AutomationsScreen::render();
+				HomeScreen::render();
 		}
 	}
 }

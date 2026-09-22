@@ -217,7 +217,7 @@ class SetupChecks {
 		if ( false === self::brevo_connected() ) {
 			$problems[] = array(
 				'text' => __( 'Automations are on but Brevo is not connected, so no automated emails or texts are actually going out.', 'protech-wholesale' ),
-				'url'  => MessagingTab::url( 'settings' ),
+				'url'  => MessagingTab::url( 'settings', array( 'tab' => 'sending' ) ),
 				'link' => __( 'Connect Brevo', 'protech-wholesale' ),
 			);
 		}
@@ -233,7 +233,7 @@ class SetupChecks {
 		if ( false === self::privacy_policy_mentions_sms() && MessagingSettings::enabled() ) {
 			$problems[] = array(
 				'text' => __( 'Your privacy policy doesn\'t appear to mention SMS yet — Brevo\'s toll-free number verification looks for this.', 'protech-wholesale' ),
-				'url'  => MessagingTab::url( 'compliance' ),
+				'url'  => MessagingTab::url( 'settings', array( 'tab' => 'compliance' ) ),
 				'link' => __( 'See suggested wording', 'protech-wholesale' ),
 			);
 		}

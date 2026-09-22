@@ -3,6 +3,23 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.7.0 - 2026-09-22
+
+### Changed
+- Messaging's menu follows MailPoet's layout: Home, Emails, Automations, Forms, Contacts,
+  Log, Settings (seven items, down from nine). The row repeating the menu at the top of
+  every page is gone, and each page is headed by its own name.
+- New Home page: what is left to set up, counts of contacts, sent and waiting messages,
+  the next automated run, and the latest sends. "Run automations now" lives here.
+- Emails has three tabs: Sent, Automatic (the lifecycle and WooCommerce order emails) and
+  Templates. Writing a one-off email starts from the "Add new email" button beside the
+  heading; Compose is no longer a menu item.
+- "Automatic" (multi-step flows) is now called Automations.
+- Settings has three tabs: General, Sending and Compliance. The Compliance page's report
+  and consent export moved onto the Compliance tab.
+- Old bookmarks to Emails, Compliance and the pre-2.1.0 Wholesale tab redirect to the new
+  pages.
+
 ## 3.6.2 - 2026-09-22
 
 ### Fixed

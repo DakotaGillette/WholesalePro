@@ -1,6 +1,6 @@
 <?php
 /**
- * The Emails screen (Messaging landing page): every email the shop can send,
+ * The Emails screen's lists (Messaging → Emails, see AutomationsScreen for the tabs): every email the shop can send,
  * in three plain groups, for an admin who is not technical.
  *
  *  - When someone joins: the four emails the shop sends on its own (welcome,
@@ -10,7 +10,7 @@
  *    own default design or a designed template (see class-wc-email-slots.php).
  *  - Sent: past campaigns, with "Duplicate and edit" to send one again.
  *
- * Automatic (multi-step flows, since 3.6.0) is its own screen, FlowsScreen.
+ * Multi-step flows (since 3.6.0) are their own screen, Messaging → Automations (FlowsScreen).
  *
  * @package ProtechWholesale
  */
@@ -135,7 +135,7 @@ class EmailsScreen {
 		$campaigns = Campaigns::recent( 20 );
 
 		if ( empty( $campaigns ) ) {
-			echo '<p>' . esc_html__( 'Nothing has been sent from Compose yet.', 'protech-wholesale' ) . '</p>';
+			echo '<p>' . esc_html__( 'Nothing sent yet. Use Add new email to write and send one.', 'protech-wholesale' ) . '</p>';
 			return;
 		}
 
@@ -192,7 +192,7 @@ class EmailsScreen {
 		$info = self::lifecycle()[ $slot ] ?? null;
 
 		if ( null === $info ) {
-			wp_safe_redirect( MessagingTab::url( 'automations' ) );
+			wp_safe_redirect( MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ) );
 			exit;
 		}
 
@@ -217,7 +217,7 @@ class EmailsScreen {
 			Logger::info( sprintf( 'Lifecycle email "%s" switched to a designed template by admin #%d.', $slot, get_current_user_id() ) );
 		}
 
-		wp_safe_redirect( '' !== $id ? EmailComposer::edit_url( $id ) : MessagingTab::url( 'automations' ) );
+		wp_safe_redirect( '' !== $id ? EmailComposer::edit_url( $id ) : MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ) );
 		exit;
 	}
 
@@ -228,7 +228,7 @@ class EmailsScreen {
 	 */
 	private function handle_design_order_email( string $slot ): void {
 		if ( ! array_key_exists( $slot, WcEmailSlots::slots() ) ) {
-			wp_safe_redirect( MessagingTab::url( 'automations' ) );
+			wp_safe_redirect( MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ) );
 			exit;
 		}
 
@@ -265,7 +265,7 @@ class EmailsScreen {
 			Logger::info( sprintf( 'Order email "%s" switched to a designed template by admin #%d.', $slot, get_current_user_id() ) );
 		}
 
-		wp_safe_redirect( '' !== $id ? EmailComposer::edit_url( $id ) : MessagingTab::url( 'automations' ) );
+		wp_safe_redirect( '' !== $id ? EmailComposer::edit_url( $id ) : MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ) );
 		exit;
 	}
 
@@ -279,7 +279,7 @@ class EmailsScreen {
 			Logger::info( sprintf( 'Lifecycle email "%s" returned to the built-in wording by admin #%d.', $slot, get_current_user_id() ) );
 		}
 
-		wp_safe_redirect( MessagingTab::url( 'automations' ) );
+		wp_safe_redirect( MessagingTab::url( 'emails', array( 'tab' => 'automatic' ) ) );
 		exit;
 	}
 
@@ -289,7 +289,7 @@ class EmailsScreen {
 		$campaign = Campaigns::get( $id );
 
 		if ( null === $campaign ) {
-			wp_safe_redirect( MessagingTab::url( 'automations' ) );
+			wp_safe_redirect( MessagingTab::url( 'emails' ) );
 			exit;
 		}
 

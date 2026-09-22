@@ -32,3 +32,52 @@
 	cursor: pointer;
 	font-weight: 600;
 }
+
+/* Messaging → Home. */
+.protech-home-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin: 16px 0;
+	max-width: 960px;
+	box-sizing: border-box;
+}
+.protech-home-card h2 {
+	margin-top: 0.4em;
+}
+.protech-home-checklist li .dashicons {
+	color: #996800;
+}
+.protech-home-checklist li.is-done {
+	color: #646970;
+}
+.protech-home-checklist li.is-done .dashicons {
+	color: #00a32a;
+}
+.protech-home-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+	max-width: 960px;
+}
+.protech-home-stats .protech-home-card {
+	margin: 0;
+}
+.protech-home-stat-label {
+	color: #646970;
+}
+.protech-home-stat-value {
+	display: block;
+	font-size: 26px;
+	line-height: 1.4;
+	font-weight: 600;
+	text-decoration: none;
+}
+.protech-home-stat-value.is-small {
+	font-size: 15px;
+	padding-top: 8px;
+}
+.protech-home-recent .description {
+	margin-left: 6px;
+}

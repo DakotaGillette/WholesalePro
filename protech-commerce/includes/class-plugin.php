@@ -54,7 +54,7 @@ final class Plugin {
 	private Unsubscribe $unsubscribe;
 	private NotificationsEndpoint $notifications_endpoint;
 	private MessagingTab $messaging_tab;
-	private AutomationsScreen $automations_screen;
+	private HomeScreen $home_screen;
 	private ComposeScreen $compose_screen;
 	private LogScreen $log_screen;
 	private ComplianceScreen $compliance_screen;
@@ -116,7 +116,7 @@ final class Plugin {
 		$this->unsubscribe            = new Unsubscribe();
 		$this->notifications_endpoint = new NotificationsEndpoint();
 		$this->messaging_tab          = new MessagingTab();
-		$this->automations_screen     = new AutomationsScreen();
+		$this->home_screen            = new HomeScreen();
 		$this->compose_screen         = new ComposeScreen();
 		$this->log_screen             = new LogScreen();
 		$this->compliance_screen      = new ComplianceScreen();
@@ -163,7 +163,7 @@ final class Plugin {
 				$this->unsubscribe,
 				$this->notifications_endpoint,
 				$this->messaging_tab,
-				$this->automations_screen,
+				$this->home_screen,
 				$this->compose_screen,
 				$this->log_screen,
 				$this->compliance_screen,

@@ -1,6 +1,6 @@
 <?php
 /**
- * Messaging → Compliance: the SMS opt-in wording in use, which rules are
+ * Messaging → Settings → Compliance (its own page until 3.7.0): the SMS opt-in wording in use, which rules are
  * configured, consent on file by scope, a consent-record CSV export, and a
  * checklist for Brevo toll-free verification.
  *

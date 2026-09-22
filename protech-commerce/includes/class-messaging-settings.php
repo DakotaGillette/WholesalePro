@@ -138,7 +138,7 @@ class MessagingSettings {
 		return array(
 			array(
 				'title' => __( 'Automations', 'protech-wholesale' ),
-				'desc'  => __( 'The master switch for the daily automation job and order-status messages. Manual sends (Compose) work either way.', 'protech-wholesale' ),
+				'desc'  => __( 'The master switch for the daily automation job and order-status messages. Emails you send yourself go out either way.', 'protech-wholesale' ),
 				'type'  => 'title',
 				'id'    => 'protech_wholesale_msg_settings_automations',
 			),

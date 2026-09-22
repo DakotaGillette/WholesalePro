@@ -230,7 +230,7 @@ class Approval {
 
 		$links[] = '<a href="' . esc_url( home_url( '/wholesale-application' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Application form', 'protech-wholesale' ) . '</a>';
 		$links[] = '<a href="' . esc_url( admin_url( 'admin.php?page=wc-status&tab=logs&source=protech-wholesale' ) ) . '">' . esc_html__( 'Log', 'protech-wholesale' ) . '</a>';
-		$links[] = '<a href="' . esc_url( MessagingTab::url( 'automations' ) ) . '">' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</a>';
+		$links[] = '<a href="' . esc_url( MessagingTab::url( 'home' ) ) . '">' . esc_html__( 'Messaging', 'protech-wholesale' ) . '</a>';
 
 		echo '<p class="description" style="margin:-6px 0 12px;">' . wp_kses_post( implode( ' &middot; ', $links ) ) . '</p>';
 

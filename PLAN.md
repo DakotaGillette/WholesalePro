@@ -65,14 +65,15 @@ protech-commerce/
     class-flows.php                   Flow storage/validation (steps, trigger, tier/tag audience), legacy-rule import, flow_runs table DDL
     class-flow-runner.php             Runs a flow one contact at a time: start (dedup by anchor), advance through steps, wake, cancel
     class-flow-triggers.php           Event-driven flow starts (order/role/account/tag/contact hooks) + the daily job's day-based triggers
-    class-messaging-tab.php           Messaging menu shell: PAGE, url(), the legacy-URL redirect, and the view router
+    class-messaging-tab.php           Messaging menu shell: PAGE, url(), sidebar and hidden views, legacy-URL redirects, and the view router
     class-admin-stash.php             The per-admin 5-minute transient stash shared by every Messaging screen below
-    class-automations-screen.php      Emails view: lifecycle/order emails, the "Sent" list, and a pointer to Automatic (rule editor removed in 3.6.0)
-    class-flows-screen.php            Automatic view: flow list + fixed-slot step editor (admin-post: save/toggle/delete/duplicate)
+    class-automations-screen.php      Emails view: the Sent / Automatic / Templates tabs (3.7.0)
+    class-home-screen.php             Home view: setup checklist, counts, latest sends, "Run automations now" (3.7.0)
+    class-flows-screen.php            Automations view: flow list + fixed-slot step editor (admin-post: save/toggle/delete/duplicate)
     class-compose-screen.php          Compose view + review-before-send screen; also the shared preview-box/template-picker/merge-tag UI the rule form reuses
     class-log-screen.php              Log view: filtered, paginated message history
-    class-compliance-screen.php       Compliance view: SMS wording, consent-on-file counts, CSV export
-    class-messaging-settings-screen.php  Settings view: renders/saves MessagingSettings::get_fields(), Brevo connection test
+    class-compliance-screen.php       Compliance report on Settings → Compliance: SMS wording, consent-on-file counts, CSV export
+    class-messaging-settings-screen.php  Settings view: General / Sending / Compliance tabs, each saving its own slice of get_fields(), Brevo connection test
     class-message-provider.php        The MessageProvider interface: what a thing that sends email/SMS must implement
     class-brevo-provider.php          MessageProvider wrapping BrevoClient
     class-wc-mailer-provider.php      MessageProvider wrapping the site's own WooCommerce mailer (email only, always configured)

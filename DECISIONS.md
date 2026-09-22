@@ -1680,6 +1680,38 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Messaging menu reshaped after MailPoet (2026-09-22, 3.7.0)
+
+Nine sidebar items, repeated as a pipe-separated row on every page, were
+too many to scan. MailPoet, FluentCRM, Newsletter, Groundhogg and Mailster
+all open on a dashboard, keep six to nine noun items, hide their editors,
+and put "Add new" beside the list heading. The owner knows MailPoet, so the
+menu follows it: Home, Emails, Automations, Forms, Contacts, Log, Settings.
+
+1. **Hidden pages are real pages under a parent no menu has**
+   (`MessagingTab::HIDDEN_PARENT`), MailPoet's `mailpoet-no-parent` trick.
+   Compose and the template library keep their old slugs, so every link,
+   the review-before-send flow and the editor's asset gating (which matches
+   `protech-messaging-templates` in the screen id) are untouched. A
+   `parent_file`/`submenu_file` filter keeps Emails highlighted on them.
+2. **Home owns the top-level slug; Emails moved to `protech-messaging-emails`.**
+   Old `?page=protech-messaging` bookmarks now land on Home, one click from
+   Emails. The pre-2.1.0 `tab=messaging&view=automations` form maps to Emails.
+3. **Emails is three tabs**: Sent (default), Automatic (lifecycle and order
+   emails) and Templates. Templates is the library's own hidden page drawing
+   the same tab row, not a copy of it.
+4. **Compliance folded into Settings → Compliance.** Its unregistered slug
+   is caught on `admin_page_access_denied` (WordPress refuses an unknown page
+   before `admin_init`) and redirected to the tab.
+5. **Each Settings tab saves only its own fields.** `woocommerce_update_options()`
+   sets any checkbox it is given but cannot find in the POST to "no", so
+   saving one tab with the full field list would switch automations off
+   from the Sending tab. A test pins that every field is on exactly one tab.
+6. **Home's "Messages sent" counts log rows still kept**, not the last 30
+   days: the log has no date filter yet, and retention purges old rows.
+7. **"Automatic" (flows) is relabelled Automations**; the view key stays
+   `flows`, so its URLs are unchanged.
+
 ## Automations v2: flows, replacing the single-shot rule engine (2026-09-22, 3.6.0)
 
 The riskiest phase in the roadmap, because it replaces the plugin's live, working

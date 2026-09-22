@@ -20,7 +20,8 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 	}
 
 	public function test_the_landing_view_owns_the_top_level_slug_and_the_rest_hang_off_it(): void {
-		$this->assertSame( 'protech-messaging', MessagingTab::page_slug( 'automations' ) );
+		$this->assertSame( 'protech-messaging', MessagingTab::page_slug( 'home' ) );
+		$this->assertSame( 'protech-messaging-emails', MessagingTab::page_slug( 'emails' ) );
 		$this->assertSame( 'protech-messaging-compose', MessagingTab::page_slug( 'compose' ) );
 		$this->assertSame( 'protech-messaging-log', MessagingTab::page_slug( 'log' ) );
 	}
@@ -49,9 +50,74 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 		$slugs = array_column( $submenu['protech-messaging'] ?? array(), 2 );
 
 		$this->assertSame(
-			array( 'protech-messaging', 'protech-messaging-compose', 'protech-messaging-templates', 'protech-messaging-contacts', 'protech-messaging-forms', 'protech-messaging-flows', 'protech-messaging-log', 'protech-messaging-compliance', 'protech-messaging-settings' ),
+			array( 'protech-messaging', 'protech-messaging-emails', 'protech-messaging-flows', 'protech-messaging-forms', 'protech-messaging-contacts', 'protech-messaging-log', 'protech-messaging-settings' ),
 			$slugs
 		);
+	}
+
+	/**
+	 * Compose and the template library/editor are real pages (so their URLs,
+	 * and the editor's asset gating on the templates screen id, keep working)
+	 * but are registered under a parent no menu has, so they never show in
+	 * the sidebar, and they highlight Emails while open.
+	 */
+	public function test_hidden_pages_are_registered_off_the_sidebar_and_highlight_emails(): void {
+		global $menu, $submenu;
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$menu    = array();
+		$submenu = array();
+
+		$tab = new MessagingTab();
+		$tab->register_menu();
+
+		$hidden = array_column( $submenu[ MessagingTab::HIDDEN_PARENT ] ?? array(), 2 );
+		$this->assertSame( array( 'protech-messaging-compose', 'protech-messaging-templates' ), $hidden );
+		$this->assertNotContains( 'protech-messaging-compose', array_column( $submenu['protech-messaging'], 2 ) );
+		$this->assertNotContains( MessagingTab::HIDDEN_PARENT, array_column( $menu, 2 ) );
+
+		$_GET = array( 'page' => 'protech-messaging-compose' );
+		$this->assertSame( 'protech-messaging', $tab->highlight_parent( MessagingTab::HIDDEN_PARENT ) );
+		$this->assertSame( 'protech-messaging-emails', $tab->highlight_submenu( null ) );
+
+		$_GET = array( 'page' => 'protech-messaging-log' );
+		$this->assertSame( 'protech-messaging', $tab->highlight_parent( 'protech-messaging' ) );
+		$this->assertNull( $tab->highlight_submenu( null ) );
+	}
+
+	public function test_the_retired_compliance_page_redirects_to_its_settings_tab(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$_GET     = array( 'page' => 'protech-messaging-compliance' );
+		$location = $this->follow_redirect( array( new MessagingTab(), 'redirect_retired_page' ) );
+
+		$this->assertStringContainsString( 'page=protech-messaging-settings', $location );
+		$this->assertStringContainsString( 'tab=compliance', $location );
+
+		$_GET     = array( 'page' => 'some-other-plugin' );
+		$location = $this->follow_redirect( array( new MessagingTab(), 'redirect_retired_page' ) );
+		$this->assertSame( '', $location );
+	}
+
+	/**
+	 * Every settings field lands on exactly one tab, so none disappears from
+	 * the screen and none is saved (a checkbox reset to "no") by two tabs.
+	 */
+	public function test_every_settings_field_is_on_exactly_one_tab(): void {
+		$all  = ( new \ProtechWholesale\MessagingSettings() )->get_fields();
+		$seen = array();
+
+		foreach ( array_keys( \ProtechWholesale\MessagingSettingsScreen::tabs() ) as $tab ) {
+			foreach ( \ProtechWholesale\MessagingSettingsScreen::fields_for_tab( $all, $tab ) as $field ) {
+				$seen[] = ( $field['type'] ?? '' ) . ':' . ( $field['id'] ?? '' );
+			}
+		}
+
+		$expected = array_map( static fn( array $field ): string => ( $field['type'] ?? '' ) . ':' . ( $field['id'] ?? '' ), $all );
+
+		sort( $seen );
+		sort( $expected );
+		$this->assertSame( $expected, $seen );
 	}
 
 	private function follow_redirect( callable $fn ): string {
@@ -90,11 +156,19 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'tab=messaging', $location );
 	}
 
-	public function test_an_old_url_with_no_view_lands_on_automations_and_an_unknown_view_falls_back(): void {
+	public function test_an_old_url_with_no_view_lands_on_emails_and_an_unknown_view_falls_back(): void {
 		$_GET     = array( 'page' => 'protech-wholesale', 'tab' => 'messaging' );
 		$location = $this->follow_redirect( array( new MessagingTab(), 'redirect_legacy_url' ) );
-		$this->assertStringContainsString( 'page=protech-messaging', $location );
-		$this->assertStringNotContainsString( 'protech-messaging-', $location );
+		$this->assertStringContainsString( 'page=protech-messaging-emails', $location );
+
+		$_GET     = array( 'page' => 'protech-wholesale', 'tab' => 'messaging', 'view' => 'automations' );
+		$location = $this->follow_redirect( array( new MessagingTab(), 'redirect_legacy_url' ) );
+		$this->assertStringContainsString( 'page=protech-messaging-emails', $location );
+
+		$_GET     = array( 'page' => 'protech-wholesale', 'tab' => 'messaging', 'view' => 'compliance' );
+		$location = $this->follow_redirect( array( new MessagingTab(), 'redirect_legacy_url' ) );
+		$this->assertStringContainsString( 'page=protech-messaging-settings', $location );
+		$this->assertStringContainsString( 'tab=compliance', $location );
 
 		$_GET     = array( 'page' => 'protech-wholesale', 'tab' => 'messaging', 'view' => 'nonsense' );
 		$location = $this->follow_redirect( array( new MessagingTab(), 'redirect_legacy_url' ) );
@@ -113,7 +187,8 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 	 * before class-messaging-tab.php was split into AutomationsScreen,
 	 * ComposeScreen, LogScreen, ComplianceScreen and MessagingSettingsScreen
 	 * (2.9.0), minus the five retired with the old rule editor (3.6.0, replaced
-	 * by flows) plus FlowsScreen's own four.
+	 * by flows) plus FlowsScreen's own four. "Run automations now" moved to
+	 * HomeScreen in 3.7.0.
 	 */
 	public function test_every_admin_post_action_is_still_registered_after_the_split(): void {
 		$actions = array(

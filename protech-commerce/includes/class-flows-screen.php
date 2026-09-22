@@ -103,7 +103,7 @@ class FlowsScreen {
 			echo '<div class="updated notice inline"><p>' . esc_html__( 'Flow saved.', 'protech-wholesale' ) . '</p></div>';
 		}
 
-		echo '<h2>' . esc_html__( 'Automatic (flows)', 'protech-wholesale' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Flows', 'protech-wholesale' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Multi-step automations: a trigger, then a list of steps (send, wait, tag, or branch). Every flow ships switched off.', 'protech-wholesale' ) . '</p>';
 		echo '<p><a class="button button-primary" href="' . esc_url( MessagingTab::url( 'flows', array( 'edit' => 'new' ) ) ) . '">' . esc_html__( 'New flow', 'protech-wholesale' ) . '</a></p>';
 
