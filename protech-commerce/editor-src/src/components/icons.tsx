@@ -29,6 +29,7 @@ const PATHS: Record< string, string > = {
 	redo: 'M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3',
 	arrowLeft: 'M19 12H5M11 6l-6 6 6 6',
 	arrowRight: 'M5 12h14M13 6l6 6-6 6',
+	chevronDown: 'M6 9l6 6 6-6',
 };
 
 export function Icon( { name, size = 20, className = '' }: { name: string; size?: number; className?: string } ) {

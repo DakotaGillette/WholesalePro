@@ -1680,6 +1680,36 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Scheduling, a sender per email, Save as template (2026-09-22, 3.10.0)
+
+1. **One Action Scheduler action per scheduled email**
+   (`protech_wholesale_launch_campaign`, argument `campaign_id`) calls
+   `Campaigns::run_scheduled()`, which does nothing unless the email is still
+   scheduled. Unscheduling removes the action and makes it a draft again, so a
+   stale action can never send. The audience is worked out at send time, like
+   MailPoet; the confirm dialog says so.
+2. **An email is checked when it is scheduled and again when it sends.** One
+   that fails the second check (its design removed, a product deleted) goes
+   back to a draft with `last_error`, shown on the Emails list and in the
+   flow, rather than half-sending. Saving the draft clears it.
+3. **A catch-up check** (at most every five minutes, on `init`) re-queues any
+   scheduled email more than five minutes overdue whose action went missing,
+   because WP-Cron only runs on a visit and staging uses a page cache.
+4. **The per-email sender travels with the email's content**, like its
+   design, down to `dispatch()` as an optional last argument. Only the fields
+   the email sets are passed, so an email that sets none sends exactly as
+   before on either provider.
+5. **A per-email From must be on the Settings sender's domain.** Brevo refuses
+   unverified senders, so anything else would fail every message.
+6. **The WooCommerce mailer gets Reply-To and From through its own hooks.**
+   `WC_Email::send()` passes headers to `wp_mail()` and sets From through the
+   `woocommerce_email_from_address`/`_name` filters (read in WooCommerce's
+   source before relying on it); ours are added for one send and removed in a
+   `finally`. It had never sent the Settings reply-to at all.
+7. **Send preview is a top-bar popover in both editors**, where MailPoet keeps
+   it; the sidebar panel is gone. **Save as template** saves the email first,
+   then copies what is saved into the library, which leaves the email as it is.
+
 ## The new-email flow, after MailPoet (2026-09-22, 3.9.0)
 
 The owner wanted MailPoet's creation workflow (type, template, design, then

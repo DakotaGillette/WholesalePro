@@ -3,6 +3,28 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.10.0 - 2026-09-22
+
+### Added
+- **Schedule it** on the Send step: pick a date and a time on your website's clock, and the
+  email waits under Emails, Newsletters, Scheduled until then. Unschedule it any time before it
+  sends to change it or send it now. Who gets it is worked out when it sends. If something
+  about it stops working meanwhile (its design was removed, say), it comes back as a draft
+  with the reason instead of going out.
+- **A sender for each email**: from name, from email and reply-to on the Send step. Empty
+  fields use the ones in Settings. The from address has to be on the same domain as the one in
+  Settings, since Brevo only sends from a verified sender.
+- **Save as template** on the Design step, under the arrow next to Save: keeps a copy of the
+  design in your templates to start other emails from.
+
+### Changed
+- **Send preview** moved from the sidebar to the top bar, in the new-email flow and the template
+  editor alike. It opens a small box for the address, and sends to you when left blank.
+
+### Fixed
+- When email goes out through the site's own mail (Brevo not connected), the reply-to address
+  from Settings was never used. It is now.
+
 ## 3.9.0 - 2026-09-22
 
 ### Added

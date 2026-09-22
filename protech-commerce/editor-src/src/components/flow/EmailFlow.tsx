@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { EditorBootstrap, EmailPayload } from '../../types';
 import { Step, STEPS, stepFromUrl, stepState, urlFor } from '../../model/steps';
 import { Icon } from '../icons';
+import { api } from '../../api';
 import { Notice } from '../ui';
 import { TypeStep } from './TypeStep';
 import { TemplateStep } from './TemplateStep';
@@ -16,6 +17,8 @@ import { SendStep } from './SendStep';
 export function EmailFlow( { boot }: { boot: EditorBootstrap } ) {
 	const [ payload, setPayload ] = useState< EmailPayload | null >( boot.emailData ?? null );
 	const [ step, setStep ] = useState< Step >( () => stepFromUrl( window.location.search, !! boot.emailData ) );
+	const [ unscheduling, setUnscheduling ] = useState( false );
+	const [ unscheduleError, setUnscheduleError ] = useState( '' );
 
 	useEffect( () => {
 		const onPop = () => setStep( stepFromUrl( window.location.search, !! payload ) );
@@ -40,6 +43,34 @@ export function EmailFlow( { boot }: { boot: EditorBootstrap } ) {
 				<Notice tone="warning">
 					That email no longer exists. <a href={ boot.urls.emails }>Back to your emails</a>
 				</Notice>
+			</div>
+		);
+	} else if ( payload && 'scheduled' === payload.email.status ) {
+		body = (
+			<div className="pc-page pc-page--narrow">
+				<Notice tone="info">
+					This email is scheduled for <strong>{ payload.email.send_at_label }</strong>. Unschedule it to make changes or send it now.
+				</Notice>
+				{ unscheduleError ? <Notice tone="error">{ unscheduleError }</Notice> : null }
+				<button
+					type="button"
+					className="pc-btn pc-btn--primary"
+					disabled={ unscheduling }
+					onClick={ () => {
+						setUnscheduling( true );
+						setUnscheduleError( '' );
+						api.emails
+							.unschedule( payload.email.id )
+							.then( ( result ) => {
+								setPayload( { ...result, design: result.design ?? payload.design } );
+								goTo( 'design', result );
+							} )
+							.catch( ( e: Error ) => setUnscheduleError( e.message ) )
+							.finally( () => setUnscheduling( false ) );
+					} }
+				>
+					{ unscheduling ? 'Unscheduling...' : 'Unschedule and edit' }
+				</button>
 			</div>
 		);
 	} else if ( payload && 'draft' !== payload.email.status ) {
@@ -105,6 +136,12 @@ export function EmailFlow( { boot }: { boot: EditorBootstrap } ) {
 					<span>{ payload ? 'Close' : 'Cancel' }</span>
 				</a>
 			</header>
+
+			{ payload && 'draft' === payload.email.status && payload.email.last_error ? (
+				<div className="pc-page pc-page--flush">
+					<Notice tone="warning">This email was scheduled but not sent: { payload.email.last_error }</Notice>
+				</div>
+			) : null }
 
 			{ body }
 		</div>

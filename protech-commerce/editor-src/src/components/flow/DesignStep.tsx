@@ -6,6 +6,8 @@ import { DesignWorkspace } from '../DesignWorkspace';
 import { TagPicker } from '../TagPicker';
 import { Icon } from '../icons';
 import { Notice } from '../ui';
+import { SendPreview } from '../SendPreview';
+import { ConfirmModal } from './ConfirmModal';
 
 interface Props {
 	boot: EditorBootstrap;
@@ -30,6 +32,35 @@ export function DesignStep( { boot, payload, onChange, onNext }: Props ) {
 	const [ saved, setSaved ] = useState( JSON.stringify( initial ) );
 	const [ warnings, setWarnings ] = useState< string[] >( payload.errors );
 	const [ failure, setFailure ] = useState( '' );
+	const [ menuOpen, setMenuOpen ] = useState( false );
+	const [ naming, setNaming ] = useState( false );
+	const [ templateName, setTemplateName ] = useState( '' );
+	const [ savingTemplate, setSavingTemplate ] = useState( false );
+	const [ templateError, setTemplateError ] = useState( '' );
+	const [ savedTemplate, setSavedTemplate ] = useState( '' );
+	const menuWrap = useRef< HTMLSpanElement | null >( null );
+
+	// The Save menu closes on Escape or a click elsewhere.
+	useEffect( () => {
+		if ( ! menuOpen ) {
+			return undefined;
+		}
+
+		const onKey = ( e: KeyboardEvent ) => 'Escape' === e.key && setMenuOpen( false );
+		const onClick = ( e: MouseEvent ) => {
+			if ( menuWrap.current && ! menuWrap.current.contains( e.target as Node ) ) {
+				setMenuOpen( false );
+			}
+		};
+
+		document.addEventListener( 'keydown', onKey );
+		document.addEventListener( 'mousedown', onClick );
+
+		return () => {
+			document.removeEventListener( 'keydown', onKey );
+			document.removeEventListener( 'mousedown', onClick );
+		};
+	}, [ menuOpen ] );
 	const subjectRef = useRef< HTMLInputElement | null >( null );
 	const preheaderRef = useRef< HTMLInputElement | null >( null );
 
@@ -83,6 +114,30 @@ export function DesignStep( { boot, payload, onChange, onNext }: Props ) {
 		window.addEventListener( 'beforeunload', warn );
 		return () => window.removeEventListener( 'beforeunload', warn );
 	}, [ dirty ] );
+
+	/** Saves the email first (the template copies what is saved), then the copy. */
+	const saveAsTemplate = () => {
+		if ( savingTemplate ) {
+			return;
+		}
+
+		setSavingTemplate( true );
+		setTemplateError( '' );
+
+		void ( dirty ? save() : Promise.resolve( true ) )
+			.then( ( ok ) => ( ok ? api.emails.saveAsTemplate( payload.email.id, templateName ) : Promise.reject( new Error( 'Could not save the email first.' ) ) ) )
+			.then( ( result ) => {
+				if ( result.errors?.length ) {
+					setTemplateError( result.errors.join( ' ' ) );
+					return;
+				}
+
+				setSavedTemplate( result.name );
+				setNaming( false );
+			} )
+			.catch( ( e: Error ) => setTemplateError( e.message ) )
+			.finally( () => setSavingTemplate( false ) );
+	};
 
 	const next = () => {
 		window.clearTimeout( timer.current );
@@ -158,9 +213,40 @@ export function DesignStep( { boot, payload, onChange, onNext }: Props ) {
 						<span className={ `pc-save-status${ failure ? ' is-error' : '' }` } aria-live="polite">
 							{ status }
 						</span>
-						<button type="button" className="pc-btn" onClick={ () => void save() } disabled={ saving || ! dirty }>
-							Save
-						</button>
+						<SendPreview template={ template } />
+						<span className="pc-split">
+							<button type="button" className="pc-btn pc-split-main" onClick={ () => void save() } disabled={ saving || ! dirty }>
+								Save
+							</button>
+							<span className="pc-popover-wrap" ref={ menuWrap }>
+								<button
+									type="button"
+									className="pc-btn pc-split-toggle"
+									aria-label="More save options"
+									aria-haspopup="menu"
+									aria-expanded={ menuOpen }
+									onClick={ () => setMenuOpen( ! menuOpen ) }
+								>
+									<Icon name="chevronDown" size={ 16 } />
+								</button>
+								{ menuOpen ? (
+									<div className="pc-menu" role="menu">
+										<button
+											type="button"
+											role="menuitem"
+											className="pc-menu-item"
+											onClick={ () => {
+												setMenuOpen( false );
+												setTemplateName( payload.email.name );
+												setNaming( true );
+											} }
+										>
+											Save as template
+										</button>
+									</div>
+								) : null }
+							</span>
+						</span>
 						<button type="button" className="pc-btn pc-btn--primary" onClick={ next } disabled={ saving }>
 							Next
 							<Icon name="arrowRight" size={ 16 } />
@@ -170,6 +256,39 @@ export function DesignStep( { boot, payload, onChange, onNext }: Props ) {
 			</div>
 
 			{ failure ? <Notice tone="error">Could not save: { failure }</Notice> : null }
+
+			{ savedTemplate ? (
+				<Notice tone="success">
+					Saved to your templates as <strong>{ savedTemplate }</strong>. It shows under Your templates next time you start an email.
+				</Notice>
+			) : null }
+
+			{ naming ? (
+				<ConfirmModal
+					title="Save as template"
+					confirmLabel="Save template"
+					busyLabel="Saving..."
+					busy={ savingTemplate }
+					onCancel={ () => setNaming( false ) }
+					onConfirm={ saveAsTemplate }
+				>
+					<p className="pc-help">A copy of this design goes into your templates, to start other emails from. This email is not changed.</p>
+					<div className="pc-field">
+						<label className="pc-label" htmlFor="pc-template-name">
+							Template name
+						</label>
+						<input
+							id="pc-template-name"
+							type="text"
+							className="pc-input"
+							value={ templateName }
+							onInput={ ( e ) => setTemplateName( ( e.target as HTMLInputElement ).value ) }
+							onKeyDown={ ( e ) => 'Enter' === e.key && saveAsTemplate() }
+						/>
+					</div>
+					{ templateError ? <Notice tone="error">{ templateError }</Notice> : null }
+				</ConfirmModal>
+			) : null }
 
 			{ warnings.length > 0 ? (
 				<Notice tone="warning">

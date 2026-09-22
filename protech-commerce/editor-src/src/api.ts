@@ -1,4 +1,4 @@
-import type { AudienceInput, EmailPayload, Estimate, GalleryData, Starter, Template } from './types';
+import type { AudienceInput, EmailPayload, Estimate, GalleryData, SenderInput, Starter, Template } from './types';
 
 function root(): string {
 	return window.protechEditor.restRoot.replace( /\/$/, '' );
@@ -69,12 +69,18 @@ export const api = {
 		create: ( source: 'starter' | 'template' | 'campaign', ref: string, audience?: AudienceInput ): Promise< EmailPayload > =>
 			request< EmailPayload >( 'POST', '/emails', { source, key: ref, id: ref, audience } ),
 
-		update: ( id: string, changes: { name?: string; design?: Template; audience?: AudienceInput; service_message?: boolean } ): Promise< EmailPayload > =>
+		update: ( id: string, changes: { name?: string; design?: Template; audience?: AudienceInput; service_message?: boolean; sender?: SenderInput } ): Promise< EmailPayload > =>
 			request< EmailPayload >( 'PUT', `/emails/${ id }`, changes ),
 
 		remove: ( id: string ): Promise< { deleted: boolean } > => request< { deleted: boolean } >( 'DELETE', `/emails/${ id }` ),
 
-		send: ( id: string ): Promise< SendResult > => request< SendResult >( 'POST', `/emails/${ id }/send`, { when: 'now' } ),
+		send: ( id: string, schedule?: { date: string; time: string } ): Promise< SendResult > =>
+			request< SendResult >( 'POST', `/emails/${ id }/send`, schedule ? { when: 'schedule', ...schedule } : { when: 'now' } ),
+
+		unschedule: ( id: string ): Promise< EmailPayload > => request< EmailPayload >( 'POST', `/emails/${ id }/unschedule` ),
+
+		saveAsTemplate: ( id: string, name: string ): Promise< { id: string; name: string; errors: string[] } > =>
+			request< { id: string; name: string; errors: string[] } >( 'POST', `/emails/${ id }/save-as-template`, { name } ),
 
 		estimate: ( audience: AudienceInput, serviceMessage: boolean ): Promise< Estimate > =>
 			request< Estimate >( 'POST', '/audience/estimate', { audience, service_message: serviceMessage } ),
@@ -90,6 +96,8 @@ export interface SendResult {
 	errors?: string[];
 	queued?: number;
 	log_url?: string;
+	scheduled?: boolean;
+	redirect_url?: string;
 }
 
 export interface ProductHit {

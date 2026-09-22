@@ -1,4 +1,9 @@
+import type { Template } from '../types';
+import { SendPreview } from './SendPreview';
+
 interface Props {
+	/** The design as it stands, for Send preview. */
+	template: Template;
 	name: string;
 	onNameChange: ( name: string ) => void;
 	canUndo: boolean;
@@ -17,6 +22,7 @@ interface Props {
 }
 
 export function Toolbar( {
+	template,
 	name,
 	onNameChange,
 	canUndo,
@@ -74,6 +80,8 @@ export function Toolbar( {
 					</>
 				) : null }
 			</span>
+
+			<SendPreview template={ template } />
 
 			{ errors.length > 0 ? <span className="pw-toolbar-errors">{ errors.length } issue(s)</span> : null }
 

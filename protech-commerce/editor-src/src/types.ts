@@ -113,6 +113,19 @@ export interface EmailRecord {
 	service_message: boolean;
 	updated_at: number;
 	sent_at: number;
+	/** When it is scheduled to send (0 when it is not), and that time as the site shows it. */
+	send_at: number;
+	send_at_label: string;
+	/** Only what this email sets; empty fields use Messaging -> Settings. */
+	sender: SenderInput;
+	/** Why a scheduled email came back as a draft, when it did. */
+	last_error: string;
+}
+
+export interface SenderInput {
+	from_name: string;
+	from_email: string;
+	reply_to: string;
 }
 
 export interface EmailPayload {
@@ -161,6 +174,8 @@ export interface EditorBootstrap {
 	presetAudience?: AudienceInput;
 	/** Email mode: tier slug => label. */
 	tiers?: Record< string, string >;
+	/** Email mode: the site's own clock, for "Schedule it". */
+	site?: { now: string; nowLabel: string; timezone: string };
 	/** Email mode: who emails come from (Messaging -> Settings -> Sending). */
 	sender?: { name: string; email: string; reply_to: string };
 	/** Email mode: whether texts can be sent (a text provider is connected). "1" or "" after wp_localize_script(). */

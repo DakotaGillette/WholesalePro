@@ -88,10 +88,10 @@ protech-commerce/
     src/types.ts                      TS mirrors of the PHP template/block/schema shapes; window.protechEditor bootstrap
     src/api.ts                        protech/v1 REST calls: templates (save, preview, test-send, starters) and emails
     src/model/                        ids.ts, template.ts (Address-addressed block tree ops), history.ts (undo/redo), style.ts,
-                                      steps.ts (the new-email flow's steps and URLs), audience.ts (Send step audience)
+                                      steps.ts (the new-email flow's steps and URLs), audience.ts (Send step audience), schedule.ts (Schedule it, on the site clock)
     src/components/                   App (template library editor), useDesignEditor (shared history/block ops/keys),
                                       DesignWorkspace (canvas + sidebar), Toolbar, Canvas, BlockView, Palette, Inspector,
-                                      Field, TagPicker, SettingsPanels, TruePreview, SendTest, Gallery, ui, icons
+                                      Field, TagPicker, SettingsPanels, TruePreview, SendPreview (top-bar popover), Gallery, ui, icons
     src/components/flow/              The new-email flow (3.9.0): EmailFlow (header, step bar), TypeStep, TemplateStep,
                                       Thumb, DesignStep, SendStep, ProductSearch, ConfirmModal
     tests/                            Vitest: template/history/serialize (fixture round-trip), flow (steps, audience, URLs)

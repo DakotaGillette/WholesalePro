@@ -125,6 +125,7 @@ export function App( { boot }: { boot: EditorBootstrap } ) {
 	return (
 		<div className="pw-app pc-app">
 			<Toolbar
+				template={ template }
 				name={ template.name }
 				onNameChange={ ( name ) => editor.change( { name } ) }
 				canUndo={ editor.canUndo }

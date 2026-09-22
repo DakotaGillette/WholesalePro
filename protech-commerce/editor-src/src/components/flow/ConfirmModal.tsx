@@ -6,18 +6,21 @@ interface Props {
 	children: ComponentChildren;
 	confirmLabel: string;
 	busy: boolean;
+	/** What the confirm button says while it works (default "Sending..."). */
+	busyLabel?: string;
 	onConfirm: () => void;
 	onCancel: () => void;
 }
 
-/** A small dialog: focus starts on Cancel, Escape closes it, and focus stays inside while it is open. */
-export function ConfirmModal( { title, children, confirmLabel, busy, onConfirm, onCancel }: Props ) {
+/** A small dialog: focus starts in its field (or on Cancel), Escape closes it, and focus stays inside while it is open. */
+export function ConfirmModal( { title, children, confirmLabel, busy, busyLabel = 'Sending...', onConfirm, onCancel }: Props ) {
 	const dialog = useRef< HTMLDivElement | null >( null );
 	const cancel = useRef< HTMLButtonElement | null >( null );
 
 	useEffect( () => {
 		const opener = document.activeElement as HTMLElement | null;
-		cancel.current?.focus();
+		// A field to fill in takes focus first; otherwise Cancel, the safe choice.
+		( dialog.current?.querySelector< HTMLElement >( 'input, select, textarea' ) ?? cancel.current )?.focus();
 
 		const onKey = ( e: KeyboardEvent ) => {
 			if ( 'Escape' === e.key && ! busy ) {
@@ -25,7 +28,7 @@ export function ConfirmModal( { title, children, confirmLabel, busy, onConfirm, 
 			}
 
 			if ( 'Tab' === e.key && dialog.current ) {
-				const focusable = Array.from( dialog.current.querySelectorAll< HTMLElement >( 'button:not([disabled])' ) );
+				const focusable = Array.from( dialog.current.querySelectorAll< HTMLElement >( 'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])' ) );
 				const first = focusable[ 0 ];
 				const last = focusable[ focusable.length - 1 ];
 
@@ -60,7 +63,7 @@ export function ConfirmModal( { title, children, confirmLabel, busy, onConfirm, 
 						Cancel
 					</button>
 					<button type="button" className="pc-btn pc-btn--primary" onClick={ onConfirm } disabled={ busy }>
-						{ busy ? 'Sending...' : confirmLabel }
+						{ busy ? busyLabel : confirmLabel }
 					</button>
 				</div>
 			</div>

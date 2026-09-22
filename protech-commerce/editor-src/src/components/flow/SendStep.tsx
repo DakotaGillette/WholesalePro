@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { AudienceInput, EditorBootstrap, EmailPayload, Estimate } from '../../types';
+import type { AudienceInput, EditorBootstrap, EmailPayload, Estimate, SenderInput } from '../../types';
+import { defaultSchedule, describeSchedule, isFuture, timeOptions } from '../../model/schedule';
 import { api } from '../../api';
 import { AUDIENCE_TYPES, SCOPES, audienceProblems, tidyAudience } from '../../model/audience';
 import { Icon } from '../icons';
@@ -31,6 +32,12 @@ export function SendStep( { boot, payload, onChange, onBack }: Props ) {
 	const [ confirming, setConfirming ] = useState( false );
 	const [ sending, setSending ] = useState( false );
 	const [ leaving, setLeaving ] = useState( false );
+	// 3.10.0: who it comes from (empty fields use Settings), and "Schedule it".
+	const [ sender, setSender ] = useState< SenderInput >( () => ( { from_name: email.sender?.from_name ?? '', from_email: email.sender?.from_email ?? '', reply_to: email.sender?.reply_to ?? '' } ) );
+	const siteNow = boot.site?.now ?? new Date().toISOString().slice( 0, 16 ).replace( 'T', ' ' );
+	const [ scheduling, setScheduling ] = useState( false );
+	const [ when, setWhen ] = useState( () => defaultSchedule( siteNow ) );
+	const senderDomain = ( boot.sender?.email ?? '' ).split( '@' )[ 1 ] ?? '';
 	const saveTimer = useRef< number | undefined >();
 	const countTimer = useRef< number | undefined >();
 
@@ -39,13 +46,13 @@ export function SendStep( { boot, payload, onChange, onBack }: Props ) {
 	const tiers = boot.tiers ?? {};
 
 	const persist = (): Promise< EmailPayload > =>
-		api.emails.update( email.id, { name, audience: tidy, service_message: service } ).then( ( result ) => {
+		api.emails.update( email.id, { name, audience: tidy, service_message: service, sender } ).then( ( result ) => {
 			onChange( { ...result, design: result.design ?? design } );
 			return result;
 		} );
 
 	// Keep the draft up to date a moment after each change, and recount who it reaches.
-	const key = JSON.stringify( { name, tidy, service } );
+	const key = JSON.stringify( { name, tidy, service, sender } );
 	useEffect( () => {
 		window.clearTimeout( saveTimer.current );
 		saveTimer.current = window.setTimeout( () => {
@@ -97,7 +104,12 @@ export function SendStep( { boot, payload, onChange, onBack }: Props ) {
 			local.push( 'Give the email a subject. It is at the top of the Design step.' );
 		}
 
-		if ( estimate && 0 === estimate.sent_to ) {
+		if ( scheduling && ! isFuture( when.date, when.time, siteNow ) ) {
+			local.push( 'Choose a time later than now.' );
+		}
+
+		// Who an audience reaches can change by a scheduled time, so an empty audience only stops a send now.
+		if ( ! scheduling && estimate && 0 === estimate.sent_to ) {
 			local.push( 'Nobody in this audience can get the email right now. Choose another audience.' );
 		}
 
@@ -113,10 +125,12 @@ export function SendStep( { boot, payload, onChange, onBack }: Props ) {
 		window.clearTimeout( saveTimer.current );
 
 		persist()
-			.then( () => api.emails.send( email.id ) )
+			.then( () => api.emails.send( email.id, scheduling ? when : undefined ) )
 			.then( ( result ) => {
-				if ( result.ok && result.log_url ) {
-					window.location.href = result.log_url;
+				const next = result.redirect_url ?? result.log_url;
+
+				if ( result.ok && next ) {
+					window.location.href = next;
 					return;
 				}
 
@@ -265,13 +279,88 @@ export function SendStep( { boot, payload, onChange, onBack }: Props ) {
 						/>
 					</Section>
 
-					<Section title="Sender">
-						<p className="pc-sender">
-							<strong>{ boot.sender?.name || 'Your store' }</strong> &lt;{ boot.sender?.email || 'not set' }&gt;
-						</p>
-						<p className="pc-help">
-							Replies go to { boot.sender?.reply_to || boot.sender?.email || 'the sender' }. <a href={ boot.urls.settings }>Change in Settings</a>
-						</p>
+					<Section title="When">
+						<Toggle
+							id="pc-schedule"
+							checked={ scheduling }
+							onChange={ setScheduling }
+							label="Schedule it"
+							help={ `Your website's time is ${ boot.site?.nowLabel ?? '' }${ boot.site?.timezone ? ` (${ boot.site.timezone })` : '' }. Off sends it as soon as you click Send.` }
+						/>
+						{ scheduling ? (
+							<div className="pc-schedule">
+								<div className="pc-field">
+									<label className="pc-label" htmlFor="pc-schedule-date">
+										Date
+									</label>
+									<input
+										id="pc-schedule-date"
+										type="date"
+										className="pc-input"
+										min={ siteNow.slice( 0, 10 ) }
+										value={ when.date }
+										onInput={ ( e ) => setWhen( { ...when, date: ( e.target as HTMLInputElement ).value } ) }
+									/>
+								</div>
+								<div className="pc-field">
+									<label className="pc-label" htmlFor="pc-schedule-time">
+										Time
+									</label>
+									<select id="pc-schedule-time" className="pc-input" value={ when.time } onChange={ ( e ) => setWhen( { ...when, time: ( e.target as HTMLSelectElement ).value } ) }>
+										{ timeOptions().map( ( t ) => (
+											<option key={ t.value } value={ t.value }>
+												{ t.label }
+											</option>
+										) ) }
+									</select>
+								</div>
+								<p className="pc-help pc-schedule-note">Who gets it is worked out when it sends, so new customers who match by then are included.</p>
+							</div>
+						) : null }
+					</Section>
+
+					<Section title="Sender" help="Leave a field empty to use the one in Settings.">
+						<div className="pc-field">
+							<label className="pc-label" htmlFor="pc-from-name">
+								From name
+							</label>
+							<input
+								id="pc-from-name"
+								type="text"
+								className="pc-input"
+								placeholder={ boot.sender?.name || 'Your store' }
+								value={ sender.from_name }
+								onInput={ ( e ) => setSender( { ...sender, from_name: ( e.target as HTMLInputElement ).value } ) }
+							/>
+						</div>
+						<div className="pc-field">
+							<label className="pc-label" htmlFor="pc-from-email">
+								From email
+							</label>
+							<input
+								id="pc-from-email"
+								type="email"
+								className="pc-input"
+								placeholder={ boot.sender?.email || '' }
+								value={ sender.from_email }
+								onInput={ ( e ) => setSender( { ...sender, from_email: ( e.target as HTMLInputElement ).value } ) }
+							/>
+							{ senderDomain ? <p className="pc-help">Use an address at @{ senderDomain }. Brevo only sends from a verified sender.</p> : null }
+						</div>
+						<div className="pc-field">
+							<label className="pc-label" htmlFor="pc-reply-to">
+								Reply-to
+							</label>
+							<input
+								id="pc-reply-to"
+								type="email"
+								className="pc-input"
+								placeholder={ boot.sender?.reply_to || boot.sender?.email || '' }
+								value={ sender.reply_to }
+								onInput={ ( e ) => setSender( { ...sender, reply_to: ( e.target as HTMLInputElement ).value } ) }
+							/>
+							<p className="pc-help">Where replies from customers go.</p>
+						</div>
 					</Section>
 				</div>
 			</div>
@@ -286,11 +375,27 @@ export function SendStep( { boot, payload, onChange, onBack }: Props ) {
 					{ leaving ? 'Saving...' : 'Save as draft and close' }
 				</button>
 				<button type="button" className="pc-btn pc-btn--primary" onClick={ openConfirm } disabled={ sending || leaving }>
-					Send
+					{ scheduling ? 'Schedule' : 'Send' }
 				</button>
 			</div>
 
-			{ confirming ? (
+			{ confirming && scheduling ? (
+				<ConfirmModal
+					title="Schedule this email?"
+					confirmLabel="Schedule"
+					busyLabel="Scheduling..."
+					busy={ sending }
+					onConfirm={ send }
+					onCancel={ () => setConfirming( false ) }
+				>
+					<p>
+						<strong>{ name }</strong> sends on <strong>{ describeSchedule( when.date, when.time ) }</strong>, your website&apos;s time, to { estimate?.label ?? 'your audience' } (
+						{ ( estimate?.sent_to ?? 0 ).toLocaleString() } right now). You can unschedule it from your emails until then.
+					</p>
+				</ConfirmModal>
+			) : null }
+
+			{ confirming && ! scheduling ? (
 				<ConfirmModal title="Send this email now?" confirmLabel="Send now" busy={ sending } onConfirm={ send } onCancel={ () => setConfirming( false ) }>
 					<p>
 						<strong>{ name }</strong> goes to <strong>{ ( estimate?.sent_to ?? 0 ).toLocaleString() }</strong> { 1 === estimate?.sent_to ? 'person' : 'people' } ({ estimate?.label ?? 'your audience' }). It cannot be recalled once it starts

@@ -6,7 +6,6 @@ import { TruePreview } from './TruePreview';
 import { Inspector } from './Inspector';
 import { Palette } from './Palette';
 import { SettingsPanels } from './SettingsPanels';
-import { SendTest } from './SendTest';
 
 interface Props {
 	boot: EditorBootstrap;
@@ -61,7 +60,6 @@ export function DesignWorkspace( { boot, editor, mode, previewWidth, variant }: 
 					<>
 						<div className="pw-panel-title">Content</div>
 						<Palette schema={ boot.schema } nested={ false } canUseHtml={ boot.caps.unfiltered_html } onAdd={ ( type ) => editor.insert( ROOT, template.blocks.length, type ) } />
-						<SendTest template={ template } />
 						<SettingsPanels template={ template } schema={ boot.schema } slots={ boot.slots ?? {} } mergeTags={ boot.mergeTags } onChange={ editor.change } variant={ variant } />
 					</>
 				) }
