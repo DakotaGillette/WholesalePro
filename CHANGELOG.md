@@ -14,8 +14,8 @@ change landed on staging.
 - The messages table is recreated automatically whenever the plugin next updates itself, not
   only the one time (long ago) it was first created. The Log screen's own text now says so
   accurately.
-- Messaging → Log can now be searched by recipient or subject, a filter the screen already
-  offered but never applied.
+- Messaging → Log now has a search box for recipient or subject. The filter existed
+  underneath but nothing in the screen ever offered it.
 - The site-wide email logo is now a proper Media Library picker in Messaging → Settings,
   instead of typing an attachment's numeric ID into a box.
 - The three application-flow emails (received, approved, rejected) are now recorded in the
@@ -42,7 +42,7 @@ change landed on staging.
 ### Fixed
 - Adding, dragging, moving, copying or removing a block now redraws the canvas right away,
   instead of waiting up to 0.7 seconds. Typing still waits for a pause, so it isn't one request
-  per keystroke — only the things that fire once per action (a drop, a click, a dropdown, a
+  per keystroke: only the things that fire once per action (a drop, a click, a dropdown, a
   picture chosen) are now instant. The Refresh button still works, for a slow connection or with
   JavaScript off.
 
@@ -52,7 +52,7 @@ change landed on staging.
 - **The email template editor now looks and works like a drag-drop composer.**
   The email itself is the big thing in the middle of the screen; a narrower
   panel on the right holds what to add and every setting.
-  - Click a block right on the email to open just its settings — the rest of
+  - Click a block right on the email to open just its settings. The rest of
     the panel steps aside while you edit it, with a "Back to blocks" link to
     return.
   - Drag a block from the panel and drop it onto the email where you want it,
@@ -61,7 +61,7 @@ change landed on staging.
     Design, Header and footer) are now collapsible sections, so the panel
     isn't one long scroll.
   - Reordering, copying and removing a block are unchanged; so is everything
-    about what gets saved or sent — this is a look-and-feel change only.
+    about what gets saved or sent. This is a look-and-feel change only.
 
 ## 2.7.0 - 2026-09-21
 
@@ -330,14 +330,14 @@ customer receives has changed.
   spelling ("color") on the legend, the price table footnote and the
   `/wholesale` page.
 
-## 1.5.0 — 2026-09-18
+## 1.5.0 - 2026-09-18
 
 ### Added
 - **Messaging & automations**, under WooCommerce → Wholesale → Messaging.
   Email and SMS to wholesale customers through Brevo (email falls back to
   the site's WooCommerce mailer if Brevo isn't connected):
   - **Automations**: reorder reminder, win-back (repeating), first-order
-    nudge, and order-status (e.g. "shipped") rules — each with a
+    nudge, and order-status (e.g. "shipped") rules, each with a
     tier filter, email/SMS content with merge tags, and a "Preview
     recipients" dry run. A day-based rule only fires inside a 7-day
     window from its trigger day, so enabling one never reaches back
@@ -350,15 +350,15 @@ customer receives has changed.
     skipped when it was.
   - **Compliance**: the SMS opt-in wording in use, message types
     configured, a consent-records CSV export, and suggested
-    privacy-policy/terms text — the proof-of-opt-in package for Brevo's
-    toll-free-number verification.
+    privacy-policy/terms text (the proof-of-opt-in package for Brevo's
+    toll-free-number verification).
   - **Settings**: Brevo connection (own key, or the Brevo plugin's own
     key), sender, brand, quiet hours, frequency cap, unsubscribe footer.
   - Self-service SMS/email preferences under My Account → Notifications;
     an admin can also record consent on a customer's profile (a note is
     required). The wholesale application form gained two SMS consent
     checkboxes (order updates, marketing/reorder reminders).
-  - Delivery runs entirely on Action Scheduler — nothing is ever sent
+  - Delivery runs entirely on Action Scheduler. Nothing is ever sent
     from a checkout or admin request. First custom database table in
     this plugin (`{prefix}protech_wholesale_messages`), created via
     `DB_VERSION` 3.
@@ -392,7 +392,7 @@ customer receives has changed.
   meta keys are unchanged (`standard`/`volume`/`bulk`), so nothing
   migrates and every existing override keeps working.
 
-## 1.4.0 — 2026-09-18
+## 1.4.0 - 2026-09-18
 
 ### Added
 - `[protech_header_notice]` shortcode for Salient's "Text To Display In
@@ -402,7 +402,7 @@ customer receives has changed.
   live Volume threshold), with a `wholesale` attribute and a
   `protech_wholesale_header_notice` filter for custom text. No theme edit.
 
-## 1.3.1 — 2026-09-18
+## 1.3.1 - 2026-09-18
 
 ### Fixed
 - On a variable product's page the theme's own quantity stepper was back
@@ -413,7 +413,7 @@ customer receives has changed.
   Regression test added. (Sample packs without any wholesale price are still
   exempt, as intended.)
 
-## 1.3.0 — 2026-09-18
+## 1.3.0 - 2026-09-18
 
 Admin-side audit, and updates from GitHub.
 
@@ -459,7 +459,7 @@ Admin-side audit, and updates from GitHub.
   overrides, user profile) and the code behind them. Old saved values are
   ignored and still deleted on purge.
 
-## 1.2.0 — 2026-09-17
+## 1.2.0 - 2026-09-17
 
 Storefront polish: everything a wholesale customer sees.
 
@@ -482,7 +482,7 @@ Storefront polish: everything a wholesale customer sees.
   when it happened through a full page reload. All motion is off under
   `prefers-reduced-motion`.
 - The bar's track is now two segments, with the Volume marker at 40%
-  rather than 12.5% — the first tier is no longer crammed into the left edge.
+  rather than 12.5% (the first tier is no longer crammed into the left edge).
 - **Header cart badge counts displays** for wholesale customers (it also
   drives the Blocks mini-cart count), and grows into a pill instead of
   overflowing at three digits. Retail is unchanged. Filter:
@@ -544,14 +544,14 @@ Storefront polish: everything a wholesale customer sees.
   `protech:qty-preview` (the quantity dialled into the product page control).
 - Template `account-wholesale-header.php`; script `assets/js/portal.js`.
 
-## 1.1.0 — 2026-09-17
+## 1.1.0 - 2026-09-17
 
 ### Security
 - A public application-form submission carrying an existing account's email
   could replace that account's roles (an administrator's email demoted the
   administrator to a read-only pending applicant). The two wholesale roles
   are now only ever added to or removed from an account, and accounts with
-  staff capabilities are never changed automatically — their application is
+  staff capabilities are never changed automatically. Their application is
   recorded for manual review instead.
 
 ### Fixed
@@ -593,7 +593,7 @@ Storefront polish: everything a wholesale customer sees.
 - `pre_get_posts` catalog filtering replaces template-level hiding; a one-off
   upgrade backfills the parent-level has-wholesale-price flag.
 
-## 1.0.0 — 2026-09-17
+## 1.0.0 - 2026-09-17
 
 Initial build: roles and approval flow, wholesale pricing engine, Display/Case
 quantity-tier ladder, wholesale shipping method, sticky tier bar, unit

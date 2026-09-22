@@ -48,6 +48,7 @@ class LogScreen {
 			'channel' => sanitize_key( wp_unslash( $_GET['channel'] ?? '' ) ),
 			'status'  => sanitize_key( wp_unslash( $_GET['status'] ?? '' ) ),
 			'rule_id' => sanitize_text_field( wp_unslash( $_GET['rule_id'] ?? '' ) ),
+			's'       => sanitize_text_field( wp_unslash( $_GET['s'] ?? '' ) ),
 		);
 		$filters = array_filter( $filters, static fn( $v ) => '' !== $v );
 
@@ -59,6 +60,7 @@ class LogScreen {
 
 		echo '<form method="get" style="margin-bottom:1em;">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( MessagingTab::page_slug( 'log' ) ) . '" />';
+		echo '<input type="search" name="s" value="' . esc_attr( $filters['s'] ?? '' ) . '" placeholder="' . esc_attr__( 'Search recipient or subject', 'protech-wholesale' ) . '" style="width:220px;" /> ';
 		echo '<select name="channel"><option value="">' . esc_html__( 'All channels', 'protech-wholesale' ) . '</option>';
 		foreach ( array( 'email' => __( 'Email', 'protech-wholesale' ), 'sms' => __( 'SMS', 'protech-wholesale' ) ) as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['channel'] ?? '', $value, false ) . '>' . esc_html( $label ) . '</option>';
