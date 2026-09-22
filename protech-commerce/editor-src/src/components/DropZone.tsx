@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { DND_NEW_BLOCK_TYPE, DND_MOVE_BLOCK } from '../dnd';
 
 interface Props {
 	onDropBlockType: ( type: string ) => void;
@@ -21,8 +22,8 @@ export function DropZone( { onDropBlockType, onDropMove }: Props ) {
 				e.preventDefault();
 				setOver( false );
 
-				const newType = e.dataTransfer?.getData( 'text/protech-new-block-type' );
-				const moveRaw = e.dataTransfer?.getData( 'text/protech-move-block' );
+				const newType = e.dataTransfer?.getData( DND_NEW_BLOCK_TYPE );
+				const moveRaw = e.dataTransfer?.getData( DND_MOVE_BLOCK );
 
 				if ( newType ) {
 					onDropBlockType( newType );

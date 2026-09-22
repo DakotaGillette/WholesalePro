@@ -1,6 +1,7 @@
 import type { Block, TemplateStyle } from '../types';
 import type { Address } from '../model/template';
 import { DropZone } from './DropZone';
+import { DND_MOVE_BLOCK } from '../dnd';
 
 interface Props {
 	block: Block;
@@ -45,7 +46,7 @@ export function BlockView( { block, address, style, fonts, selectedId, onSelect,
 			draggable
 			onDragStart={ ( e ) => {
 				e.stopPropagation();
-				e.dataTransfer?.setData( 'text/protech-move-block', JSON.stringify( { id: block.id, parentId: address.parentId, column: address.column } ) );
+				e.dataTransfer?.setData( DND_MOVE_BLOCK, JSON.stringify( { id: block.id, parentId: address.parentId, column: address.column } ) );
 				e.dataTransfer!.effectAllowed = 'move';
 			} }
 			onClick={ ( e ) => {

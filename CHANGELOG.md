@@ -3,6 +3,13 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.6.2 - 2026-09-22
+
+### Fixed
+- The email template editor: dragging a block from the palette onto the canvas never actually
+  added anything. Reordering an existing block by dragging it was unaffected. Click-to-add from
+  the palette still worked the whole time, which is why this went unnoticed until now.
+
 ## 3.6.1 - 2026-09-22
 
 ### Fixed

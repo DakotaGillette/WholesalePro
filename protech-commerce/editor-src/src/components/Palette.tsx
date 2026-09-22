@@ -1,4 +1,5 @@
 import type { Schema } from '../types';
+import { DND_NEW_BLOCK_TYPE } from '../dnd';
 
 interface Props {
 	schema: Schema;
@@ -21,7 +22,7 @@ export function Palette( { schema, nested, canUseHtml, onAdd }: Props ) {
 					className="pw-palette-tile"
 					draggable
 					onDragStart={ ( e ) => {
-						e.dataTransfer?.setData( 'text/protech-block-type', type );
+						e.dataTransfer?.setData( DND_NEW_BLOCK_TYPE, type );
 						e.dataTransfer!.effectAllowed = 'copy';
 					} }
 					onClick={ () => onAdd( type ) }
