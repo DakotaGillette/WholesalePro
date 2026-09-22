@@ -48,6 +48,10 @@ class MessagingSettings {
 	public const OPT_EMAIL_BRAND_COLOR  = 'protech_wholesale_msg_email_brand_color';
 	public const OPT_EMAIL_FOOTER_TEXT  = 'protech_wholesale_msg_email_footer_text';
 	public const OPT_EMAIL_WIDTH        = 'protech_wholesale_msg_email_width';
+	/** 'auto' picks Brevo when configured, else the site's own mailer; otherwise a provider id from MessageProviders::all(). */
+	public const OPT_EMAIL_PROVIDER = 'protech_wholesale_msg_email_provider';
+	/** 'auto' picks Brevo when configured; SMS has no non-Brevo provider yet, so "not configured" fails rather than falling back. */
+	public const OPT_SMS_PROVIDER = 'protech_wholesale_msg_sms_provider';
 	/** Not a user-facing setting; status only. */
 	public const OPT_LAST_DAILY_RUN = 'protech_wholesale_msg_last_daily_run';
 
@@ -80,6 +84,8 @@ class MessagingSettings {
 			self::OPT_EMAIL_BRAND_COLOR     => '#42649d',
 			self::OPT_EMAIL_FOOTER_TEXT     => '',
 			self::OPT_EMAIL_WIDTH           => '600',
+			self::OPT_EMAIL_PROVIDER        => 'auto',
+			self::OPT_SMS_PROVIDER          => 'auto',
 			self::OPT_LAST_DAILY_RUN        => '0',
 		);
 	}
@@ -184,6 +190,31 @@ class MessagingSettings {
 			array(
 				'type' => 'sectionend',
 				'id'   => 'protech_wholesale_msg_settings_brevo_end',
+			),
+
+			array(
+				'title' => __( 'Sending', 'protech-wholesale' ),
+				'desc'  => __( 'Automatic uses Brevo when it is connected, falling back to this site\'s own mail for email (SMS has no fallback: nothing else here can send a text).', 'protech-wholesale' ),
+				'type'  => 'title',
+				'id'    => 'protech_wholesale_msg_settings_sending',
+			),
+			array(
+				'title'   => __( 'Send email through', 'protech-wholesale' ),
+				'id'      => self::OPT_EMAIL_PROVIDER,
+				'type'    => 'select',
+				'options' => MessageProviders::choices( 'email' ),
+				'default' => 'auto',
+			),
+			array(
+				'title'   => __( 'Send texts through', 'protech-wholesale' ),
+				'id'      => self::OPT_SMS_PROVIDER,
+				'type'    => 'select',
+				'options' => MessageProviders::choices( 'sms' ),
+				'default' => 'auto',
+			),
+			array(
+				'type' => 'sectionend',
+				'id'   => 'protech_wholesale_msg_settings_sending_end',
 			),
 
 			array(
@@ -367,6 +398,14 @@ class MessagingSettings {
 
 	public static function enabled(): bool {
 		return 'yes' === get_option( self::OPT_ENABLED, 'no' );
+	}
+
+	public static function email_provider(): string {
+		return (string) get_option( self::OPT_EMAIL_PROVIDER, 'auto' );
+	}
+
+	public static function sms_provider(): string {
+		return (string) get_option( self::OPT_SMS_PROVIDER, 'auto' );
 	}
 
 	public static function brevo_api_key(): string {

@@ -35,97 +35,18 @@ class EmailEditor {
 	 * that accepts personal details (the Insert menu targets it); `summary`
 	 * marks the one whose value describes the block in its collapsed card.
 	 *
+	 * The definitions themselves live on EmailBlocks::schema(), so a REST
+	 * client can read the exact same plain-language labels this form does.
+	 *
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function fields( string $type ): array {
-		$align = array( 'left' => __( 'Left', 'protech-wholesale' ), 'center' => __( 'Center', 'protech-wholesale' ), 'right' => __( 'Right', 'protech-wholesale' ) );
-
-		switch ( $type ) {
-			case 'heading':
-				return array(
-					array( 'key' => 'text', 'label' => __( 'Heading', 'protech-wholesale' ), 'type' => 'text', 'tag' => true, 'summary' => true ),
-					array( 'key' => 'size', 'label' => __( 'Text size (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 14, 'max' => 60 ),
-					array( 'key' => 'level', 'label' => __( 'Importance', 'protech-wholesale' ), 'type' => 'select', 'options' => array( '1' => __( 'Main title', 'protech-wholesale' ), '2' => __( 'Heading', 'protech-wholesale' ), '3' => __( 'Small heading', 'protech-wholesale' ) ) ),
-					array( 'key' => 'align', 'label' => __( 'Alignment', 'protech-wholesale' ), 'type' => 'select', 'options' => $align ),
-					array( 'key' => 'color', 'label' => __( 'Text color', 'protech-wholesale' ), 'type' => 'color', 'help' => __( 'Empty uses the template text color.', 'protech-wholesale' ) ),
-				);
-
-			case 'text':
-				return array(
-					array( 'key' => 'html', 'label' => __( 'Text', 'protech-wholesale' ), 'type' => 'textarea', 'tag' => true, 'summary' => true, 'help' => __( 'A blank line starts a new paragraph. You can use bold, italic, links and lists.', 'protech-wholesale' ) ),
-					array( 'key' => 'size', 'label' => __( 'Text size (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 11, 'max' => 28 ),
-					array( 'key' => 'align', 'label' => __( 'Alignment', 'protech-wholesale' ), 'type' => 'select', 'options' => $align ),
-					array( 'key' => 'color', 'label' => __( 'Text color', 'protech-wholesale' ), 'type' => 'color' ),
-				);
-
-			case 'button':
-				return array(
-					array( 'key' => 'label', 'label' => __( 'Button text', 'protech-wholesale' ), 'type' => 'text', 'tag' => true, 'summary' => true ),
-					array( 'key' => 'url', 'label' => __( 'Where it goes', 'protech-wholesale' ), 'type' => 'text', 'tag' => true, 'help' => __( 'A web address, or a personal detail such as the shop link.', 'protech-wholesale' ) ),
-					array( 'key' => 'bg_color', 'label' => __( 'Button color', 'protech-wholesale' ), 'type' => 'color', 'help' => __( 'Empty uses the brand color.', 'protech-wholesale' ) ),
-					array( 'key' => 'color', 'label' => __( 'Text color', 'protech-wholesale' ), 'type' => 'color' ),
-					array( 'key' => 'align', 'label' => __( 'Alignment', 'protech-wholesale' ), 'type' => 'select', 'options' => $align ),
-					array( 'key' => 'full_width', 'label' => __( 'Stretch across the email', 'protech-wholesale' ), 'type' => 'checkbox' ),
-					array( 'key' => 'radius', 'label' => __( 'Corner roundness (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 40 ),
-				);
-
-			case 'image':
-				return array(
-					array( 'key' => 'id', 'label' => __( 'Picture', 'protech-wholesale' ), 'type' => 'image' ),
-					array( 'key' => 'alt', 'label' => __( 'Description', 'protech-wholesale' ), 'type' => 'text', 'tag' => true, 'summary' => true, 'help' => __( 'Read out when the picture does not load, and by screen readers.', 'protech-wholesale' ) ),
-					array( 'key' => 'link_url', 'label' => __( 'Link (optional)', 'protech-wholesale' ), 'type' => 'text', 'tag' => true ),
-					array( 'key' => 'width', 'label' => __( 'Width (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 40, 'max' => 700 ),
-					array( 'key' => 'align', 'label' => __( 'Alignment', 'protech-wholesale' ), 'type' => 'select', 'options' => $align ),
-				);
-
-			case 'product_grid':
-				return array(
-					array( 'key' => 'mode', 'label' => __( 'Which products', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'picked' => __( 'The ones I choose', 'protech-wholesale' ), 'newest' => __( 'The newest in the shop', 'protech-wholesale' ) ) ),
-					array( 'key' => 'product_ids', 'label' => __( 'Products', 'protech-wholesale' ), 'type' => 'products', 'help' => __( 'Only used when you choose your own.', 'protech-wholesale' ) ),
-					array( 'key' => 'limit', 'label' => __( 'How many (newest)', 'protech-wholesale' ), 'type' => 'number', 'min' => 1, 'max' => 12 ),
-					array( 'key' => 'columns', 'label' => __( 'Across', 'protech-wholesale' ), 'type' => 'select', 'options' => array( '1' => __( '1 product', 'protech-wholesale' ), '2' => __( '2 products', 'protech-wholesale' ), '3' => __( '3 products', 'protech-wholesale' ) ) ),
-					array( 'key' => 'show_price', 'label' => __( 'Show the price', 'protech-wholesale' ), 'type' => 'checkbox', 'help' => __( 'Wholesale customers see their own wholesale price.', 'protech-wholesale' ) ),
-					array( 'key' => 'show_button', 'label' => __( 'Show a button under each', 'protech-wholesale' ), 'type' => 'checkbox' ),
-					array( 'key' => 'button_label', 'label' => __( 'Button text', 'protech-wholesale' ), 'type' => 'text' ),
-				);
-
-			case 'explainer_quantities':
-			case 'explainer_ladder':
-				return array(
-					array( 'key' => 'show_title', 'label' => __( 'Show a title', 'protech-wholesale' ), 'type' => 'checkbox' ),
-					array( 'key' => 'title', 'label' => __( 'Title', 'protech-wholesale' ), 'type' => 'text', 'summary' => true, 'help' => __( 'Drawn from your store settings, so it always matches the shop. Only wholesale customers see it.', 'protech-wholesale' ) ),
-				);
-
-			case 'columns':
-				return array(
-					array( 'key' => 'count', 'label' => __( 'Columns', 'protech-wholesale' ), 'type' => 'select', 'options' => array( '2' => __( 'Two', 'protech-wholesale' ), '3' => __( 'Three', 'protech-wholesale' ) ) ),
-					array( 'key' => 'gap', 'label' => __( 'Space between (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 40 ),
-					array( 'key' => 'valign', 'label' => __( 'Line up at the', 'protech-wholesale' ), 'type' => 'select', 'options' => array( 'top' => __( 'Top', 'protech-wholesale' ), 'middle' => __( 'Middle', 'protech-wholesale' ), 'bottom' => __( 'Bottom', 'protech-wholesale' ) ) ),
-				);
-
-			case 'divider':
-				return array(
-					array( 'key' => 'color', 'label' => __( 'Line color', 'protech-wholesale' ), 'type' => 'color' ),
-					array( 'key' => 'thickness', 'label' => __( 'Thickness (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 1, 'max' => 8 ),
-					array( 'key' => 'width_pct', 'label' => __( 'Width (%)', 'protech-wholesale' ), 'type' => 'number', 'min' => 10, 'max' => 100 ),
-				);
-
-			case 'spacer':
-				return array(
-					array( 'key' => 'height', 'label' => __( 'Height (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 4, 'max' => 120, 'summary' => true ),
-				);
-		}
-
-		return array();
+		return EmailBlocks::schema()['types'][ $type ]['fields'] ?? array();
 	}
 
 	/** The spacing and background every block shares, tucked under "Spacing". */
 	public static function common_fields(): array {
-		return array(
-			array( 'key' => 'pt', 'label' => __( 'Space above (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 80 ),
-			array( 'key' => 'pb', 'label' => __( 'Space below (px)', 'protech-wholesale' ), 'type' => 'number', 'min' => 0, 'max' => 80 ),
-			array( 'key' => 'bg', 'label' => __( 'Background color', 'protech-wholesale' ), 'type' => 'color', 'help' => __( 'Empty is transparent.', 'protech-wholesale' ) ),
-		);
+		return EmailBlocks::schema()['common_fields'];
 	}
 
 	// -----------------------------------------------------------------

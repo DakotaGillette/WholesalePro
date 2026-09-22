@@ -384,6 +384,25 @@ Log in as the wholesale customer (djg10212) for everything below.
 - [ ] On a phone the three tiles stack and nothing overflows.
 - [ ] Not shown logged out, and not on the Vendor Starter Kit page.
 
+## 37. The REST namespace and the provider interface (2.10.0)
+
+- [ ] Open Messaging → Settings: a new "Sending" section shows "Send email through" and "Send
+  texts through", both defaulted to Automatic. Save with both left on Automatic: nothing else on
+  the page changes, and a Compose test send still works exactly as before.
+- [ ] With Brevo connected, switch "Send email through" to "This site's mail" and save. Send a
+  test email from Compose: it arrives, and Messaging → Log shows its provider as the site's mail,
+  not Brevo.
+- [ ] Switch "Send email through" back to Automatic and confirm a test email goes out through
+  Brevo again (Log shows Brevo as the provider).
+- [ ] With no Brevo key configured, "Send texts through" offers only Automatic and Brevo (not
+  "This site's mail", which cannot carry a text). Automations and Compose still refuse to send SMS
+  with the same message as before.
+- [ ] The Email templates screen (list, editor, preview, send-a-preview, duplicate, delete) works
+  exactly as it did before this release. Nothing in wp-admin uses the new REST routes yet.
+- [ ] Visiting `/wp-json/protech/v1/templates/schema` directly in a private/incognito window (logged
+  out) returns a JSON error, not the schema. Nothing else to check by hand here yet: this route has
+  no admin screen wired to it until the next release.
+
 ## 36. Fix and unblock, and the admin file split (2.9.0, 2.9.1)
 
 - [ ] Set Messaging → Settings quiet hours to a window covering right now. Send a text preview from Compose: the Log shows it queued with a send_after time after quiet hours end, not failed.

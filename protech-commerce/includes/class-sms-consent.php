@@ -298,32 +298,33 @@ class SmsConsent {
 		return array( 'ok' => true, 'reason' => '' );
 	}
 
+	/**
+	 * Asks whichever provider would actually carry the text, not necessarily
+	 * Brevo specifically: if Messaging -> Settings has SMS set to Automatic
+	 * and nothing is configured, that is the same "unknown" MessageProviders::sms()
+	 * already returns null for.
+	 */
 	private static function is_sms_blacklisted( int $user_id ): ?bool {
-		if ( ! BrevoClient::is_configured() ) {
-			return null;
-		}
-
 		$user = get_userdata( $user_id );
 
 		if ( ! $user ) {
 			return null;
 		}
 
-		return ( new BrevoClient() )->is_sms_blacklisted( $user->user_email );
+		$provider = MessageProviders::sms();
+
+		return $provider ? $provider->is_sms_blacklisted( $user->user_email ) : null;
 	}
 
+	/** Asks whichever provider would actually carry the email. */
 	private static function is_email_blacklisted( int $user_id ): ?bool {
-		if ( ! BrevoClient::is_configured() ) {
-			return null;
-		}
-
 		$user = get_userdata( $user_id );
 
 		if ( ! $user ) {
 			return null;
 		}
 
-		return ( new BrevoClient() )->is_email_blacklisted( $user->user_email );
+		return MessageProviders::email()->is_email_blacklisted( $user->user_email );
 	}
 
 	/**

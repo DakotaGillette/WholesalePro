@@ -3,6 +3,20 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 2.10.0 - 2026-09-22
+
+### Added
+- Messaging → Settings has two new choices: "Send email through" and "Send texts through",
+  each Automatic (Brevo when it's connected, otherwise this site's own mail for email) or a
+  specific one you pick. Nothing changes for a store that leaves both on Automatic.
+- A REST foundation for the template library (`protech/v1/templates`), used by nothing in the
+  admin yet. The existing Email templates screen keeps working exactly as it does today; this
+  is the base the next release's editor builds on.
+
+### Changed
+- Email and SMS sending now goes through a small provider interface instead of asking Brevo
+  directly. Behavior with both sending settings on Automatic is unchanged.
+
 ## 2.9.1 - 2026-09-21
 
 ### Fixed

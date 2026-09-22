@@ -65,6 +65,12 @@ protech-commerce/
     class-log-screen.php              Log view: filtered, paginated message history
     class-compliance-screen.php       Compliance view: SMS wording, consent-on-file counts, CSV export
     class-messaging-settings-screen.php  Settings view: renders/saves MessagingSettings::get_fields(), Brevo connection test
+    class-message-provider.php        The MessageProvider interface: what a thing that sends email/SMS must implement
+    class-brevo-provider.php          MessageProvider wrapping BrevoClient
+    class-wc-mailer-provider.php      MessageProvider wrapping the site's own WooCommerce mailer (email only, always configured)
+    class-message-providers.php       Picks Automatic vs a forced provider per channel; MessageTransport delegates through this
+    class-rest-api.php                The protech/v1 REST namespace shell: one permission check, registers each controller
+    class-rest-templates.php          REST routes for the template library: CRUD, duplicate, schema, preview, test-send
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,
                                       tier-ladder, account-wholesale-panel, account-wholesale-header, starter-kit,
                                       account-notifications, quantity-legend, welcome-email, email-quantity-diagram,
@@ -170,3 +176,5 @@ README.md, QA.md, DECISIONS.md, CHANGELOG.md, PLAN.md
 | `protech_wholesale_order_tracking` (filter) | Lets a shipment-tracking source (or a test) supply `{tracking_*}` merge-tag data |
 | `protech_wholesale_automation_catchup_days` (filter) | How many days past a rule's trigger day it still catches a customer up (default 7) |
 | `protech_wholesale_message_log_table_installed` (action, MessageLog) | Fires every time install_table() runs, whether or not the schema actually changed; lets a test confirm maybe_upgrade() calls it unconditionally without physically dropping the table |
+| `protech_wholesale_message_providers` (filter, MessageProviders) | Add a MessageProvider (an SMTP service, Twilio for SMS) to what Automatic/the Settings pickers can choose from |
+| `rest_api_init` (RestApi) | Registers the protech/v1 REST routes (currently just /templates and its sub-routes) |

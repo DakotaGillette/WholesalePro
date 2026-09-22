@@ -63,6 +63,7 @@ final class Plugin {
 	private WelcomeEmail $welcome_email;
 	private EmailComposer $email_composer;
 	private EmailsScreen $emails_screen;
+	private RestApi $rest_api;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -117,6 +118,7 @@ final class Plugin {
 		$this->welcome_email          = new WelcomeEmail();
 		$this->email_composer         = new EmailComposer();
 		$this->emails_screen          = new EmailsScreen();
+		$this->rest_api               = new RestApi();
 
 		foreach (
 			array(
@@ -156,6 +158,7 @@ final class Plugin {
 				$this->welcome_email,
 				$this->email_composer,
 				$this->emails_screen,
+				$this->rest_api,
 			) as $component
 		) {
 			$component->register_hooks();

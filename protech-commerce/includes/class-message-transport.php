@@ -2,10 +2,12 @@
 /**
  * Turns a claimed message-log row into an actual send: resolves its
  * content and merge-tag context, re-checks consent/quiet-hours one last
- * time (state can change between queuing and delivery), and sends
- * through Brevo — falling back to the site's own WooCommerce mailer for
- * email when Brevo isn't connected. SMS has no fallback; Brevo is the
- * only channel.
+ * time (state can change between queuing and delivery), and hands the
+ * finished message to whichever MessageProvider Messaging -> Settings has
+ * chosen (MessageProviders::email()/sms()). Automatic sends through Brevo
+ * when it's connected, falling back to the site's own WooCommerce mailer
+ * for email; SMS has no non-Brevo provider yet, so it fails rather than
+ * falling back.
  *
  * @package ProtechWholesale
  */
@@ -278,54 +280,33 @@ class MessageTransport {
 	}
 
 	/**
-	 * Hands finished HTML and plain text to Brevo, or to the site's own mailer
-	 * when Brevo is not connected. Knows nothing about templates, wrappers or
-	 * footers: everything upstream has already been decided.
+	 * Hands finished HTML and plain text to whichever provider Messaging →
+	 * Settings has chosen for email (Brevo, or the site's own mailer when
+	 * Automatic finds Brevo not connected). Knows nothing about templates,
+	 * wrappers or footers: everything upstream has already been decided.
 	 *
 	 * @param string[] $tags
 	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
 	 */
 	public static function dispatch( string $to, string $subject, string $html, string $text, array $tags = array() ): array {
-		if ( BrevoClient::is_configured() ) {
-			$payload = array(
-				'sender'      => array(
-					'name'  => MessagingSettings::from_name(),
-					'email' => MessagingSettings::from_email(),
-				),
-				'to'          => array( array( 'email' => $to ) ),
-				'subject'     => $subject,
-				'htmlContent' => $html,
-				'textContent' => $text,
-				'tags'        => array_values( array_unique( array_merge( array( 'protech-wholesale' ), $tags ) ) ),
-			);
+		$provider = MessageProviders::email();
+		$reply_to = MessagingSettings::reply_to();
 
-			$reply_to = MessagingSettings::reply_to();
+		$message = array(
+			'to'      => $to,
+			'subject' => $subject,
+			'html'    => $html,
+			'text'    => $text,
+			'tags'    => $tags,
+		);
 
-			if ( '' !== $reply_to ) {
-				$payload['replyTo'] = array( 'email' => $reply_to );
-			}
-
-			$result = ( new BrevoClient() )->send_email( $payload );
-
-			if ( $result['ok'] ) {
-				return self::result( 'sent', 'brevo', (string) ( $result['data']['messageId'] ?? '' ), $to, $subject, '', '', false );
-			}
-
-			return self::result( 'failed', 'brevo', '', $to, $subject, $result['error'], '', $result['retryable'] );
+		if ( '' !== $reply_to ) {
+			$message['reply_to'] = $reply_to;
 		}
 
-		$sent = WC()->mailer()->send( $to, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
+		$result = $provider->send_email( $message );
 
-		return self::result(
-			$sent ? 'sent' : 'failed',
-			'wc_mailer',
-			'',
-			$to,
-			$subject,
-			$sent ? '' : __( 'The site\'s mail sender rejected or failed to send this message.', 'protech-wholesale' ),
-			'',
-			false
-		);
+		return self::result( $result['ok'] ? 'sent' : 'failed', $provider->id(), $result['provider_id'], $to, $subject, $result['error'], '', $result['retryable'] );
 	}
 
 	/**
@@ -336,7 +317,9 @@ class MessageTransport {
 			return self::result( 'skipped', '', '', '', '', '', 'no_phone', false );
 		}
 
-		if ( ! BrevoClient::is_configured() ) {
+		$provider = MessageProviders::sms();
+
+		if ( null === $provider || ! $provider->is_configured() ) {
 			return self::result( 'failed', '', '', $to_e164, '', __( 'SMS requires Brevo to be connected.', 'protech-wholesale' ), 'sms_unavailable', false );
 		}
 
@@ -344,14 +327,18 @@ class MessageTransport {
 		$segments   = MergeTags::sms_segments( $final_text );
 		$type       = MessageLog::CATEGORY_MARKETING === $category ? 'marketing' : 'transactional';
 
-		$result = ( new BrevoClient() )->send_sms( MessagingSettings::sms_sender(), $to_e164, $final_text, $type, 'protech-wholesale', $segments['unicode'] );
+		$result = $provider->send_sms(
+			array(
+				'to'      => $to_e164,
+				'text'    => $final_text,
+				'sender'  => MessagingSettings::sms_sender(),
+				'type'    => $type,
+				'unicode' => $segments['unicode'],
+				'tag'     => 'protech-wholesale',
+			)
+		);
 
-		if ( $result['ok'] ) {
-			$provider_id = (string) ( $result['data']['messageId'] ?? ( $result['data']['reference'] ?? '' ) );
-			return self::result( 'sent', 'brevo', $provider_id, $to_e164, '', '', '', false );
-		}
-
-		return self::result( 'failed', 'brevo', '', $to_e164, '', $result['error'], '', $result['retryable'] );
+		return self::result( $result['ok'] ? 'sent' : 'failed', $provider->id(), $result['provider_id'], $to_e164, '', $result['error'], '', $result['retryable'] );
 	}
 
 	/**

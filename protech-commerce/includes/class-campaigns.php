@@ -67,8 +67,8 @@ class Campaigns {
 				$errors[] = __( 'Write an SMS body.', 'protech-wholesale' );
 			}
 
-			if ( ! BrevoClient::is_configured() ) {
-				$errors[] = __( 'Brevo is not connected, so SMS cannot be sent.', 'protech-wholesale' );
+			if ( null === MessageProviders::sms() ) {
+				$errors[] = __( 'No SMS provider is connected, so SMS cannot be sent.', 'protech-wholesale' );
 			}
 		}
 

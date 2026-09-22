@@ -285,8 +285,8 @@ class Automations {
 				$errors[] = __( 'Write an SMS body, or remove SMS from this rule\'s channel.', 'protech-wholesale' );
 			}
 
-			if ( ! BrevoClient::is_configured() ) {
-				$warnings[] = __( 'Brevo is not connected — SMS from this rule will fail until it is.', 'protech-wholesale' );
+			if ( null === MessageProviders::sms() ) {
+				$warnings[] = __( 'No SMS provider is connected. SMS from this rule will fail until one is.', 'protech-wholesale' );
 			} elseif ( '' === MessagingSettings::sms_sender() ) {
 				$warnings[] = __( 'No SMS sender is set on the Settings tab.', 'protech-wholesale' );
 			}

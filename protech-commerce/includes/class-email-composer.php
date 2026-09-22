@@ -116,7 +116,7 @@ class EmailComposer {
 	}
 
 	/** @param array<string, mixed> $template */
-	private static function category_of( array $template ): string {
+	public static function category_of( array $template ): string {
 		return EmailTemplates::KIND_TRANSACTIONAL === ( $template['kind'] ?? '' ) ? MessageLog::CATEGORY_TRANSACTIONAL : MessageLog::CATEGORY_MARKETING;
 	}
 
@@ -227,7 +227,7 @@ class EmailComposer {
 
 		$result = MessageTransport::send_template_email( (int) $admin->ID, $to, $subject, $template, $context, self::category_of( $template ), array( 'test' ) );
 
-		self::log( (int) $admin->ID, $result );
+		self::log_test( (int) $admin->ID, $result );
 
 		self::stash(
 			array(
@@ -242,10 +242,11 @@ class EmailComposer {
 
 	/**
 	 * A test send is recorded like every other message, so the log shows it.
+	 * Public so the REST test-send route can share it.
 	 *
 	 * @param array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool} $result
 	 */
-	private static function log( int $user_id, array $result ): void {
+	public static function log_test( int $user_id, array $result ): void {
 		$log_id = MessageLog::enqueue(
 			array(
 				'user_id'   => $user_id,

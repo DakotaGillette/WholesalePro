@@ -1680,6 +1680,52 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## The REST namespace and the provider interface (2026-09-22, 2.10.0)
+
+The two foundations the next release's client-side editor needs, built and shipped on their own so
+they can be tested against the real, unchanged admin-post editor before anything depends on them.
+
+1. **`MessageProvider` is a small interface** (`send_email`, `send_sms`, `is_configured`,
+   `is_email_blacklisted`/`is_sms_blacklisted`, `verify`), implemented by `BrevoProvider` (wrapping
+   `BrevoClient` unchanged) and `WcMailerProvider` (the site's own mailer, email only, always
+   "configured" since it needs no setup of its own). `MessageProviders::email()`/`sms()` pick which
+   one actually sends: Automatic tries each in order and uses the first one that is configured (for
+   email that is always at least the site mailer, so `email()` never returns nothing to send
+   through; for SMS only Brevo qualifies today, so Automatic with no key returns null exactly the way
+   `BrevoClient::is_configured()` failing did before). A provider named explicitly in Messaging →
+   Settings is used regardless of whether it reports itself configured, so a forced-but-unset choice
+   fails at the actual send (Brevo's own "no API key" error) rather than silently falling back to
+   something the admin did not ask for. `MessageTransport::dispatch()` and `send_sms()` keep their
+   exact signatures and `result()` shape; only how they decide who sends changed.
+2. **Consent's blacklist checks now ask whichever provider would actually carry the message**, not
+   Brevo specifically. This only changes behavior if a site deliberately forces a non-Brevo email
+   provider: SMS is unaffected today since nothing but Brevo can carry it yet. `WcMailerProvider`
+   always answers "unknown" (null) for a blacklist question, which is exactly what asking Brevo
+   already returned whenever it was not connected, so a store on Automatic sees no change.
+3. **The SMS eligibility warnings on a rule, a campaign and the setup notice now check
+   `MessageProviders::sms()` instead of `BrevoClient::is_configured()` directly**, so they stay
+   accurate once a non-Brevo SMS provider can exist. Today that is the same check by another name.
+4. **A new `protech/v1` REST namespace**, one permission callback (`manage_woocommerce`, the same
+   capability every Messaging screen already requires) shared by every route. `/templates` covers
+   list/get/create/update/delete/duplicate, `/templates/schema` exposes the same field definitions
+   the form-based editor renders from (now living on `EmailBlocks::schema()`, with `EmailEditor`
+   reduced to reading it), and `/templates/preview` / `/templates/test-send` reuse
+   `EmailTemplates::validate()`, `EmailRenderer` and `MessageTransport::send_template_email()`
+   exactly as the existing "live preview" and "send a preview" admin-post handlers do, so a REST
+   client and the form can never render or send anything differently. Preview and test-send both
+   accept a template that fails `validate()` and report the errors rather than refusing outright,
+   the same reasoning `handle_draft_preview()` already used: a half-finished template still needs a
+   preview.
+5. **Nothing in wp-admin uses this REST namespace yet.** The existing admin-post handlers
+   (`EmailComposer`) are completely unchanged and remain the only way the editor screen actually
+   saves or sends. This release is deliberately just the foundation; wiring a client to it is later
+   work.
+6. **`EmailBlocks::schema()` also declares which default attributes have no editable field**
+   (`text.line_height`, `button.size`, `image.url`, and `align` wherever a type's own fields list
+   does not include it, since every block's shared row wrapper reads `align` regardless), so a
+   future editor built from this schema knows exactly what it is and is not exposing, instead of
+   silently dropping a stored value it has never heard of.
+
 ## Fix and unblock, and the admin file split (2026-09-21, 2.9.0)
 
 An audit of the messaging code (ahead of the bigger MailPoet-style editor and platform work) turned up
