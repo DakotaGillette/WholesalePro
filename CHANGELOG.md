@@ -3,6 +3,15 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.3.1 - 2026-09-22
+
+### Fixed
+- "Design this email" and "Use the WooCommerce design" on the new Order emails list gave
+  "The link you followed has expired" for every one of the nine order emails: the slot key
+  they carry has a colon in it, which the link-checking step was silently stripping before
+  comparing it against the link's own signature. Fixed; a plain rule or campaign link never
+  had a colon, so nothing else was affected.
+
 ## 3.3.0 - 2026-09-22
 
 ### Added

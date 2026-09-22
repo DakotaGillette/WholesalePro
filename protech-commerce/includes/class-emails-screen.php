@@ -168,7 +168,10 @@ class EmailsScreen {
 	// -----------------------------------------------------------------
 
 	private static function authorize( string $action ): string {
-		$key = sanitize_key( wp_unslash( $_GET['key'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified on the next line.
+		// Not sanitize_key(): a WooCommerce order-email key carries a colon ("wc:customer_..."),
+		// which sanitize_key() strips, breaking the nonce link() signed (the raw key, colon and
+		// all). Safe either way: every caller looks $key up against a known, finite slot list.
+		$key = sanitize_text_field( wp_unslash( $_GET['key'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified on the next line.
 
 		check_admin_referer( $action . '_' . $key );
 

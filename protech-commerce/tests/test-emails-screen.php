@@ -135,6 +135,24 @@ class Test_Emails_Screen extends WP_UnitTestCase {
 		$this->assertStringContainsString( $id, $html, 'It links to the template.' );
 	}
 
+	/**
+	 * Regression: an order-email slot key ("wc:customer_processing_order") carries a colon,
+	 * which sanitize_key() strips. authorize() (private) can't be called directly from a
+	 * test, so this pins the mechanism it depends on instead: the nonce a Design/Unbind link
+	 * signs is for the RAW key, so reading it back must not sanitize away the colon.
+	 */
+	public function test_an_order_email_slots_colon_survives_the_links_own_nonce_check(): void {
+		$slot   = 'wc:customer_processing_order';
+		$action = EmailsScreen::DESIGN_ACTION . '_' . $slot;
+		$nonce  = wp_create_nonce( $action );
+
+		$this->assertSame( $slot, sanitize_text_field( $slot ), 'What authorize() now uses keeps the colon.' );
+		$this->assertSame( 1, wp_verify_nonce( $nonce, EmailsScreen::DESIGN_ACTION . '_' . sanitize_text_field( $slot ) ) );
+
+		$this->assertNotSame( $slot, sanitize_key( $slot ), 'sanitize_key() strips the colon: this is the bug being guarded against.' );
+		$this->assertFalse( (bool) wp_verify_nonce( $nonce, EmailsScreen::DESIGN_ACTION . '_' . sanitize_key( $slot ) ) );
+	}
+
 	public function test_the_sent_list_shows_past_messages_with_a_way_to_send_again(): void {
 		$this->assertStringContainsString( 'Nothing has been sent', $this->html( array( EmailsScreen::class, 'render_sent' ) ) );
 
