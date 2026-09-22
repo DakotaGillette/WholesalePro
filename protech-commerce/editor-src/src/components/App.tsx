@@ -309,6 +309,9 @@ export function App( { boot }: { boot: EditorBootstrap } ) {
 							onSelect={ setSelectedId }
 							onInsert={ handleInsert }
 							onMove={ handleMove }
+							onRemove={ handleRemove }
+							onDuplicate={ handleDuplicate }
+							onReorder={ handleReorder }
 						/>
 					) : (
 						<TruePreview template={ template } width={ previewWidth } />

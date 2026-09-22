@@ -1680,6 +1680,33 @@ A release with almost no visible change, so the next ones can be built on it.
 5. **Merge-tag insertion is delegated** to the document, so a field or chip
    added after page load works. The caret behaviour is unchanged.
 
+## Block drop targets and the hover toolbar (2026-09-22, 3.8.0)
+
+The owner found dropping a block "almost impossible" unless the pointer
+was exactly on the 8px gap between blocks, and asked for MailPoet's hover
+controls on a placed block.
+
+1. **Every block is its own drop target**, split at its midpoint: top half
+   drops before it, bottom half after. The innermost block under the pointer
+   decides (each handler stops propagation), so a block in a column never
+   also triggers its columns block. A column's empty space appends to that
+   column, and anywhere else on the card appends to the email.
+2. **What is being dragged lives in a module variable (`dnd.ts`)**, set on
+   dragstart. Browsers hide `dataTransfer.getData()` until the drop, but the
+   canvas needs the block's type while hovering to refuse a drop before the
+   user lets go. The MIME data is still set because Firefox will not start
+   a drag without it.
+3. **`canDropAt()` refuses columns inside a column and a block into itself.**
+   The old gaps accepted a columns block into its own column; `moveBlock()`
+   then removed it and had nowhere to insert it, so it vanished.
+4. **The toolbar sits on the block's top edge** (inside for the very first
+   block, which the card's rounded-corner clipping would cut off). One
+   toolbar at a time: CSS `:has()` limits it to the innermost hovered block
+   and hides the selected block's while another is hovered. It adds move
+   up/down to MailPoet's four because the owner asked for precise control.
+5. **Outlines moved from inline styles to classes.** The inline "transparent"
+   outline had been overriding the stylesheet's hover outline all along.
+
 ## Messaging menu reshaped after MailPoet (2026-09-22, 3.7.0)
 
 Nine sidebar items, repeated as a pipe-separated row on every page, were

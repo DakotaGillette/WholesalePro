@@ -1,5 +1,5 @@
 import type { Schema } from '../types';
-import { DND_NEW_BLOCK_TYPE } from '../dnd';
+import { DND_NEW_BLOCK_TYPE, endDrag, startDrag } from '../dnd';
 
 interface Props {
 	schema: Schema;
@@ -24,7 +24,9 @@ export function Palette( { schema, nested, canUseHtml, onAdd }: Props ) {
 					onDragStart={ ( e ) => {
 						e.dataTransfer?.setData( DND_NEW_BLOCK_TYPE, type );
 						e.dataTransfer!.effectAllowed = 'copy';
+						startDrag( { type, blockId: null, from: null } );
 					} }
+					onDragEnd={ endDrag }
 					onClick={ () => onAdd( type ) }
 					title={ def.help }
 				>

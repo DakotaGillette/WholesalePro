@@ -67,6 +67,21 @@ export function makeBlock( schema: Schema, type: string ): Block | null {
 	return { id: newBlockId(), type, attrs, ...( children ? { children } : {} ) };
 }
 
+/**
+ * Whether a block of `type` (with id `blockId` when an existing block is being
+ * moved, null for a new one) may land at `to`. Columns never go inside a
+ * column (one level of nesting only), and nothing is dropped into the very
+ * block being moved: removing it first would leave the insert nowhere to go,
+ * and the block would silently vanish.
+ */
+export function canDropAt( type: string, blockId: string | null, to: Address ): boolean {
+	if ( null === to.parentId ) {
+		return true;
+	}
+
+	return 'columns' !== type && to.parentId !== blockId;
+}
+
 /** Total block count, nested ones included: the same thing EmailBlocks::MAX_BLOCKS caps, for a friendly warning before the server would clamp it. */
 export function countBlocks( blocks: Block[] ): number {
 	let n = 0;

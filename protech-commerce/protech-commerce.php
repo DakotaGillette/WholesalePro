@@ -3,7 +3,7 @@
  * Plugin Name:       Protech Commerce
  * Plugin URI:        https://protechsleeves.com
  * Description:       Wholesale accounts, pricing, case-based ordering and reorder, plus email and SMS messaging, for the Protech Sleeves WooCommerce store.
- * Version:           3.7.1
+ * Version:           3.8.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Requires Plugins:  woocommerce
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // No direct access.
 }
 
-define( 'PROTECH_WHOLESALE_VERSION', '3.7.1' );
+define( 'PROTECH_WHOLESALE_VERSION', '3.8.0' );
 define( 'PROTECH_WHOLESALE_FILE', __FILE__ );
 define( 'PROTECH_WHOLESALE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PROTECH_WHOLESALE_URL', plugin_dir_url( __FILE__ ) );

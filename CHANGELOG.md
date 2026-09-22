@@ -3,6 +3,24 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.8.0 - 2026-09-22
+
+### Changed
+- Template editor: dropping a block is no longer a matter of hitting a thin gap. Drop on the
+  top half of any block to put the new one above it, or the bottom half to put it below; a
+  line shows exactly where it will land before you let go. Dropping on an empty column, or
+  anywhere else on the email, also works (the latter adds it at the end).
+
+### Added
+- Template editor: hovering a block shows a toolbar on its top edge, like MailPoet's: move
+  up, move down, settings, duplicate, delete, and a handle to drag it.
+
+### Fixed
+- Template editor: dragging a columns block into one of its own columns deleted it. That
+  drop, and dropping columns inside a column, are now refused.
+- Template editor: the dashed outline meant to show which block the pointer is over never
+  appeared.
+
 ## 3.7.1 - 2026-09-22
 
 ### Fixed

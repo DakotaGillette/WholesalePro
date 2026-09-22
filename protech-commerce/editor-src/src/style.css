@@ -91,28 +91,158 @@
 	text-align: center;
 	color: #8c8f94;
 	padding: 40px 24px;
+	margin: 0 16px;
+	border: 2px dashed transparent;
+	border-radius: 6px;
 }
 
+.pw-canvas-empty.is-over {
+	border-color: var(--pw-brand, #42649d);
+	color: var(--pw-brand, #42649d);
+}
+
+/* Blocks. The outline is only ever on the innermost hovered block, so a block
+   inside a column does not also outline the columns block around it. */
 .pw-canvas-block {
 	position: relative;
+	outline: 2px solid transparent;
+	outline-offset: -2px;
 }
 
-.pw-canvas-block:hover {
-	outline: 1px dashed #c3c4c7;
+.pw-canvas-block:hover:not( :has( .pw-canvas-block:hover ) ) {
+	outline: 1px dashed #8c8f94;
 	outline-offset: -1px;
 }
 
-.pw-dropzone {
-	height: 8px;
-	margin: -4px 0;
-	position: relative;
-	z-index: 1;
+.pw-canvas-block.is-selected,
+.pw-canvas-block.is-selected:hover {
+	outline: 2px solid var(--pw-brand, #42649d);
+	outline-offset: -2px;
 }
 
-.pw-dropzone.is-over {
-	background: #42649d;
+.pw-canvas-block.is-dragging {
+	opacity: 0.4;
+}
+
+/* Where a drop will land: a line on the block's top or bottom edge. */
+.pw-canvas-block.is-drop-before::before,
+.pw-canvas-block.is-drop-after::after,
+.pw-drop-line {
+	content: '';
+	display: block;
 	height: 4px;
 	border-radius: 2px;
+	background: var(--pw-brand, #42649d);
+	box-shadow: 0 0 0 2px #fff;
+	pointer-events: none;
+}
+
+.pw-canvas-block.is-drop-before::before,
+.pw-canvas-block.is-drop-after::after {
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	z-index: 3;
+}
+
+.pw-canvas-block.is-drop-before::before {
+	top: -2px;
+}
+
+.pw-canvas-block.is-drop-after::after {
+	bottom: -2px;
+}
+
+.pw-drop-line {
+	margin: 0 16px;
+}
+
+.pw-canvas-column {
+	flex: 1;
+	min-width: 0;
+	min-height: 48px;
+	border: 1px dashed #e5e7eb;
+	border-radius: 4px;
+	padding: 4px;
+}
+
+.pw-canvas-column.is-over {
+	border: 2px dashed var(--pw-brand, #42649d);
+	padding: 3px;
+}
+
+/* The hover toolbar (MailPoet-style), sitting on the top-right edge of the
+   hovered or selected block so it covers as little of the block as it can.
+   The very first block has no room above it (the card clips), so it drops inside. */
+.pw-block-tools {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: 8px;
+	transform: translateY( -50% );
+	z-index: 4;
+	gap: 2px;
+	padding: 2px;
+	background: #1d4f6e;
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.25 );
+	text-align: left;
+}
+
+.pw-canvas-block:hover:not( :has( .pw-canvas-block:hover ) ) > .pw-block-tools,
+.pw-canvas-block.is-selected:not( :has( .pw-canvas-block:hover ) ) > .pw-block-tools,
+.pw-canvas-block:focus-within:not( :has( .pw-canvas-block:focus-within ) ) > .pw-block-tools {
+	display: flex;
+}
+
+.pw-canvas-card > .pw-canvas-block:first-child > .pw-block-tools {
+	top: 4px;
+	transform: none;
+}
+
+/* Only one toolbar at a time: hovering another block hides the selected one's. */
+.pw-canvas-block.is-dragging > .pw-block-tools,
+.pw-canvas-card:has( .pw-canvas-block:hover ) .pw-canvas-block.is-selected:not( :hover ) > .pw-block-tools {
+	display: none;
+}
+
+.pw-block-tool {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: #fff;
+	cursor: pointer;
+}
+
+.pw-block-tool:hover:not( :disabled ),
+.pw-block-tool:focus-visible {
+	background: rgba( 255, 255, 255, 0.18 );
+	outline: none;
+}
+
+.pw-block-tool:focus-visible {
+	box-shadow: 0 0 0 2px #fff;
+}
+
+.pw-block-tool:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.pw-block-handle {
+	cursor: grab;
+}
+
+.pw-block-tool .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
 }
 
 .pw-sidebar {

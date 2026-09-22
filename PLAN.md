@@ -85,7 +85,7 @@ protech-commerce/
     src/types.ts                      TS mirrors of the PHP template/block/schema shapes; window.protechEditor bootstrap
     src/api.ts                        wp/v1 REST calls: save, preview, test-send, starters
     src/model/                        ids.ts, template.ts (Address-addressed block tree ops), history.ts (undo/redo), style.ts
-    src/components/                   App, Toolbar, Canvas, BlockView, DropZone, Palette, Inspector, Field, TagPicker,
+    src/components/                   App, Toolbar, Canvas, BlockView, Palette, Inspector, Field, TagPicker,
                                       SettingsPanels, TruePreview, SendTest, Gallery (starter picker, shown for a new template)
     tests/                            Vitest: template/history/serialize (fixture round-trip with tests/fixtures/template.json)
   templates/                          Overridable via yourtheme/woocommerce/: application-form, portal, global-tier-bar,

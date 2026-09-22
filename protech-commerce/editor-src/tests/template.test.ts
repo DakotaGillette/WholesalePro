@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Schema, Template } from '../src/types';
-import { countBlocks, duplicateBlock, findBlock, insertBlock, makeBlock, moveBlock, removeBlock, ROOT, updateBlockAttrs } from '../src/model/template';
+import { canDropAt, countBlocks, duplicateBlock, findBlock, insertBlock, makeBlock, moveBlock, removeBlock, ROOT, updateBlockAttrs } from '../src/model/template';
 
 const schema: Schema = {
 	types: {
@@ -195,5 +195,26 @@ describe( 'countBlocks', () => {
 		t = insertBlock( t, { parentId: cols.id, column: 0 }, 0, heading );
 
 		expect( countBlocks( t.blocks ) ).toBe( 2 );
+	} );
+} );
+
+describe( 'canDropAt', () => {
+	it( 'allows anything at the top level', () => {
+		expect( canDropAt( 'columns', null, ROOT ) ).toBe( true );
+		expect( canDropAt( 'heading', 'b1', ROOT ) ).toBe( true );
+	} );
+
+	it( 'keeps columns out of a column', () => {
+		expect( canDropAt( 'columns', null, { parentId: 'c1', column: 0 } ) ).toBe( false );
+		expect( canDropAt( 'columns', 'c2', { parentId: 'c1', column: 1 } ) ).toBe( false );
+	} );
+
+	it( 'allows other blocks into a column', () => {
+		expect( canDropAt( 'heading', null, { parentId: 'c1', column: 0 } ) ).toBe( true );
+		expect( canDropAt( 'heading', 'b1', { parentId: 'c1', column: 0 } ) ).toBe( true );
+	} );
+
+	it( 'never drops a block into itself', () => {
+		expect( canDropAt( 'heading', 'c1', { parentId: 'c1', column: 0 } ) ).toBe( false );
 	} );
 } );

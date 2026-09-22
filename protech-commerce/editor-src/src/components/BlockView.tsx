@@ -1,17 +1,17 @@
+import { useContext, useState } from 'preact/hooks';
 import type { Block, TemplateStyle } from '../types';
 import type { Address } from '../model/template';
-import { DropZone } from './DropZone';
-import { DND_MOVE_BLOCK } from '../dnd';
+import { DND_MOVE_BLOCK, startDrag } from '../dnd';
+import { CanvasContext } from './Canvas';
 
 interface Props {
 	block: Block;
 	address: Address;
+	/** Position in its list, and the list's length: for the drop index and the move up/down buttons. */
+	index: number;
+	count: number;
 	style: TemplateStyle;
 	fonts: Record< string, string >;
-	selectedId: string | null;
-	onSelect: ( id: string ) => void;
-	onInsert: ( address: Address, index: number, type: string ) => void;
-	onMove: ( fromParentId: string | null, fromColumn: number, blockId: string, toAddress: Address, toIndex: number ) => void;
 }
 
 /**
@@ -20,12 +20,35 @@ interface Props {
  * not the email itself: the Preview tab's real EmailRenderer output, and
  * the actual send, are the only things that have to be pixel-accurate.
  * Nothing here is ever what gets saved or sent.
+ *
+ * The whole block is a drop target: its top half drops before it, its
+ * bottom half after it, with a line showing which. (Until 3.8.0 only an
+ * 8px gap between blocks accepted a drop, which was very hard to hit.)
+ * Hovering shows MailPoet-style controls: move up, move down, settings,
+ * duplicate, delete, and a handle to drag it.
  */
-export function BlockView( { block, address, style, fonts, selectedId, onSelect, onInsert, onMove }: Props ) {
+export function BlockView( { block, address, index, count, style, fonts }: Props ) {
+	const ctx = useContext( CanvasContext )!;
+	const [ dragging, setDragging ] = useState( false );
 	const a = block.attrs;
 	const font = fonts[ String( style.font ) ] || fonts.helvetica;
 	const headingFont = fonts[ String( style.heading_font ) ] || font;
-	const selected = block.id === selectedId;
+	const selected = block.id === ctx.selectedId;
+	const dropPos = ctx.target?.key === block.id ? ctx.target.pos : null;
+
+	const classes = [ 'pw-canvas-block' ];
+
+	if ( selected ) {
+		classes.push( 'is-selected' );
+	}
+
+	if ( dragging ) {
+		classes.push( 'is-dragging' );
+	}
+
+	if ( dropPos ) {
+		classes.push( `is-drop-${ dropPos }` );
+	}
 
 	const wrapStyle = {
 		paddingTop: `${ Number( a.pt ?? 0 ) }px`,
@@ -34,30 +57,86 @@ export function BlockView( { block, address, style, fonts, selectedId, onSelect,
 		paddingRight: '24px',
 		background: String( a.bg ?? '' ) || 'transparent',
 		textAlign: ( String( a.align ?? 'left' ) as 'left' | 'center' | 'right' ) || 'left',
-		outline: selected ? `2px solid ${ style.brand || '#42649d' }` : '2px solid transparent',
-		outlineOffset: '-2px',
 		cursor: 'grab',
+		['--pw-brand' as string]: style.brand || '#42649d',
 	};
+
+	/** A button on the hover toolbar: stops the click from also selecting (or deselecting) the block. */
+	const tool = ( label: string, icon: string, onClick: () => void, disabled = false ) => (
+		<button
+			type="button"
+			className="pw-block-tool"
+			title={ label }
+			aria-label={ label }
+			disabled={ disabled }
+			onClick={ ( e ) => {
+				e.stopPropagation();
+				onClick();
+			} }
+		>
+			<span className={ `dashicons dashicons-${ icon }` } aria-hidden="true" />
+		</button>
+	);
 
 	return (
 		<div
-			className="pw-canvas-block"
+			className={ classes.join( ' ' ) }
 			style={ wrapStyle }
 			draggable
 			onDragStart={ ( e ) => {
 				e.stopPropagation();
-				e.dataTransfer?.setData( DND_MOVE_BLOCK, JSON.stringify( { id: block.id, parentId: address.parentId, column: address.column } ) );
+				e.dataTransfer?.setData( DND_MOVE_BLOCK, block.id );
 				e.dataTransfer!.effectAllowed = 'move';
+				startDrag( { type: block.type, blockId: block.id, from: address } );
+				setDragging( true );
+			} }
+			onDragEnd={ () => setDragging( false ) }
+			onDragOver={ ( e ) => {
+				// The innermost block under the pointer decides; its columns block and the canvas stay out of it.
+				e.stopPropagation();
+
+				if ( ! ctx.canDropIn( address ) ) {
+					return;
+				}
+
+				e.preventDefault();
+
+				const pos = halfOf( e );
+
+				if ( ctx.target?.key !== block.id || ctx.target.pos !== pos ) {
+					ctx.setTarget( { key: block.id, pos } );
+				}
+			} }
+			onDrop={ ( e ) => {
+				e.preventDefault();
+				e.stopPropagation();
+				ctx.dropAt( address, 'before' === halfOf( e ) ? index : index + 1 );
 			} }
 			onClick={ ( e ) => {
 				e.stopPropagation();
-				onSelect( block.id );
+				ctx.onSelect( block.id );
 			} }
 			data-block-id={ block.id }
 		>
-			<BlockBody block={ block } style={ style } fonts={ fonts } font={ font } headingFont={ headingFont } selectedId={ selectedId } onSelect={ onSelect } onInsert={ onInsert } onMove={ onMove } />
+			<div className="pw-block-tools">
+				{ tool( 'Move up', 'arrow-up-alt2', () => ctx.onReorder( block.id, -1 ), 0 === index ) }
+				{ tool( 'Move down', 'arrow-down-alt2', () => ctx.onReorder( block.id, 1 ), index >= count - 1 ) }
+				{ tool( 'Settings', 'admin-generic', () => ctx.onSelect( block.id ) ) }
+				{ tool( 'Duplicate', 'admin-page', () => ctx.onDuplicate( block.id ) ) }
+				{ tool( 'Delete', 'trash', () => ctx.onRemove( block.id ) ) }
+				<span className="pw-block-tool pw-block-handle" title="Drag to move" aria-hidden="true">
+					<span className="dashicons dashicons-move" />
+				</span>
+			</div>
+			<BlockBody block={ block } style={ style } fonts={ fonts } font={ font } headingFont={ headingFont } />
 		</div>
 	);
+}
+
+/** Which half of the block the pointer is over: the top half drops before it, the bottom half after. */
+function halfOf( e: DragEvent ): 'before' | 'after' {
+	const rect = ( e.currentTarget as HTMLElement ).getBoundingClientRect();
+	return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
 }
 
 function BlockBody( {
@@ -66,21 +145,14 @@ function BlockBody( {
 	fonts,
 	font,
 	headingFont,
-	selectedId,
-	onSelect,
-	onInsert,
-	onMove,
 }: {
 	block: Block;
 	style: TemplateStyle;
 	fonts: Record< string, string >;
 	font: string;
 	headingFont: string;
-	selectedId: string | null;
-	onSelect: ( id: string ) => void;
-	onInsert: ( address: Address, index: number, type: string ) => void;
-	onMove: ( fromParentId: string | null, fromColumn: number, blockId: string, toAddress: Address, toIndex: number ) => void;
 } ) {
+	const ctx = useContext( CanvasContext )!;
 	const a = block.attrs;
 
 	switch ( block.type ) {
@@ -195,26 +267,39 @@ function BlockBody( {
 				>
 					{ ( block.children ?? [] ).map( ( col, i ) => {
 						const colAddress: Address = { parentId: block.id, column: i };
+						const key = `col:${ block.id }:${ i }`;
+						const isOver = ctx.target?.key === key;
 						return (
-							<div key={ i } data-column={ i } style={ { flex: 1, minWidth: 0, border: '1px dashed #e5e7eb', borderRadius: '4px', padding: '4px' } }>
-								<DropZone
-									onDropBlockType={ ( type ) => onInsert( colAddress, 0, type ) }
-									onDropMove={ ( id, pId, c ) => onMove( pId, c, id, colAddress, 0 ) }
-								/>
+							<div
+								key={ i }
+								data-column={ i }
+								className={ `pw-canvas-column${ isOver ? ' is-over' : '' }` }
+								// The column's own empty space (below its blocks, or all of an empty column) appends to it.
+								onDragOver={ ( e ) => {
+									e.stopPropagation();
+
+									if ( ! ctx.canDropIn( colAddress ) ) {
+										return;
+									}
+
+									e.preventDefault();
+
+									if ( ! isOver ) {
+										ctx.setTarget( { key, pos: 'inside' } );
+									}
+								} }
+								onDrop={ ( e ) => {
+									e.preventDefault();
+									e.stopPropagation();
+									ctx.dropAt( colAddress, col.length );
+								} }
+							>
 								{ 0 === col.length ? (
 									<div style={ { padding: '12px' } }>
 										<Empty label={ `Column ${ i + 1 }` } />
 									</div>
 								) : (
-									col.map( ( b, j ) => (
-										<div key={ b.id }>
-											<BlockView block={ b } address={ colAddress } style={ style } fonts={ fonts } selectedId={ selectedId } onSelect={ onSelect } onInsert={ onInsert } onMove={ onMove } />
-											<DropZone
-												onDropBlockType={ ( type ) => onInsert( colAddress, j + 1, type ) }
-												onDropMove={ ( id, pId, c ) => onMove( pId, c, id, colAddress, j + 1 ) }
-											/>
-										</div>
-									) )
+									col.map( ( b, j ) => <BlockView key={ b.id } block={ b } address={ colAddress } index={ j } count={ col.length } style={ style } fonts={ fonts } /> )
 								) }
 							</div>
 						);
