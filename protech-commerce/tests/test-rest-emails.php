@@ -71,6 +71,8 @@ class Test_Rest_Emails extends WP_UnitTestCase {
 				array( 'PUT', '/emails/c_1_abcdef' ),
 				array( 'DELETE', '/emails/c_1_abcdef' ),
 				array( 'POST', '/emails/c_1_abcdef/send' ),
+				array( 'POST', '/emails/c_1_abcdef/unschedule' ),
+				array( 'POST', '/emails/c_1_abcdef/save-as-template' ),
 				array( 'POST', '/audience/estimate' ),
 				array( 'GET', '/products' ),
 			) as [ $method, $route ]
@@ -154,6 +156,55 @@ class Test_Rest_Emails extends WP_UnitTestCase {
 		$this->assertSame( 409, $this->request( 'PUT', '/emails/' . $id, array( 'name' => 'Too late' ) )->get_status() );
 		$this->assertSame( 409, $this->request( 'DELETE', '/emails/' . $id )->get_status() );
 		$this->assertSame( 404, $this->request( 'GET', '/emails/c_1_abcdef' )->get_status() );
+	}
+
+	public function test_scheduling_and_unscheduling_through_rest(): void {
+		$this->admin();
+		$id       = $this->create_from_starter()['email']['id'];
+		$tomorrow = wp_date( 'Y-m-d', time() + DAY_IN_SECONDS );
+
+		$past = $this->request( 'POST', '/emails/' . $id . '/send', array( 'when' => 'schedule', 'date' => '2000-01-01', 'time' => '08:00' ) );
+		$this->assertSame( 422, $past->get_status() );
+
+		$bad = $this->request( 'POST', '/emails/' . $id . '/send', array( 'when' => 'schedule', 'date' => 'soon', 'time' => '8am' ) );
+		$this->assertSame( 422, $bad->get_status() );
+
+		$ok = $this->request( 'POST', '/emails/' . $id . '/send', array( 'when' => 'schedule', 'date' => $tomorrow, 'time' => '08:00' ) );
+		$this->assertSame( 200, $ok->get_status() );
+		$this->assertTrue( $ok->get_data()['scheduled'] );
+
+		$scheduled = $this->request( 'GET', '/emails/' . $id )->get_data()['email'];
+		$this->assertSame( 'scheduled', $scheduled['status'] );
+		$this->assertSame( wp_date( 'Y-m-d H:i', $scheduled['send_at'] ), $tomorrow . ' 08:00', 'The time is read on the site\'s own clock.' );
+		$this->assertSame( 409, $this->request( 'PUT', '/emails/' . $id, array( 'name' => 'Too late' ) )->get_status() );
+
+		$this->assertSame( 200, $this->request( 'POST', '/emails/' . $id . '/unschedule' )->get_status() );
+		$this->assertSame( 'draft', $this->request( 'GET', '/emails/' . $id )->get_data()['email']['status'] );
+		$this->assertSame( 409, $this->request( 'POST', '/emails/' . $id . '/unschedule' )->get_status() );
+	}
+
+	public function test_save_as_template_puts_a_copy_in_the_library(): void {
+		$this->admin();
+		$id     = $this->create_from_starter()['email']['id'];
+		$before = count( EmailTemplates::all() );
+
+		$response = $this->request( 'POST', '/emails/' . $id . '/save-as-template', array( 'name' => 'Our spring look' ) );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertCount( $before + 1, EmailTemplates::all() );
+		$this->assertSame( 'Our spring look', EmailTemplates::get( $response->get_data()['id'] )['name'] );
+		$this->assertSame( '', EmailTemplates::get( $response->get_data()['id'] )['slot'] );
+		$this->assertNotNull( EmailDesigns::get( $id ), 'The email keeps its own design.' );
+	}
+
+	public function test_the_sender_is_saved_with_the_draft(): void {
+		$this->admin();
+		$id = $this->create_from_starter()['email']['id'];
+
+		$data = $this->request( 'PUT', '/emails/' . $id, array( 'sender' => array( 'from_name' => 'Spring team', 'from_email' => '', 'reply_to' => 'replies@example.com' ) ) )->get_data();
+
+		$this->assertSame( 'Spring team', $data['email']['sender']['from_name'] );
+		$this->assertSame( 'replies@example.com', $data['email']['sender']['reply_to'] );
 	}
 
 	public function test_deleting_a_draft(): void {

@@ -199,9 +199,63 @@ class Campaigns {
 			$campaign['category'] = ! empty( $input['service_message'] ) ? MessageLog::CATEGORY_TRANSACTIONAL : MessageLog::CATEGORY_MARKETING;
 		}
 
+		// Who this email comes from (3.10.0). Empty fields fall back to Messaging -> Settings.
+		if ( is_array( $input['sender'] ?? null ) ) {
+			$campaign['sender'] = array(
+				'from_name'  => sanitize_text_field( (string) ( $input['sender']['from_name'] ?? '' ) ),
+				'from_email' => sanitize_email( (string) ( $input['sender']['from_email'] ?? '' ) ),
+				'reply_to'   => sanitize_email( (string) ( $input['sender']['reply_to'] ?? '' ) ),
+			);
+		}
+
+		// Once the draft is being worked on again, a past "scheduled but not sent" reason no longer applies.
+		$campaign['last_error'] = '';
 		$campaign['updated_at'] = time();
 
 		return $campaign;
+	}
+
+	/**
+	 * Who an email comes from: its own sender where it has one, and
+	 * Messaging -> Settings for anything it leaves empty.
+	 *
+	 * @param array<string, mixed> $campaign
+	 * @return array{from_name: string, from_email: string, reply_to: string}
+	 */
+	public static function sender( array $campaign ): array {
+		$own = (array) ( $campaign['sender'] ?? array() );
+
+		return array(
+			'from_name'  => (string) ( $own['from_name'] ?? '' ) ?: MessagingSettings::from_name(),
+			'from_email' => (string) ( $own['from_email'] ?? '' ) ?: MessagingSettings::from_email(),
+			'reply_to'   => (string) ( $own['reply_to'] ?? '' ) ?: MessagingSettings::reply_to(),
+		);
+	}
+
+	/**
+	 * What is wrong with an email's own sender. Brevo only sends from a
+	 * verified sender, so a From address must be on the same domain as the
+	 * one in Messaging -> Settings, which is.
+	 *
+	 * @param array<string, mixed> $campaign
+	 * @return string[]
+	 */
+	public static function validate_sender( array $campaign ): array {
+		$own    = (array) ( $campaign['sender'] ?? array() );
+		$from   = (string) ( $own['from_email'] ?? '' );
+		$errors = array();
+
+		if ( '' !== $from ) {
+			$domain  = strtolower( (string) substr( (string) strrchr( $from, '@' ), 1 ) );
+			$default = strtolower( (string) substr( (string) strrchr( MessagingSettings::from_email(), '@' ), 1 ) );
+
+			if ( '' !== $default && $domain !== $default ) {
+				/* translators: %s: the domain senders must use, e.g. example.com. */
+				$errors[] = sprintf( __( 'Send from an address at @%s. Brevo only sends from a verified sender.', 'protech-wholesale' ), $default );
+			}
+		}
+
+		return $errors;
 	}
 
 	/** Stores a draft's changes. */
@@ -218,7 +272,7 @@ class Campaigns {
 	 * @return string[]
 	 */
 	public static function validate_for_send( array $campaign ): array {
-		$errors = self::validate_audience( Audience::normalize( (array) ( $campaign['audience'] ?? array() ) ) );
+		$errors = array_merge( self::validate_audience( Audience::normalize( (array) ( $campaign['audience'] ?? array() ) ) ), self::validate_sender( $campaign ) );
 		$design = EmailDesigns::get( (string) $campaign['id'] );
 
 		if ( null === $design ) {
@@ -257,6 +311,102 @@ class Campaigns {
 		$result = self::launch( $campaign );
 
 		return array( 'ok' => true, 'errors' => array(), 'queued' => $result['queued'], 'skipped' => $result['skipped'] );
+	}
+
+	/**
+	 * Schedules a draft to send at a time (3.10.0): checks it now, so a
+	 * problem shows at once rather than at send time, then waits. Who it goes
+	 * to is worked out when it sends, not now.
+	 *
+	 * @return array{ok: bool, errors: string[]}
+	 */
+	public static function schedule( string $id, int $send_at ): array {
+		$campaign = self::get( $id );
+
+		if ( null === $campaign || self::STATUS_DRAFT !== self::status( $campaign ) ) {
+			return array( 'ok' => false, 'errors' => array( __( 'Only a draft can be scheduled.', 'protech-wholesale' ) ) );
+		}
+
+		if ( $send_at < time() + MINUTE_IN_SECONDS ) {
+			return array( 'ok' => false, 'errors' => array( __( 'Choose a time at least a minute from now.', 'protech-wholesale' ) ) );
+		}
+
+		$errors = self::validate_for_send( $campaign );
+
+		if ( ! empty( $errors ) ) {
+			return array( 'ok' => false, 'errors' => $errors );
+		}
+
+		$campaign['status']     = self::STATUS_SCHEDULED;
+		$campaign['send_at']    = $send_at;
+		$campaign['last_error'] = '';
+		self::store( $campaign );
+		AutomationRunner::schedule_launch( $id, $send_at );
+
+		return array( 'ok' => true, 'errors' => array() );
+	}
+
+	/** Takes a scheduled email back to a draft, so it can be changed or sent now. */
+	public static function unschedule( string $id ): bool {
+		$campaign = self::get( $id );
+
+		if ( null === $campaign || self::STATUS_SCHEDULED !== self::status( $campaign ) ) {
+			return false;
+		}
+
+		$campaign['status']  = self::STATUS_DRAFT;
+		$campaign['send_at'] = 0;
+		self::store( $campaign );
+		AutomationRunner::unschedule_launch( $id );
+
+		return true;
+	}
+
+	/**
+	 * The scheduled time has come (Action Scheduler). Does nothing unless the
+	 * email is still scheduled, so an unscheduled or already sent one is left
+	 * alone. An email that no longer passes its checks goes back to a draft
+	 * with the reason, rather than going out half right.
+	 */
+	public static function run_scheduled( string $campaign_id ): void {
+		$campaign = self::get( $campaign_id );
+
+		if ( null === $campaign || self::STATUS_SCHEDULED !== self::status( $campaign ) ) {
+			return;
+		}
+
+		$errors = self::validate_for_send( $campaign );
+
+		if ( ! empty( $errors ) ) {
+			$campaign['status']     = self::STATUS_DRAFT;
+			$campaign['send_at']    = 0;
+			$campaign['last_error'] = implode( ' ', $errors );
+			self::store( $campaign );
+			Logger::error( sprintf( 'Scheduled email "%s" was not sent and is a draft again: %s', $campaign['name'], $campaign['last_error'] ) );
+			return;
+		}
+
+		$result = self::launch( $campaign );
+		Logger::info( sprintf( 'Scheduled email "%s" sent: %d message(s) queued.', $campaign['name'], $result['queued'] ) );
+	}
+
+	/**
+	 * Scheduled emails whose time passed more than five minutes ago, for the
+	 * catch-up check: WP-Cron only runs on a page visit, so a quiet or fully
+	 * cached site can miss the moment.
+	 *
+	 * @return string[] Campaign ids.
+	 */
+	public static function overdue( int $now ): array {
+		$ids = array();
+
+		foreach ( self::all() as $id => $campaign ) {
+			if ( self::STATUS_SCHEDULED === self::status( $campaign ) && (int) ( $campaign['send_at'] ?? 0 ) < $now - 5 * MINUTE_IN_SECONDS ) {
+				$ids[] = (string) $id;
+			}
+		}
+
+		return $ids;
 	}
 
 	/** Deletes a draft and its design. Anything already sent or scheduled is left alone. */

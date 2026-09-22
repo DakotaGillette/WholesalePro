@@ -35,7 +35,7 @@ interface MessageProvider {
 	public function is_configured(): bool;
 
 	/**
-	 * @param array{to: string, subject: string, html: string, text: string, tags: string[], reply_to?: string} $message
+	 * @param array{to: string, subject: string, html: string, text: string, tags: string[], reply_to?: string, from_name?: string, from_email?: string} $message From and reply-to override Settings for one email (3.10.0).
 	 * @return array{ok: bool, provider_id: string, error: string, retryable: bool}
 	 */
 	public function send_email( array $message ): array;

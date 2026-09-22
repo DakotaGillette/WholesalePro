@@ -122,5 +122,6 @@ class Test_Uninstall_Lists extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'as_unschedule_all_actions', self::$uninstall_source );
 		$this->assertStringContainsString( \ProtechWholesale\AutomationRunner::HOOK_DAILY, self::$uninstall_source );
 		$this->assertStringContainsString( \ProtechWholesale\AutomationRunner::HOOK_FLOW_WAKE, self::$uninstall_source );
+		$this->assertStringContainsString( \ProtechWholesale\AutomationRunner::HOOK_LAUNCH_CAMPAIGN, self::$uninstall_source );
 	}
 }

@@ -685,6 +685,8 @@ class Automations {
 			// An email written in the stepped flow (3.9.0) sends its own design, never a library template.
 			if ( Campaigns::has_own_design( $campaign ) ) {
 				$email['design'] = EmailDesigns::get( (string) $campaign['id'] );
+				// Only what the email sets itself; anything empty stays each provider's own default.
+				$email['sender'] = (array) ( $campaign['sender'] ?? array() );
 			}
 
 			return array(

@@ -33,6 +33,7 @@ class EmailsScreen {
 	public const DUPLICATE_SEND_ACTION  = 'protech_duplicate_campaign';
 	public const DUPLICATE_EMAIL_ACTION = 'protech_duplicate_email';
 	public const DELETE_DRAFT_ACTION    = 'protech_delete_email_draft';
+	public const UNSCHEDULE_ACTION      = 'protech_unschedule_email';
 
 	public function register_hooks(): void {
 		add_action( 'admin_post_' . self::DESIGN_ACTION, array( $this, 'handle_design' ) );
@@ -40,6 +41,7 @@ class EmailsScreen {
 		add_action( 'admin_post_' . self::DUPLICATE_SEND_ACTION, array( $this, 'handle_duplicate_send' ) );
 		add_action( 'admin_post_' . self::DUPLICATE_EMAIL_ACTION, array( $this, 'handle_duplicate_email' ) );
 		add_action( 'admin_post_' . self::DELETE_DRAFT_ACTION, array( $this, 'handle_delete_draft' ) );
+		add_action( 'admin_post_' . self::UNSCHEDULE_ACTION, array( $this, 'handle_unschedule' ) );
 	}
 
 	/**
@@ -156,6 +158,20 @@ class EmailsScreen {
 			echo '<div class="updated notice inline"><p>' . esc_html__( 'Draft deleted.', 'protech-wholesale' ) . '</p></div>';
 		}
 
+		// A scheduled email that could not go out came back as a draft; say why.
+		foreach ( Campaigns::by_status( Campaigns::STATUS_DRAFT ) as $draft ) {
+			if ( '' !== (string) ( $draft['last_error'] ?? '' ) ) {
+				echo '<div class="notice notice-warning inline"><p>' . esc_html(
+					sprintf(
+						/* translators: 1: email name, 2: the reason. */
+						__( '"%1$s" was scheduled but not sent, and is a draft again: %2$s', 'protech-wholesale' ),
+						(string) $draft['name'],
+						(string) $draft['last_error']
+					)
+				) . '</p></div>';
+			}
+		}
+
 		$all = Campaigns::by_status();
 
 		if ( empty( $all ) ) {
@@ -209,6 +225,18 @@ class EmailsScreen {
 				echo '<td>' . esc_html( Audience::describe( (array) $campaign['audience'] ) ) . '</td>';
 				echo '<td>&mdash;</td>';
 				echo '<td><a href="' . esc_url( $edit ) . '">' . esc_html__( 'Edit', 'protech-wholesale' ) . '</a> | <a href="' . esc_url( self::link( self::DELETE_DRAFT_ACTION, $id ) ) . '" class="protech-confirm-delete-draft" style="color:#b32d2e;">' . esc_html__( 'Delete', 'protech-wholesale' ) . '</a></td>';
+			} elseif ( Campaigns::STATUS_SCHEDULED === $state ) {
+				echo '<td><strong>' . esc_html( (string) $campaign['name'] ) . '</strong></td>';
+				echo '<td>' . esc_html(
+					sprintf(
+						/* translators: %s: date and time. */
+						__( 'Scheduled for %s', 'protech-wholesale' ),
+						wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) ( $campaign['send_at'] ?? 0 ) )
+					)
+				) . '</td>';
+				echo '<td>' . esc_html( Audience::describe( (array) $campaign['audience'] ) ) . '</td>';
+				echo '<td>&mdash;</td>';
+				echo '<td><a href="' . esc_url( self::link( self::UNSCHEDULE_ACTION, $id ) ) . '">' . esc_html__( 'Unschedule', 'protech-wholesale' ) . '</a></td>';
 			} else {
 				$counts = Campaigns::progress( $id );
 				$when   = (int) ( $campaign['sent_at'] ?? 0 ) ?: (int) $campaign['created_at'];
@@ -411,6 +439,16 @@ class EmailsScreen {
 		$created = Campaigns::create_draft( $design, (array) $campaign['audience'], get_current_user_id() );
 
 		wp_safe_redirect( MessagingTab::url( 'compose', array( 'email' => $created['campaign']['id'], 'step' => 'design' ) ) );
+		exit;
+	}
+
+	/** "Unschedule": back to a draft, which opens at Design to change or send. */
+	public function handle_unschedule(): void {
+		$id = self::authorize( self::UNSCHEDULE_ACTION );
+
+		Campaigns::unschedule( $id );
+
+		wp_safe_redirect( MessagingTab::url( 'emails', array( 'status' => Campaigns::STATUS_DRAFT ) ) );
 		exit;
 	}
 

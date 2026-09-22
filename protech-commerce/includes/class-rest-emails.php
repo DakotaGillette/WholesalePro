@@ -97,6 +97,26 @@ class RestEmails {
 
 		register_rest_route(
 			$ns,
+			'/emails/' . self::ID_PATTERN . '/unschedule',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'unschedule' ),
+				'permission_callback' => $perm,
+			)
+		);
+
+		register_rest_route(
+			$ns,
+			'/emails/' . self::ID_PATTERN . '/save-as-template',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'save_as_template' ),
+				'permission_callback' => $perm,
+			)
+		);
+
+		register_rest_route(
+			$ns,
 			'/audience/estimate',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -290,12 +310,40 @@ class RestEmails {
 		return array( 'deleted' => true );
 	}
 
-	/** Sends a draft now. Body: `when` = `now`. */
+	/**
+	 * Sends a draft now (`when` = `now`), or schedules it (`when` =
+	 * `schedule`, with `date` as Y-m-d and `time` as H:i, in the site's own
+	 * timezone).
+	 */
 	public function send( \WP_REST_Request $request ) {
-		$id = (string) $request->get_param( 'id' );
+		$id   = (string) $request->get_param( 'id' );
+		$body = (array) $request->get_json_params();
 
 		if ( null === Campaigns::get( $id ) ) {
 			return self::not_found();
+		}
+
+		if ( 'schedule' === ( $body['when'] ?? '' ) ) {
+			$send_at = self::site_time_to_timestamp( (string) ( $body['date'] ?? '' ), (string) ( $body['time'] ?? '' ) );
+
+			if ( null === $send_at ) {
+				return new \WP_REST_Response( array( 'ok' => false, 'errors' => array( __( 'Choose a date and a time.', 'protech-wholesale' ) ) ), 422 );
+			}
+
+			$scheduled = Campaigns::schedule( $id, $send_at );
+
+			if ( ! $scheduled['ok'] ) {
+				return new \WP_REST_Response( array( 'ok' => false, 'errors' => $scheduled['errors'] ), 422 );
+			}
+
+			Logger::info( sprintf( 'Email %s scheduled by admin #%d for %s.', $id, get_current_user_id(), gmdate( 'c', $send_at ) ) );
+
+			return array(
+				'ok'           => true,
+				'scheduled'    => true,
+				'send_at'      => $send_at,
+				'redirect_url' => MessagingTab::url( 'emails', array( 'status' => Campaigns::STATUS_SCHEDULED ) ),
+			);
 		}
 
 		$result = Campaigns::send_now( $id );
@@ -312,6 +360,66 @@ class RestEmails {
 			'skipped' => $result['skipped'],
 			'log_url' => MessagingTab::url( 'log', array( 'rule_id' => 'campaign:' . $id, 'queued' => $result['queued'] ) ),
 		);
+	}
+
+	/** A date and time on the site's own clock as a Unix timestamp, or null when either is missing or malformed. */
+	public static function site_time_to_timestamp( string $date, string $time ): ?int {
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! preg_match( '/^\d{2}:\d{2}$/', $time ) ) {
+			return null;
+		}
+
+		$moment = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i', $date . ' ' . $time, wp_timezone() );
+
+		return false === $moment ? null : $moment->getTimestamp();
+	}
+
+	/** Takes a scheduled email back to a draft. */
+	public function unschedule( \WP_REST_Request $request ) {
+		$id = (string) $request->get_param( 'id' );
+
+		if ( null === Campaigns::get( $id ) ) {
+			return self::not_found();
+		}
+
+		if ( ! Campaigns::unschedule( $id ) ) {
+			return new \WP_Error( 'protech_email_not_scheduled', __( 'That email is not scheduled.', 'protech-wholesale' ), array( 'status' => 409 ) );
+		}
+
+		return self::payload( (array) Campaigns::get( $id ), EmailDesigns::get( $id ), array() );
+	}
+
+	/**
+	 * Keeps a copy of this email's design in the template library, to start
+	 * other emails from. Body: `name`. The email itself is unchanged.
+	 */
+	public function save_as_template( \WP_REST_Request $request ) {
+		$id     = (string) $request->get_param( 'id' );
+		$design = EmailDesigns::get( $id );
+
+		if ( null === Campaigns::get( $id ) || null === $design ) {
+			return self::not_found();
+		}
+
+		$body = (array) $request->get_json_params();
+		$name = sanitize_text_field( (string) ( $body['name'] ?? '' ) );
+
+		$design['id']     = '';
+		$design['slot']   = '';
+		$design['seeded'] = '';
+		$design['name']   = '' !== $name ? $name : (string) $design['name'];
+		$design['blocks'] = EmailTemplates::reid( (array) $design['blocks'] );
+
+		$validated = EmailTemplates::validate( $design );
+
+		if ( ! empty( $validated['errors'] ) ) {
+			return new \WP_REST_Response( array( 'errors' => $validated['errors'] ), 422 );
+		}
+
+		$template_id = EmailTemplates::save( $validated['template'] );
+
+		Logger::info( sprintf( 'Email %s saved as template "%s" by admin #%d.', $id, $validated['template']['name'], get_current_user_id() ) );
+
+		return new \WP_REST_Response( array( 'id' => $template_id, 'name' => (string) $validated['template']['name'], 'errors' => array() ), 201 );
 	}
 
 	/**
@@ -361,6 +469,17 @@ class RestEmails {
 				'service_message' => MessageLog::CATEGORY_TRANSACTIONAL === ( $campaign['category'] ?? '' ),
 				'updated_at'      => (int) ( $campaign['updated_at'] ?? 0 ),
 				'sent_at'         => (int) ( $campaign['sent_at'] ?? 0 ),
+				'send_at'         => (int) ( $campaign['send_at'] ?? 0 ),
+				// The date and time it is scheduled for, on the site's own clock, for the screen.
+				'send_at_label'   => ! empty( $campaign['send_at'] ) ? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $campaign['send_at'] ) : '',
+				// Only what this email sets; the screen shows Settings' sender for anything empty.
+				'sender'          => array(
+					'from_name'  => (string) ( $campaign['sender']['from_name'] ?? '' ),
+					'from_email' => (string) ( $campaign['sender']['from_email'] ?? '' ),
+					'reply_to'   => (string) ( $campaign['sender']['reply_to'] ?? '' ),
+				),
+				// Why a scheduled email came back as a draft, when it did.
+				'last_error'      => (string) ( $campaign['last_error'] ?? '' ),
 			),
 			'design' => $design,
 			'errors' => array_values( $errors ),

@@ -39,9 +39,10 @@ class BrevoProvider implements MessageProvider {
 
 	public function send_email( array $message ): array {
 		$payload = array(
+			// An email that names its own sender (3.10.0), otherwise Messaging -> Settings.
 			'sender'      => array(
-				'name'  => MessagingSettings::from_name(),
-				'email' => MessagingSettings::from_email(),
+				'name'  => (string) ( $message['from_name'] ?? '' ) ?: MessagingSettings::from_name(),
+				'email' => (string) ( $message['from_email'] ?? '' ) ?: MessagingSettings::from_email(),
 			),
 			'to'          => array( array( 'email' => $message['to'] ) ),
 			'subject'     => $message['subject'],

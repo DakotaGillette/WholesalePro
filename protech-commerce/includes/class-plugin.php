@@ -784,6 +784,12 @@ final class Plugin {
 			'presetAudience' => ComposeScreen::preset_audience(),
 			'tiers'          => Tiers::get_tier_labels(),
 			'smsReady'       => null !== MessageProviders::sms(),
+			// The site's own clock, for "Schedule it" (3.10.0): today's date and time there, and its timezone.
+			'site'           => array(
+				'now'      => wp_date( 'Y-m-d H:i' ),
+				'nowLabel' => wp_date( (string) get_option( 'time_format' ) ),
+				'timezone' => wp_timezone_string(),
+			),
 			'sender'         => array(
 				'name'     => MessagingSettings::from_name(),
 				'email'    => MessagingSettings::from_email(),

@@ -36,10 +36,14 @@ class AutomationRunner {
 	public const HOOK_SYNC_CONTACT = 'protech_wholesale_sync_contact';
 	public const HOOK_PURGE        = 'protech_wholesale_purge_messages';
 	public const HOOK_FLOW_WAKE    = 'protech_wholesale_flow_wake';
+	/** An email scheduled to send at a set time (3.10.0). */
+	public const HOOK_LAUNCH_CAMPAIGN = 'protech_wholesale_launch_campaign';
 
 	public const BATCH_SIZE = 20;
 
 	private const SELF_HEAL_TRANSIENT = 'protech_wholesale_as_selfheal';
+
+	private const CATCH_UP_TRANSIENT = 'protech_wholesale_scheduled_catchup';
 
 	public function register_hooks(): void {
 		add_action( self::HOOK_DAILY, array( __CLASS__, 'run_daily' ) );
@@ -47,8 +51,10 @@ class AutomationRunner {
 		add_action( self::HOOK_SYNC_CONTACT, array( __CLASS__, 'run_sync_contact' ) );
 		add_action( self::HOOK_PURGE, array( __CLASS__, 'run_purge' ) );
 		add_action( self::HOOK_FLOW_WAKE, array( __CLASS__, 'run_flow_wake' ) );
+		add_action( self::HOOK_LAUNCH_CAMPAIGN, array( Campaigns::class, 'run_scheduled' ) );
 
 		add_action( 'init', array( __CLASS__, 'self_heal' ), 30 );
+		add_action( 'init', array( __CLASS__, 'catch_up_scheduled' ), 31 );
 
 		add_action( 'update_option_' . MessagingSettings::OPT_ENABLED, array( __CLASS__, 'on_enabled_changed' ), 10, 2 );
 		add_action( 'update_option_' . MessagingSettings::OPT_DAILY_HOUR, array( __CLASS__, 'reschedule_daily' ) );
@@ -100,7 +106,7 @@ class AutomationRunner {
 			return;
 		}
 
-		foreach ( array( self::HOOK_DAILY, self::HOOK_DELIVER, self::HOOK_SYNC_CONTACT, self::HOOK_PURGE, self::HOOK_FLOW_WAKE ) as $hook ) {
+		foreach ( array( self::HOOK_DAILY, self::HOOK_DELIVER, self::HOOK_SYNC_CONTACT, self::HOOK_PURGE, self::HOOK_FLOW_WAKE, self::HOOK_LAUNCH_CAMPAIGN ) as $hook ) {
 			as_unschedule_all_actions( $hook, array(), self::GROUP );
 		}
 	}
@@ -137,6 +143,47 @@ class AutomationRunner {
 		if ( ! as_has_scheduled_action( self::HOOK_DAILY, array(), self::GROUP ) ) {
 			self::schedule_daily();
 			Logger::info( 'Re-scheduled the daily messaging automation job (it was missing).' );
+		}
+	}
+
+	/**
+	 * Sends a scheduled email at its time. The argument key must stay
+	 * `campaign_id`, matching Campaigns::run_scheduled()'s parameter name
+	 * (see run_deliver()'s docblock on named arguments).
+	 */
+	public static function schedule_launch( string $campaign_id, int $send_at ): void {
+		if ( ! self::as_available() ) {
+			return;
+		}
+
+		self::unschedule_launch( $campaign_id );
+		as_schedule_single_action( $send_at, self::HOOK_LAUNCH_CAMPAIGN, array( 'campaign_id' => $campaign_id ), self::GROUP );
+	}
+
+	public static function unschedule_launch( string $campaign_id ): void {
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( self::HOOK_LAUNCH_CAMPAIGN, array( 'campaign_id' => $campaign_id ), self::GROUP );
+		}
+	}
+
+	/**
+	 * WP-Cron only runs when someone visits the site, so a scheduled email
+	 * can be late on a quiet or fully cached site. At most every five
+	 * minutes, any scheduled email more than five minutes overdue whose
+	 * action has gone missing is queued to send now.
+	 */
+	public static function catch_up_scheduled(): void {
+		if ( ! self::as_available() || get_transient( self::CATCH_UP_TRANSIENT ) ) {
+			return;
+		}
+
+		set_transient( self::CATCH_UP_TRANSIENT, 1, 5 * MINUTE_IN_SECONDS );
+
+		foreach ( Campaigns::overdue( time() ) as $campaign_id ) {
+			if ( ! as_has_scheduled_action( self::HOOK_LAUNCH_CAMPAIGN, array( 'campaign_id' => $campaign_id ), self::GROUP ) ) {
+				as_schedule_single_action( time(), self::HOOK_LAUNCH_CAMPAIGN, array( 'campaign_id' => $campaign_id ), self::GROUP );
+				Logger::info( sprintf( 'Scheduled email %s was overdue; queued to send now.', $campaign_id ) );
+			}
 		}
 	}
 

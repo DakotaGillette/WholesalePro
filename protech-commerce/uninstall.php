@@ -99,6 +99,7 @@ $protech_option_keys = array(
 
 delete_transient( 'protech_wholesale_upgrading' );
 delete_transient( 'protech_wholesale_as_selfheal' ); // AutomationRunner::SELF_HEAL_TRANSIENT.
+delete_transient( 'protech_wholesale_scheduled_catchup' ); // AutomationRunner::CATCH_UP_TRANSIENT (3.10.0).
 
 foreach ( $protech_option_keys as $protech_option_key ) {
 	delete_option( $protech_option_key );
@@ -137,6 +138,7 @@ if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			'protech_wholesale_sync_contact',
 			'protech_wholesale_purge_messages',
 			'protech_wholesale_flow_wake',
+			'protech_wholesale_launch_campaign',
 		) as $protech_as_hook
 	) {
 		as_unschedule_all_actions( $protech_as_hook, array(), 'protech-wholesale' );

@@ -133,7 +133,7 @@ class MessageTransport {
 	 * A typed subject beats the template's own; a template that has since been
 	 * deleted falls back to the typed body, or fails the message with a reason.
 	 *
-	 * @param array<string, mixed> $email `subject`, `heading`, `body` and optionally `template_id`.
+	 * @param array<string, mixed> $email `subject`, `heading`, `body` and optionally `template_id`, `design`, `sender`.
 	 * @param string[]             $tags
 	 * @param bool                 $preview Fills merge tags from the sender's own account and shows wholesale-only blocks.
 	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
@@ -144,11 +144,13 @@ class MessageTransport {
 		}
 
 		$template = self::template_for( $email );
+		// Who an email you send yourself comes from, when it names its own sender (3.10.0).
+		$sender = is_array( $email['sender'] ?? null ) ? $email['sender'] : array();
 
 		if ( null !== $template ) {
 			$context = EmailRenderer::context( $user_id, $preview );
 
-			return self::send_template_email( $user_id, $to, EmailRenderer::subject( $template, $context ), $template, $context, $category, $tags );
+			return self::send_template_email( $user_id, $to, EmailRenderer::subject( $template, $context ), $template, $context, $category, $tags, $sender );
 		}
 
 		$context = MergeTags::context_for_customer( $user_id, $order );
@@ -156,7 +158,7 @@ class MessageTransport {
 		$heading = MergeTags::render( (string) ( $email['heading'] ?? '' ), $context, 'subject' );
 		$body    = MergeTags::render( (string) ( $email['body'] ?? '' ), $context, 'html' );
 
-		return self::send_email( $user_id, $to, $subject, $heading, $body, $category, $tags );
+		return self::send_email( $user_id, $to, $subject, $heading, $body, $category, $tags, $sender );
 	}
 
 	/**
@@ -235,9 +237,10 @@ class MessageTransport {
 
 	/**
 	 * @param string[] $tags
+	 * @param array<string, mixed> $sender `from_name`, `from_email`, `reply_to` for this email only (3.10.0); empty uses Settings.
 	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
 	 */
-	public static function send_email( int $user_id, string $to, string $subject, string $heading, string $body_html, string $category, array $tags = array() ): array {
+	public static function send_email( int $user_id, string $to, string $subject, string $heading, string $body_html, string $category, array $tags = array(), array $sender = array() ): array {
 		if ( ! is_email( $to ) ) {
 			return self::result( 'failed', '', '', $to, $subject, __( 'Not a valid email address.', 'protech-wholesale' ), 'invalid_email', false );
 		}
@@ -248,7 +251,7 @@ class MessageTransport {
 
 		$document = self::legacy_document( $user_id, $heading, $body_html, $category );
 
-		return self::dispatch( $to, $subject, $document['html'], $document['text'], $tags );
+		return self::dispatch( $to, $subject, $document['html'], $document['text'], $tags, $sender );
 	}
 
 	/**
@@ -257,9 +260,10 @@ class MessageTransport {
 	 * @param array<string, mixed> $template
 	 * @param array<string, mixed> $context  From EmailRenderer::context().
 	 * @param string[]             $tags
+	 * @param array<string, mixed> $sender   `from_name`, `from_email`, `reply_to` for this email only (3.10.0); empty uses Settings.
 	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
 	 */
-	public static function send_template_email( int $user_id, string $to, string $subject, array $template, array $context, string $category, array $tags = array() ): array {
+	public static function send_template_email( int $user_id, string $to, string $subject, array $template, array $context, string $category, array $tags = array(), array $sender = array() ): array {
 		if ( ! is_email( $to ) ) {
 			return self::result( 'failed', '', '', $to, $subject, __( 'Not a valid email address.', 'protech-wholesale' ), 'invalid_email', false );
 		}
@@ -270,7 +274,7 @@ class MessageTransport {
 
 		$document = self::template_document( $user_id, $template, $context, $category );
 
-		return self::dispatch( $to, $subject, $document['html'], $document['text'], $tags );
+		return self::dispatch( $to, $subject, $document['html'], $document['text'], $tags, $sender );
 	}
 
 	/**
@@ -291,11 +295,12 @@ class MessageTransport {
 	 * wrappers or footers: everything upstream has already been decided.
 	 *
 	 * @param string[] $tags
+	 * @param array<string, mixed> $sender `from_name`, `from_email`, `reply_to` for this email only (3.10.0); empty uses Settings.
 	 * @return array{status: string, provider: string, provider_id: string, recipient: string, subject: string, error: string, reason: string, retryable: bool}
 	 */
-	public static function dispatch( string $to, string $subject, string $html, string $text, array $tags = array() ): array {
+	public static function dispatch( string $to, string $subject, string $html, string $text, array $tags = array(), array $sender = array() ): array {
 		$provider = MessageProviders::email();
-		$reply_to = MessagingSettings::reply_to();
+		$reply_to = sanitize_email( (string) ( $sender['reply_to'] ?? '' ) ) ?: MessagingSettings::reply_to();
 
 		$message = array(
 			'to'      => $to,
@@ -307,6 +312,15 @@ class MessageTransport {
 
 		if ( '' !== $reply_to ) {
 			$message['reply_to'] = $reply_to;
+		}
+
+		// An email that names its own sender; the provider falls back to the Settings one otherwise.
+		if ( '' !== trim( (string) ( $sender['from_name'] ?? '' ) ) ) {
+			$message['from_name'] = trim( (string) $sender['from_name'] );
+		}
+
+		if ( is_email( (string) ( $sender['from_email'] ?? '' ) ) ) {
+			$message['from_email'] = (string) $sender['from_email'];
 		}
 
 		$result = $provider->send_email( $message );

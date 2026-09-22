@@ -178,6 +178,95 @@ class Test_Email_Designs extends WP_UnitTestCase {
 		$this->assertSame( 'template_missing', $result['reason'] );
 	}
 
+	// -----------------------------------------------------------------
+	// 3.10.0: scheduling and the per-email sender.
+	// -----------------------------------------------------------------
+
+	public function test_scheduling_needs_a_future_time_and_a_valid_email(): void {
+		$email = $this->draft();
+
+		$this->assertFalse( Campaigns::schedule( $email['id'], time() + 10 )['ok'], 'Less than a minute ahead is refused.' );
+
+		$no_subject = $this->draft( '' );
+		$this->assertFalse( Campaigns::schedule( $no_subject['id'], time() + HOUR_IN_SECONDS )['ok'], 'Problems show when scheduling, not at send time.' );
+
+		$this->assertTrue( Campaigns::schedule( $email['id'], time() + HOUR_IN_SECONDS )['ok'] );
+
+		$scheduled = Campaigns::get( $email['id'] );
+		$this->assertSame( Campaigns::STATUS_SCHEDULED, Campaigns::status( $scheduled ) );
+		$this->assertFalse( Campaigns::delete_draft( $email['id'] ), 'A scheduled email is not a draft.' );
+		$this->assertFalse( Campaigns::send_now( $email['id'] )['ok'] );
+		$this->assertContains( $email['id'], array_column( Campaigns::by_status( Campaigns::STATUS_SCHEDULED ), 'id' ) );
+	}
+
+	public function test_the_scheduled_time_sends_it_once_and_never_after_unscheduling(): void {
+		$email = $this->draft();
+
+		Campaigns::schedule( $email['id'], time() + HOUR_IN_SECONDS );
+		Campaigns::run_scheduled( $email['id'] );
+
+		$this->assertSame( Campaigns::STATUS_SENT, Campaigns::status( Campaigns::get( $email['id'] ) ) );
+
+		$sent_at = Campaigns::get( $email['id'] )['sent_at'];
+		Campaigns::run_scheduled( $email['id'] );
+		$this->assertSame( $sent_at, Campaigns::get( $email['id'] )['sent_at'], 'A second run does nothing.' );
+
+		$other = $this->draft();
+		Campaigns::schedule( $other['id'], time() + HOUR_IN_SECONDS );
+		$this->assertTrue( Campaigns::unschedule( $other['id'] ) );
+		Campaigns::run_scheduled( $other['id'] );
+
+		$this->assertSame( Campaigns::STATUS_DRAFT, Campaigns::status( Campaigns::get( $other['id'] ) ) );
+	}
+
+	public function test_a_scheduled_email_that_broke_meanwhile_comes_back_as_a_draft_with_the_reason(): void {
+		$email = $this->draft();
+
+		Campaigns::schedule( $email['id'], time() + HOUR_IN_SECONDS );
+		EmailDesigns::delete( $email['id'] );
+		Campaigns::run_scheduled( $email['id'] );
+
+		$back = Campaigns::get( $email['id'] );
+		$this->assertSame( Campaigns::STATUS_DRAFT, Campaigns::status( $back ) );
+		$this->assertNotSame( '', $back['last_error'] );
+	}
+
+	public function test_overdue_lists_only_scheduled_emails_well_past_their_time(): void {
+		$email = $this->draft();
+		Campaigns::schedule( $email['id'], time() + HOUR_IN_SECONDS );
+
+		$this->assertSame( array(), Campaigns::overdue( time() ) );
+		$this->assertSame( array( $email['id'] ), Campaigns::overdue( time() + 2 * HOUR_IN_SECONDS ) );
+	}
+
+	public function test_a_sender_must_be_on_the_settings_domain(): void {
+		$domain = substr( (string) strrchr( \ProtechWholesale\MessagingSettings::from_email(), '@' ), 1 );
+		$email  = $this->draft();
+
+		$ok = Campaigns::apply_options( $email, array( 'sender' => array( 'from_name' => 'Spring team', 'from_email' => 'spring@' . $domain, 'reply_to' => 'anyone@elsewhere.test' ) ) );
+		$this->assertSame( array(), Campaigns::validate_sender( $ok ) );
+
+		$bad = Campaigns::apply_options( $email, array( 'sender' => array( 'from_email' => 'someone@not-' . $domain ) ) );
+		$this->assertNotEmpty( Campaigns::validate_sender( $bad ) );
+	}
+
+	public function test_an_emails_own_sender_and_reply_to_reach_the_sent_mail(): void {
+		$domain  = substr( (string) strrchr( \ProtechWholesale\MessagingSettings::from_email(), '@' ), 1 );
+		$user_id = Protech_Test_Factory::wholesale_customer();
+		$email   = $this->draft();
+
+		Campaigns::save_draft( Campaigns::apply_options( $email, array( 'sender' => array( 'from_name' => 'Spring team', 'from_email' => 'spring@' . $domain, 'reply_to' => 'replies@elsewhere.test' ) ) ) );
+
+		$content = Automations::content_for( 'campaign:' . $email['id'] );
+		$result  = MessageTransport::send_content_email( $user_id, 'buyer@example.com', $content['email'], MessageLog::CATEGORY_MARKETING );
+		$header  = tests_retrieve_phpmailer_instance()->get_sent()->header;
+
+		$this->assertSame( 'sent', $result['status'] );
+		$this->assertStringContainsString( 'spring@' . $domain, $header );
+		$this->assertStringContainsString( 'Spring team', $header );
+		$this->assertStringContainsString( 'replies@elsewhere.test', $header );
+	}
+
 	public function test_a_copy_of_an_older_email_uses_the_library_template_it_pointed_at(): void {
 		$template_id = EmailTemplates::save(
 			EmailTemplates::validate(

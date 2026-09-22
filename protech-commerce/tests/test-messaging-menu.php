@@ -247,6 +247,7 @@ class Test_Messaging_Menu extends WP_UnitTestCase {
 			'protech_test_brevo_connection',
 			'protech_duplicate_email',
 			'protech_delete_email_draft',
+			'protech_unschedule_email',
 		);
 
 		foreach ( $actions as $action ) {
