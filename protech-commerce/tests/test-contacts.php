@@ -150,11 +150,13 @@ class Test_Contacts extends WP_UnitTestCase {
 		self::factory()->user->create( array( 'user_email' => 'pending@example.com', 'role' => Roles::PENDING ) );
 		self::factory()->user->create( array( 'user_email' => 'admin@example.com', 'role' => 'administrator' ) );
 
-		// The user_register hook already synced the three customer-ish accounts live, the
-		// moment they were created. Remove those rows to stand in for accounts that existed
-		// before this plugin ever had a contacts feature, which is what backfill() is for.
+		// The user_register hook already synced all four accounts live, the moment they were
+		// created (sync-on-creation intentionally covers every new account, not only a
+		// customer-ish one). Remove those rows to stand in for accounts that existed before
+		// this plugin ever had a contacts feature, which is what backfill() itself is for, and
+		// to isolate backfill()'s own role restriction from that unrelated, already-tested path.
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Contacts::table() . ' WHERE email IN (%s,%s,%s)', 'retail@example.com', 'wholesale@example.com', 'pending@example.com' ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Contacts::table() . ' WHERE email IN (%s,%s,%s,%s)', 'retail@example.com', 'wholesale@example.com', 'pending@example.com', 'admin@example.com' ) );
 
 		$created = Contacts::backfill();
 
