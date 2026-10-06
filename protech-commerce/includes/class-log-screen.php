@@ -97,7 +97,7 @@ class LogScreen {
 		foreach ( $result['rows'] as $row ) {
 			$user = get_userdata( (int) $row['user_id'] );
 			echo '<tr>';
-			echo '<td>' . esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (string) $row['created_at'] ) ) . '</td>';
+			echo '<td>' . esc_html( get_date_from_gmt( (string) $row['created_at'], get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ) . '</td>';
 			echo '<td>' . esc_html( $user ? $user->display_name : ( '#' . $row['user_id'] ) ) . '</td>';
 			echo '<td>' . esc_html( ucfirst( (string) $row['channel'] ) ) . '</td>';
 			echo '<td>' . esc_html( (string) $row['rule_id'] ) . '</td>';

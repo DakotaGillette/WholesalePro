@@ -3,6 +3,15 @@
 All notable changes to the Protech Commerce plugin (called Protech Wholesale before 2.0.0). Dates are the day the
 change landed on staging.
 
+## 3.10.1 - 2026-10-05
+
+### Fixed
+- The tier bar read "1 displays (0.1 cases)" for one display. It now reads "1 display
+  (0.125 cases)": counts take the singular at one, and case fractions keep three decimals,
+  since one display is an eighth of a case.
+- Messaging, Log showed each message's time in UTC (5:48 pm for a 12:48 pm send in
+  Chicago). It now shows the site's own time zone, like the rest of wp-admin.
+
 ## 3.10.0 - 2026-09-22
 
 ### Added

@@ -252,4 +252,10 @@ class Test_Volume_Pricing extends WP_UnitTestCase {
 		$this->assertStringContainsString( '4.00', $discounted['volume_price_html'] );
 		$this->assertStringContainsString( '3.60', $discounted['bulk_price_html'] );
 	}
+
+	public function test_one_display_is_an_eighth_of_a_case_not_a_tenth(): void {
+		$this->assertSame( '0.125', VolumePricing::format_quantity( 1 / 8 ) );
+		$this->assertSame( '2.5', VolumePricing::format_quantity( 2.5 ) );
+		$this->assertSame( '16', VolumePricing::format_quantity( 16.0 ) );
+	}
 }

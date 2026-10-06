@@ -296,10 +296,12 @@ class VolumePricing {
 		$message_html = sprintf( esc_html( $template ), '<strong>' . esc_html( $remaining ) . '</strong>' );
 
 		$stats = sprintf(
-			/* translators: 1: number of displays, 2: number of cases. */
-			__( '%1$s displays (%2$s cases)', 'protech-wholesale' ),
-			self::format_quantity( $totals['displays'] ),
-			self::format_quantity( $totals['cases'] )
+			/* translators: 1: "1 display" or "3 displays", 2: "1 case" or "0.5 cases". */
+			__( '%1$s (%2$s)', 'protech-wholesale' ),
+			/* translators: %s: number of displays. */
+			sprintf( 1.0 === round( $totals['displays'], 3 ) ? __( '%s display', 'protech-wholesale' ) : __( '%s displays', 'protech-wholesale' ), self::format_quantity( $totals['displays'] ) ),
+			/* translators: %s: number of cases. */
+			sprintf( 1.0 === round( $totals['cases'], 3 ) ? __( '%s case', 'protech-wholesale' ) : __( '%s cases', 'protech-wholesale' ), self::format_quantity( $totals['cases'] ) )
 		);
 
 		$savings  = self::get_savings_for_items( $items, $user_id, $tier );
@@ -391,11 +393,11 @@ class VolumePricing {
 		return wp_strip_all_tags( wc_price( $amount ) );
 	}
 
-	/** "3" for a whole number, "3.5" for a fraction. */
+	/** "3" for a whole number, "3.5" or "0.125" for a fraction (one display is an eighth of a case). */
 	public static function format_quantity( float $value ): string {
-		$rounded = round( $value, 2 );
+		$rounded = round( $value, 3 );
 
-		return ( 0.0 === fmod( $rounded, 1.0 ) ) ? (string) (int) round( $rounded ) : number_format( $rounded, 1 );
+		return ( 0.0 === fmod( $rounded, 1.0 ) ) ? (string) (int) round( $rounded ) : rtrim( rtrim( number_format( $rounded, 3 ), '0' ), '.' );
 	}
 
 	/**
